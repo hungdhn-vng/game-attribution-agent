@@ -10,8 +10,9 @@ SYSTEM = (
     "updates, segments, monetization) from MARKET causes (genre-wide trends, seasonality, "
     "competitors). Present scenarios, never prescribe decisions. Ground every claim in the "
     "provided evidence ids; if evidence is thin, say so in assumptions_and_gaps. "
-    "Return JSON with keys: main_story, causes{internal[],market[]}, scenarios[], risks[], "
-    "assumptions_and_gaps[]. Each cause/scenario item has claim/description, evidence_ids[], "
+    "Return JSON with keys: main_story, rationale, causes{internal[],market[]}, scenarios[], "
+    "risks[], assumptions_and_gaps[]. rationale is a 1-2 sentence explanation of your reasoning. "
+    "Each cause/scenario item has claim/description, evidence_ids[], "
     "and likelihood in {Very likely,Likely,Possible,Unlikely}. Do NOT output evidence_quality. "
     "assumptions_and_gaps is an array of plain strings (one short sentence each), NOT objects."
 )
@@ -103,6 +104,7 @@ class Synthesizer:
 
         return AttributionHypothesis(
             main_story=raw.get("main_story", ""),
+            rationale=raw.get("rationale", ""),
             confidence=Confidence(likelihood=headline_lk, evidence_quality=headline_eq),
             causes=Causes(internal=internal, market=market),
             scenarios=scenarios, risks=risks,

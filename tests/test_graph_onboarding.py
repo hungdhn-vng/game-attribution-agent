@@ -1,22 +1,50 @@
-from langgraph.checkpoint.memory import MemorySaver
+"""Onboarding propose/confirm tests for GraphAgent — unchanged behaviour."""
+import os
+
 from gaa.graph import GraphAgent
-from gaa.engine import AttributionEngine
+from gaa.jobs.job_store import JobStore
+from gaa.jobs.pipeline import AnalysisPipeline
 from gaa.llm.client import FakeLLM
 from gaa.sources.fixtures import FixtureBenchmarkSource, FixtureSignalsSource
+from gaa.sources.crawling_benchmark import CrawlingBenchmarkSource
 from gaa.store.profile_store import ProfileStore
 from gaa.store.metrics_store import MetricsStore
+from gaa.store.benchmark_store import BenchmarkStore
+from gaa.crawl.refresher import BenchmarkRefresher
 from gaa.onboarding.profiler import Profiler
+from gaa.synth.synthesizer import Synthesizer
 
 
 def _agent(tmp_path):
+    tmp = str(tmp_path)
     llm = FakeLLM({"date_col": "Date", "metric_cols": {"DAU": "dau"},
                    "dim_cols": {"Country": "region"}})
-    engine = AttributionEngine(llm, FixtureBenchmarkSource({}), FixtureSignalsSource([]))
-    return GraphAgent(engine=engine,
-                      profile_store=ProfileStore(str(tmp_path / "p.sqlite")),
-                      metrics_store=MetricsStore(str(tmp_path / "m")),
-                      benchmark=FixtureBenchmarkSource({}), profiler=Profiler(llm),
-                      checkpointer=MemorySaver())
+    bstore = BenchmarkStore(os.path.join(tmp, "bench.db"))
+    benchmark = CrawlingBenchmarkSource(bstore)
+    refresher = BenchmarkRefresher(bstore, providers_by_platform={}, web_provider=None)
+    synth_llm = FakeLLM({"main_story": "", "causes": {"internal": [], "market": []},
+                          "scenarios": [], "risks": [], "assumptions_and_gaps": []})
+    synth = Synthesizer(synth_llm)
+    ps = ProfileStore(os.path.join(tmp, "p.sqlite"))
+    ms = MetricsStore(os.path.join(tmp, "m"))
+    pipeline = AnalysisPipeline(
+        profiles=ps,
+        metrics_store=ms,
+        benchmark=benchmark,
+        refresher=refresher,
+        synth=synth,
+        signals=FixtureSignalsSource([]),
+        n_samples=1,
+    )
+    jobs = JobStore(os.path.join(tmp, "jobs.db"))
+    return GraphAgent(
+        jobs=jobs,
+        pipeline=pipeline,
+        profile_store=ps,
+        metrics_store=ms,
+        benchmark=benchmark,
+        profiler=Profiler(llm),
+    )
 
 
 def test_onboard_propose_then_confirm(tmp_path):

@@ -86,3 +86,26 @@ def test_tolerates_llm_key_variations():
     assert h.scenarios[0].signals_to_watch == ["watch this"]
     assert [r.description for r in h.risks] == ["risk via text"]
     assert h.assumptions_and_gaps == ["plain string", "from text key"]  # dicts coerced, junk dropped
+
+
+def test_rationale_present_when_provided():
+    """A preset including 'rationale' should set h.rationale to that value."""
+    preset = {
+        "main_story": "Mostly internal.",
+        "rationale": "because X",
+        "causes": {"internal": [], "market": []},
+        "scenarios": [], "risks": [], "assumptions_and_gaps": [],
+    }
+    h = Synthesizer(FakeLLM(preset)).synthesize(_ledger(), "q")
+    assert h.rationale == "because X"
+
+
+def test_rationale_defaults_to_empty_when_absent():
+    """Backward compat: a preset WITHOUT rationale should give h.rationale == ''."""
+    preset = {
+        "main_story": "Mostly internal.",
+        "causes": {"internal": [], "market": []},
+        "scenarios": [], "risks": [], "assumptions_and_gaps": [],
+    }
+    h = Synthesizer(FakeLLM(preset)).synthesize(_ledger(), "q")
+    assert h.rationale == ""

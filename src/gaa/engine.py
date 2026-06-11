@@ -13,6 +13,7 @@ from gaa.modules.competitor_signals import CompetitorSignals
 from gaa.synth.synthesizer import Synthesizer
 from gaa.synth.validator import validate_citations
 from gaa.synth.gate import apply_gate
+from gaa.synth.concurrent import sample_concurrently
 from gaa.orchestrator.planner import parse_query
 from gaa.llm.client import LLM
 from gaa.sources.base import BenchmarkSource, SignalsSource
@@ -44,8 +45,10 @@ class AttributionEngine:
         SegmentDecomposition().run(ctx, ledger)
         MarketBenchmark(self._benchmark).run(ctx, ledger)
         CompetitorSignals(self._signals).run(ctx, ledger)
-        # self-consistency: sample N times, gate, then enforce citations
-        samples = [self._synth.synthesize(ledger, query) for _ in range(self._n)]
+        # self-consistency: sample N times concurrently, gate, then enforce citations
+        samples = sample_concurrently(self._synth, ledger, query, self._n)
+        if not samples:
+            samples = [self._synth.synthesize(ledger, query)]
         hyp = apply_gate(samples[0], samples)
         hyp = validate_citations(hyp, ledger)
         return hyp, ctx

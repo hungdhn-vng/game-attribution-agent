@@ -26,6 +26,15 @@ class MarketBenchmark:
             ledger.add(module=self.name, claim="no genre benchmark available for this window",
                        value="n/a", source="benchmark", source_type="derived",
                        strength="low", timeframe=f"{ctx.start}..{ctx.end}")
+            # Try qualitative context if the source exposes it
+            ctx_q = getattr(self._source, "qualitative_context", lambda *_: None)(ctx.profile.genre)
+            if ctx_q:
+                cite = ctx_q.get("citations") or []
+                ledger.add(module=self.name,
+                    claim=f"market context: genre trending {ctx_q.get('direction','?')} — {ctx_q.get('summary','')}",
+                    value=ctx_q.get("direction","?"),
+                    source=(cite[0].get("url") if cite else "web-search"),
+                    source_type="external", strength="low", timeframe=f"{ctx.start}..{ctx.end}")
             return
 
         control = pd.Series({pd.Timestamp(d): v for d, v in trend.items()}).sort_index()
