@@ -32,3 +32,20 @@ def test_onboard_propose_then_confirm(tmp_path):
                       "mapping": {"date_col": "Date", "metric_cols": {"DAU": "dau"}, "dim_cols": {}}},
                      session_id="s", user_id="u")
     assert c["mode"] == "setup" and c["row_count"] == 6
+
+
+def test_onboard_via_inline_csv_data(tmp_path):
+    # Browser upload path: the payload carries raw CSV text (csv_data) instead of a
+    # server-side csv_path, so any team can onboard their own file with no file on the box.
+    agent = _agent(tmp_path)
+    csv = "Date,DAU,Country\n2026-05-01,100,SEA\n2026-05-02,90,SEA\n"
+
+    p = agent.handle({"action": "onboard_propose", "adapter": "csv", "csv_data": csv},
+                     session_id="s", user_id="u")
+    assert p["mode"] == "setup" and p["mapping"]["date_col"] == "Date"
+
+    c = agent.handle({"action": "onboard_confirm", "name": "Inline", "platform": "custom",
+                      "genre": "survival", "adapter": "csv", "csv_data": csv,
+                      "mapping": {"date_col": "Date", "metric_cols": {"DAU": "dau"}, "dim_cols": {}}},
+                     session_id="s", user_id="u")
+    assert c["mode"] == "setup" and c["row_count"] == 2

@@ -1,3 +1,4 @@
+import io
 from typing import Annotated, TypedDict
 import pandas as pd
 from langgraph.graph import StateGraph, START, END
@@ -73,8 +74,19 @@ class GraphAgent:
         return g.compile(checkpointer=checkpointer)
 
     # ---- onboarding actions (payload-driven, no free-text parsing) ----
+    @staticmethod
+    def _load_raw(payload: dict, nrows: int | None = None) -> pd.DataFrame:
+        """Read the source table from inline `csv_data` (browser upload) or a server-side
+        `csv_path`. The adapters accept a DataFrame directly, so either source works.
+        Pass `nrows` to read only the first rows — used for column-mapping so proposal
+        stays fast regardless of how large the uploaded file is."""
+        data = payload.get("csv_data")
+        if data is not None:
+            return pd.read_csv(io.StringIO(data), nrows=nrows)
+        return pd.read_csv(payload["csv_path"], nrows=nrows)
+
     def _onboard_propose(self, payload: dict) -> dict:
-        sample = pd.read_csv(payload["csv_path"]).head(20)
+        sample = self._load_raw(payload, nrows=20)
         mapping = self._profiler.propose(sample)
         return {"mode": "setup", "mapping": mapping.model_dump(),
                 "message": self._profiler.confirmation_message(mapping)}
@@ -82,7 +94,7 @@ class GraphAgent:
     def _onboard_confirm(self, payload: dict) -> dict:
         mapping = ColumnMapping(**payload["mapping"])
         adapter = RobloxAdapter() if payload["adapter"] == "roblox" else CSVAdapter()
-        df = adapter.load(payload["csv_path"], mapping)
+        df = adapter.load(self._load_raw(payload), mapping)
         self._metrics.save(payload["name"], df)
         self._profiles.save(GameProfile(name=payload["name"], platform=payload["platform"],
                                         genre=payload["genre"], mapping=mapping))
