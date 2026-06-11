@@ -20,4 +20,7 @@ def validate_canonical(df: pd.DataFrame) -> pd.DataFrame:
     for dim in CANONICAL_DIMS:
         if dim not in out.columns:
             out[dim] = None
+        else:
+            # dims are categorical labels → strings (keep null as None so "3.10" != "3.1")
+            out[dim] = out[dim].map(lambda x: str(x) if pd.notna(x) else None)
     return out[ALL_COLUMNS]
