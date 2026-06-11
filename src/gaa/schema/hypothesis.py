@@ -36,3 +36,4 @@ class AttributionHypothesis(BaseModel):
     risks: list[Risk] = []
     evidence: list[LedgerEntry] = []
     assumptions_and_gaps: list[str] = []
+    rationale: str = ""

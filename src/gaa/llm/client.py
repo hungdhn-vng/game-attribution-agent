@@ -35,7 +35,7 @@ class LangChainMaaSLLM:
         # to vLLM's chat_template_kwargs.
         self._llm = ChatOpenAI(model=s.llm_model, base_url=s.llm_base_url,
                                api_key=s.llm_api_key, temperature=0,
-                               max_tokens=int(os.environ.get("GAA_MAX_TOKENS", "1536")),
+                               max_tokens=int(os.environ.get("GAA_MAX_TOKENS", "4096")),
                                extra_body={"chat_template_kwargs": {"enable_thinking": False}})
 
     def complete_json(self, system: str, user: str) -> dict:
