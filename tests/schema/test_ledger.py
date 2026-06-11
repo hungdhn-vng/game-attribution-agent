@@ -18,3 +18,30 @@ def test_by_ids():
     led.add(module="m", claim="c", value="v", source="s",
             source_type="derived", strength="low")
     assert [e.id for e in led.by_ids(["L1", "Lx"])] == ["L1"]
+
+
+def test_load_restores_entries_and_continues_sequence():
+    """load() restores persisted entries; subsequent add() gets the next id."""
+    led = EvidenceLedger()
+    # Simulate two entries that were previously persisted
+    persisted = [
+        {"id": "L1", "module": "anomaly", "claim": "dau fell", "value": "-0.25",
+         "source": "internal:dau", "source_type": "internal", "strength": "high",
+         "timeframe": "2026-05"},
+        {"id": "L2", "module": "market", "claim": "genre flat", "value": "-0.03",
+         "source": "romonitor", "source_type": "external", "strength": "med",
+         "timeframe": None},
+    ]
+    led.load(persisted)
+
+    entries = led.all()
+    assert len(entries) == 2
+    assert entries[0].id == "L1"
+    assert entries[0].claim == "dau fell"
+    assert entries[1].id == "L2"
+
+    # add() must continue from L3
+    new_id = led.add(module="segment", claim="region=US drove it", value="ep=0.7",
+                     source="internal:segment", source_type="internal", strength="high")
+    assert new_id == "L3"
+    assert len(led.all()) == 3

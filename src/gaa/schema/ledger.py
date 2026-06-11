@@ -38,3 +38,12 @@ class EvidenceLedger:
 
     def all(self) -> list[LedgerEntry]:
         return list(self._entries)
+
+    def load(self, entries: list[dict]) -> None:
+        """Replace internal entries from persisted dicts (ids intact).
+
+        Subsequent :meth:`add` calls will continue the L{n} sequence from
+        ``len(entries) + 1``, so round-tripping through
+        ``[e.model_dump() for e in ledger.all()]`` and back is lossless.
+        """
+        self._entries = [LedgerEntry(**e) for e in entries]
