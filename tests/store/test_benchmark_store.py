@@ -1,5 +1,4 @@
 """Tests for gaa.store.benchmark_store.BenchmarkStore."""
-import time
 import pytest
 from gaa.store.benchmark_store import BenchmarkStore
 
@@ -44,6 +43,15 @@ def test_put_quant_upserts(store):
     store.put_quant("steam", "rpg", raw2)
     result = store.get_quant("steam", "rpg")
     assert result["raw"] == raw2
+
+
+def test_put_quant_meta_raw_collision_real_raw_wins(store):
+    """meta containing 'raw' must NOT overwrite the series data."""
+    real_raw = {"2024-01-01": 42.0}
+    store.put_quant("steam", "action", real_raw, meta={"raw": "BOGUS"})
+    result = store.get_quant("steam", "action")
+    assert result is not None
+    assert result["raw"] == real_raw
 
 
 # ── qual round-trip ───────────────────────────────────────────────────────────

@@ -76,7 +76,7 @@ class BenchmarkStore:
         meta: Optional[dict] = None,
     ) -> None:
         """Upsert a quantitative benchmark payload."""
-        payload = {"raw": raw, **(meta or {})}
+        payload = {**(meta or {}), "raw": raw}
         self._put(platform, genre, "quant", payload)
 
     def get_quant(self, platform: str, genre: str) -> Optional[dict]:
