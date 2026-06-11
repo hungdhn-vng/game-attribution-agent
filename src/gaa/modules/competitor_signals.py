@@ -14,7 +14,14 @@ class CompetitorSignals:
     def run(self, ctx: AnalysisContext, ledger: EvidenceLedger) -> None:
         if not (ctx.start and ctx.end):
             return
-        events = self._source.events(ctx.profile.name, ctx.profile.genre, ctx.start, ctx.end)
+        try:
+            events = self._source.events(ctx.profile.name, ctx.profile.genre, ctx.start, ctx.end)
+        except Exception as exc:  # graceful degradation — a failing feed is a data gap, not a crash
+            ledger.add(module=self.name,
+                       claim=f"signal feed unavailable ({type(exc).__name__})",
+                       value="n/a", source="signals", source_type="derived",
+                       strength="low", timeframe=f"{ctx.start}..{ctx.end}")
+            return
         if not events:
             ledger.add(module=self.name,
                        claim="no external competitor/event signals found in window",

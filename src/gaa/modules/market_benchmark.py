@@ -14,7 +14,14 @@ class MarketBenchmark:
     def run(self, ctx: AnalysisContext, ledger: EvidenceLedger) -> None:
         if not (ctx.metric and ctx.start and ctx.end):
             return
-        trend = self._source.genre_trend(ctx.profile.genre, ctx.start, ctx.end)
+        try:
+            trend = self._source.genre_trend(ctx.profile.genre, ctx.start, ctx.end)
+        except Exception as exc:  # graceful degradation — a failing feed is a data gap, not a crash
+            ledger.add(module=self.name,
+                       claim=f"market benchmark unavailable ({type(exc).__name__})",
+                       value="n/a", source="benchmark", source_type="derived",
+                       strength="low", timeframe=f"{ctx.start}..{ctx.end}")
+            return
         if len(trend) < 2:
             ledger.add(module=self.name, claim="no genre benchmark available for this window",
                        value="n/a", source="benchmark", source_type="derived",
