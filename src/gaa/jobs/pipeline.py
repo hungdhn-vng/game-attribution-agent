@@ -22,8 +22,6 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
-import pandas as pd
-
 from gaa.jobs.models import Job
 from gaa.modules.anomaly import AnomalyDetection
 from gaa.modules.base import AnalysisContext
@@ -191,8 +189,13 @@ class AnalysisPipeline:
         state = job.state
         df = self._metrics_store.load(state["profile_name"])
 
-        # Reconstruct profile so AnalysisContext has full profile object
-        profile = self._profiles.get_active()
+        # Reconstruct profile using the name persisted in plan, NOT get_active(),
+        # so that a changed active profile on resume cannot mix profiles.
+        profile = self._profiles.get(state["profile_name"])
+        if profile is None:
+            job.status = "error"
+            job.error = f"profile '{state['profile_name']}' no longer exists"
+            return
 
         ctx = AnalysisContext(
             profile=profile,

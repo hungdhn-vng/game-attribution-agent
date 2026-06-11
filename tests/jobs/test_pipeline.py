@@ -206,6 +206,14 @@ def test_resume_across_polls_reaches_done(tmp_path):
         assert len(job.activity) >= prev_activity_len, "activity must not shrink"
         prev_activity_len = len(job.activity)
 
+        # Stage must have advanced (or job is now done/error) — a buggy advance
+        # that only updates activity but not stage would fail here.
+        if job.status == "running":
+            assert job.stage != prev_stage, (
+                f"stage did not advance after call {call_count}: "
+                f"still at {job.stage!r}"
+            )
+
     assert job.status == "done", (
         f"job did not reach done after {call_count} calls; "
         f"stuck at stage={job.stage!r}, status={job.status!r}, error={job.error!r}"
@@ -246,3 +254,32 @@ def test_no_active_profile_sets_error(tmp_path):
 
     assert job.status == "error"
     assert "no active profile" in (job.error or "").lower()
+
+
+def test_stage_exception_sets_error_does_not_raise(tmp_path):
+    """If a stage raises an exception, advance() catches it, sets status='error'
+    and populates job.error — it must NOT propagate the exception to the caller."""
+    fx = _Fixtures(str(tmp_path))
+
+    # Replace synth with an object whose synthesize() raises to force a synth-stage error.
+    class _BoomSynth:
+        def synthesize(self, ledger, query):
+            raise RuntimeError("synth exploded")
+
+    pipeline = AnalysisPipeline(
+        profiles=fx.profile_store,
+        metrics_store=fx.metrics_store,
+        benchmark=fx.benchmark,
+        refresher=fx.refresher,
+        synth=_BoomSynth(),
+        signals=fx.signals,
+        n_samples=1,
+    )
+    job = fx.make_job()
+
+    # Must not raise
+    pipeline.advance(job, deadline=None)
+
+    assert job.status == "error", f"expected error, got {job.status!r}"
+    assert job.error, "job.error must be populated"
+    assert "synth exploded" in job.error

@@ -23,7 +23,8 @@ class EvidenceLedger:
     def add(self, *, module: str, claim: str, value: str, source: str,
             source_type: SourceType, strength: Strength,
             timeframe: Optional[str] = None) -> str:
-        eid = f"L{len(self._entries) + 1}"
+        next_num = max((int(e.id[1:]) for e in self._entries), default=0) + 1
+        eid = f"L{next_num}"
         self._entries.append(LedgerEntry(
             id=eid, module=module, claim=claim, value=value, source=source,
             source_type=source_type, strength=strength, timeframe=timeframe))
