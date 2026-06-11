@@ -12,6 +12,15 @@ def _pct(s: pd.Series) -> float:
     return (s.iloc[-1] - s.iloc[0]) / abs(s.iloc[0]) if len(s) >= 2 and s.iloc[0] else 0.0
 
 
+def _salience(s: pd.Series) -> float:
+    """How notable a movement is — by statistical significance (|z| vs the series' own
+    variability), NOT raw % change. Raw % change over-selects volatile rate / small-base
+    metrics; z is comparable across metric types. Falls back to |%change| when z is undefined
+    (series too short)."""
+    z = deviation_z(s)
+    return abs(z) if z is not None else abs(_pct(s))
+
+
 class AnomalyDetection:
     name = "anomaly"
 
@@ -22,7 +31,8 @@ class AnomalyDetection:
                        source="internal", source_type="derived", strength="low")
             return
 
-        target = ctx.metric or max(metrics, key=lambda m: abs(_pct(_series(ctx.metrics, m))))
+        # scan mode: surface the most STATISTICALLY ANOMALOUS metric, not the largest % swing
+        target = ctx.metric or max(metrics, key=lambda m: _salience(_series(ctx.metrics, m)))
         ctx.metric = target
         s = _series(ctx.metrics, target)
         change = _pct(s)
@@ -39,6 +49,10 @@ class AnomalyDetection:
         if onset is not None:
             claim += f", breaking around {onset.date()}"
         value = f"{change:+.2%}" + (f" · z={z:+.1f}" if z is not None else "")
-        strength = "high" if abs(change) >= 0.1 or (z is not None and abs(z) >= 3) else "med"
+        # strength reflects significance: a big % move within ~1σ is noise, not high-confidence
+        if z is not None:
+            strength = "high" if abs(z) >= 2 else ("med" if abs(z) >= 1 else "low")
+        else:
+            strength = "high" if abs(change) >= 0.2 else "med"
         ledger.add(module=self.name, claim=claim, value=value, source=f"internal:{target}",
                    source_type="internal", strength=strength, timeframe=f"{ctx.start}..{ctx.end}")
