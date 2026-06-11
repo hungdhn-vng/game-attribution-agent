@@ -12,7 +12,8 @@ SYSTEM = (
     "provided evidence ids; if evidence is thin, say so in assumptions_and_gaps. "
     "Return JSON with keys: main_story, causes{internal[],market[]}, scenarios[], risks[], "
     "assumptions_and_gaps[]. Each cause/scenario item has claim/description, evidence_ids[], "
-    "and likelihood in {Very likely,Likely,Possible,Unlikely}. Do NOT output evidence_quality."
+    "and likelihood in {Very likely,Likely,Possible,Unlikely}. Do NOT output evidence_quality. "
+    "assumptions_and_gaps is an array of plain strings (one short sentence each), NOT objects."
 )
 
 
@@ -46,6 +47,16 @@ class Synthesizer:
     def _watch(item: dict) -> list:
         v = item.get("signals_to_watch") or item.get("signals") or []
         return [v] if isinstance(v, str) else (v if isinstance(v, list) else [])
+
+    @staticmethod
+    def _gap(item) -> str:
+        # Qwen sometimes emits each gap as an object {claim, evidence_ids, likelihood}
+        # instead of a plain string; coerce to the schema's list[str] like every sibling field.
+        if isinstance(item, str):
+            return item.strip()
+        if isinstance(item, dict):
+            return Synthesizer._text(item, "claim", "text", "description", "gap", "assumption", "note")
+        return ""
 
     def _cause(self, ledger, item):
         if not isinstance(item, dict):
@@ -96,5 +107,5 @@ class Synthesizer:
             causes=Causes(internal=internal, market=market),
             scenarios=scenarios, risks=risks,
             evidence=ledger.all(),
-            assumptions_and_gaps=raw.get("assumptions_and_gaps", []),
+            assumptions_and_gaps=[g for g in (self._gap(x) for x in (raw.get("assumptions_and_gaps") or [])) if g],
         )

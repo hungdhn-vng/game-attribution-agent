@@ -35,6 +35,28 @@ def test_computes_evidence_quality_from_citations():
     assert h.main_story == "Mostly internal."
 
 
+def test_coerces_dict_shaped_gaps():
+    """GAA-001: live Qwen emits gaps as {claim, evidence_ids, likelihood} objects, not strings.
+
+    The assembler must coerce them to plain strings (schema is list[str]) instead of crashing.
+    """
+    preset = {
+        "main_story": "Mostly internal.",
+        "causes": {"internal": [], "market": []},
+        "scenarios": [], "risks": [],
+        "assumptions_and_gaps": [
+            {"claim": "evidence is thin for the external-event hypothesis",
+             "evidence_ids": ["L1"], "likelihood": "N/A"},
+            {"claim": "no external UA spend data available",
+             "evidence_ids": [], "likelihood": "N/A"},
+        ],
+    }
+    h = Synthesizer(FakeLLM(preset)).synthesize(_ledger(), "why down?")
+    assert all(isinstance(g, str) and g for g in h.assumptions_and_gaps)
+    assert "evidence is thin" in h.assumptions_and_gaps[0]
+    assert "UA spend" in h.assumptions_and_gaps[1]
+
+
 def test_headline_confidence_present():
     h = Synthesizer(FakeLLM({
         "main_story": "x", "causes": {"internal": [], "market": []},
@@ -52,7 +74,9 @@ def test_tolerates_llm_key_variations():
         "scenarios": [{"scenario": "alt-key scenario", "signals": "watch this"},
                       {"likelihood": "Likely"}],                          # no text → dropped
         "risks": [{"text": "risk via text"}, {"foo": "bar"}],             # second dropped
-        "assumptions_and_gaps": [],
+        "assumptions_and_gaps": ["plain string",
+                                 {"text": "from text key"},
+                                 {"foo": "no text → dropped"}],
     }
     h = Synthesizer(FakeLLM(preset)).synthesize(led, "q")
     assert h.causes.internal[0].claim == "alt-key cause"
@@ -61,3 +85,4 @@ def test_tolerates_llm_key_variations():
     assert [s.description for s in h.scenarios] == ["alt-key scenario"]
     assert h.scenarios[0].signals_to_watch == ["watch this"]
     assert [r.description for r in h.risks] == ["risk via text"]
+    assert h.assumptions_and_gaps == ["plain string", "from text key"]  # dicts coerced, junk dropped
