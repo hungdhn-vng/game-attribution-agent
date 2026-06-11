@@ -49,3 +49,49 @@ def test_records_gap_when_no_benchmark():
     led = EvidenceLedger()
     MarketBenchmark(FixtureBenchmarkSource(genre_index={})).run(_ctx(df, "2026-05-01", "2026-05-02"), led)
     assert any(e.strength == "low" and e.source_type == "derived" for e in led.all())
+
+
+# ---------------------------------------------------------------------------
+# Qualitative tier tests (Task A9a)
+# ---------------------------------------------------------------------------
+
+class _SourceWithQual:
+    """Stub benchmark source: no quant data, but exposes qualitative_context."""
+    def genre_trend(self, genre, start, end):
+        return {}  # empty → triggers gap branch
+
+    def qualitative_context(self, genre):
+        return {
+            "direction": "down",
+            "summary": "Players are churning due to new competitor",
+            "citations": [{"url": "https://example.com/report"}],
+        }
+
+
+def test_qualitative_context_emits_external_low_entry():
+    """When quant data is absent but qualitative_context is available, a 'market context' entry
+    with source_type='external' and strength='low' is added to the ledger."""
+    df = _df([1000, 600], start="2026-05-01")
+    led = EvidenceLedger()
+    MarketBenchmark(_SourceWithQual()).run(_ctx(df, "2026-05-01", "2026-05-02"), led)
+
+    qual_entries = [e for e in led.all()
+                    if e.module == "market" and e.source_type == "external" and e.strength == "low"]
+    assert qual_entries, "expected an external/low market context entry"
+    entry = qual_entries[0]
+    assert "market context" in entry.claim.lower()
+    assert "down" in entry.claim or "down" == entry.value
+    assert entry.source == "https://example.com/report"
+
+
+def test_fixture_source_without_qualitative_context_no_crash():
+    """FixtureBenchmarkSource (no qualitative_context method) must not crash — only the
+    gap entry is emitted (derived/low), no external entry."""
+    df = _df([1000, 600], start="2026-05-01")
+    led = EvidenceLedger()
+    MarketBenchmark(FixtureBenchmarkSource(genre_index={})).run(_ctx(df, "2026-05-01", "2026-05-02"), led)
+
+    # At least one gap entry present
+    assert any(e.source_type == "derived" and e.strength == "low" for e in led.all())
+    # No external entry (source doesn't expose qualitative_context)
+    assert not any(e.source_type == "external" for e in led.all())
