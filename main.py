@@ -34,7 +34,11 @@ _sig_tmpl = os.environ.get("GAA_SIGNALS_URL_TMPL")
 _signals = (WebSignalsSource(cache_dir=_s.cache_dir + "/signals", query_url_tmpl=_sig_tmpl)
             if _sig_tmpl else FixtureSignalsSource([]))
 _agent = GraphAgent(
-    engine=AttributionEngine(_llm, _benchmark, _signals),
+    # n_samples=1 keeps the analyze under the endpoint's request timeout (3 sequential LLM
+    # calls overran it). Set GAA_N_SAMPLES=3 to re-enable the self-consistency gate (ideally
+    # with concurrent sampling). Citation validator + evidence ledger still apply.
+    engine=AttributionEngine(_llm, _benchmark, _signals,
+                             n_samples=int(os.environ.get("GAA_N_SAMPLES", "1"))),
     profile_store=ProfileStore(_s.db_path),
     metrics_store=MetricsStore(_s.cache_dir + "/metrics"),
     benchmark=_benchmark,
