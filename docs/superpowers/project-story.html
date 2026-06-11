@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Attribution Agent — Project Story</title>
+<style>
+  :root{
+    --bg:#0e1116; --card:#171c24; --card2:#1e242e; --ink:#e8edf4; --muted:#9aa7b8;
+    --line:#2a323d; --internal:#3b82f6; --market:#f59e0b; --accent:#22d3ee;
+    --good:#34d399; --warn:#fbbf24; --bad:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.55}
+  a{color:var(--accent)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 80px}
+  header.hero{background:
+    radial-gradient(1200px 400px at 80% -10%, rgba(34,211,238,.18), transparent),
+    radial-gradient(900px 400px at 0% 0%, rgba(59,130,246,.18), transparent),
+    linear-gradient(180deg,#10151c,#0e1116);
+    border-bottom:1px solid var(--line);padding:54px 0 40px;margin-bottom:8px}
+  .hero .wrap{padding-bottom:0}
+  .kicker{letter-spacing:.18em;text-transform:uppercase;font-size:12px;color:var(--accent);font-weight:700}
+  h1{font-size:40px;line-height:1.1;margin:10px 0 6px}
+  .tagline{font-size:20px;color:var(--muted);max-width:760px;margin:0 0 18px}
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .pill{background:var(--card2);border:1px solid var(--line);border-radius:999px;
+    padding:6px 12px;font-size:13px;color:var(--muted)}
+  .pill b{color:var(--ink)}
+  nav.sticky{position:sticky;top:0;z-index:20;background:rgba(14,17,22,.85);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin-bottom:30px}
+  nav.sticky .wrap{display:flex;gap:18px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}
+  nav.sticky a{color:var(--muted);text-decoration:none;font-size:14px;font-weight:600}
+  nav.sticky a:hover{color:var(--ink)}
+  h2{font-size:24px;margin:48px 0 6px;display:flex;align-items:center;gap:10px}
+  h2 .dot{width:10px;height:10px;border-radius:3px;background:var(--accent)}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:820px){.g2,.g3,.g4{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card h3{margin:0 0 6px;font-size:16px}
+  .card p{margin:0;color:var(--muted);font-size:14px}
+  .num{font-size:30px;font-weight:800}
+  .label{color:var(--muted);font-size:13px}
+  .badge{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;
+    border:1px solid var(--line)}
+  .b-int{color:#bcd5ff;background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4)}
+  .b-mkt{color:#ffe0ad;background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.4)}
+  .b-conf{color:#bbf7d0;background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.4)}
+  /* journey */
+  .steps{position:relative;margin-top:8px}
+  .step{display:grid;grid-template-columns:42px 1fr;gap:14px;padding:10px 0;align-items:start}
+  .step .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;
+    background:var(--card2);border:1px solid var(--line);color:var(--accent)}
+  .step h4{margin:0;font-size:15px}
+  .step p{margin:2px 0 0;color:var(--muted);font-size:14px}
+  .step .choice{color:var(--ink);font-weight:600}
+  /* flow diagram */
+  .flow{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .node{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    font-size:13px;min-width:130px;text-align:center}
+  .node small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+  .node.int{border-color:rgba(59,130,246,.5)}
+  .node.mkt{border-color:rgba(245,158,11,.5)}
+  .node.key{border-color:var(--accent);box-shadow:0 0 0 1px rgba(34,211,238,.25)}
+  .arrow{align-self:center;color:var(--muted);font-size:20px;text-align:center}
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  .in{color:var(--good)} .out{color:var(--bad)}
+  /* timeline */
+  .tl{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px}
+  .day{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px}
+  .day b{display:block;color:var(--accent);font-size:13px;margin-bottom:4px}
+  @media(max-width:820px){.tl{grid-template-columns:1fr 1fr}}
+  .mock{background:#0b0e13;border:1px solid var(--line);border-radius:14px;padding:18px}
+  .mock .head{font-size:18px;font-weight:700;margin-bottom:2px}
+  .mock .cause{margin:8px 0;padding-left:12px;border-left:3px solid var(--line)}
+  .mock .cause.int{border-color:var(--internal)}
+  .mock .cause.mkt{border-color:var(--market)}
+  .cite{color:var(--muted);font-size:12px}
+  .gaps{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;
+    padding:10px;margin-top:10px;font-size:13px}
+  svg{width:100%;height:auto;display:block}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  .note{font-size:12px;color:var(--muted);font-style:italic}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">GreenNode Claw-a-thon 2026 · Data Analysis track</div>
+    <h1>Game Attribution Agent</h1>
+    <p class="tagline">An AI analyst that reconstructs the <em>story behind a game's metric movement</em> —
+      separating <span class="badge b-int">internal</span> causes from
+      <span class="badge b-mkt">market</span> ones — with two independent confidence axes and every
+      claim cited. It gives scenarios, never decisions.</p>
+    <div class="pills">
+      <span class="pill"><b>Hero question:</b> "Is it us, or the market?"</span>
+      <span class="pill"><b>Deploy:</b> AgentBase + LangGraph</span>
+      <span class="pill"><b>LLM:</b> GreenNode MaaS</span>
+      <span class="pill"><b>Submit by:</b> 17 Jun 2026, 12:00</span>
+      <span class="pill"><b>Winner:</b> community vote</span>
+    </div>
+  </div>
+</header>
+
+<nav class="sticky"><div class="wrap">
+  <a href="#journey">Decisions</a>
+  <a href="#arch">Architecture</a>
+  <a href="#output">What it outputs</a>
+  <a href="#plans">The plans</a>
+  <a href="#timeline">Timeline</a>
+  <a href="#scope">Scope</a>
+</div></nav>
+
+<div class="wrap">
+
+  <!-- AT A GLANCE -->
+  <div class="grid g4">
+    <div class="card"><div class="num">4</div><div class="label">analysis modules<br>(internal + external)</div></div>
+    <div class="card"><div class="num">2</div><div class="label">confidence axes<br>likelihood × evidence</div></div>
+    <div class="card"><div class="num">4</div><div class="label">implementation plans<br>43 TDD tasks total</div></div>
+    <div class="card"><div class="num">3</div><div class="label">parallel build streams<br>+ integration</div></div>
+  </div>
+
+  <!-- JOURNEY -->
+  <h2 id="journey"><span class="dot"></span>The decisions that shaped it</h2>
+  <p class="sub">Every fork we resolved during brainstorming, in order.</p>
+  <div class="card steps">
+    <div class="step"><div class="n">1</div><div>
+      <h4>Demo data</h4><p><span class="choice">Public datasets + anonymized real + live crawl.</span>
+      Honors the "no PII / no confidential data" rule while keeping the internal-vs-external story real.</p></div></div>
+    <div class="step"><div class="n">2</div><div>
+      <h4>Platform</h4><p><span class="choice">AgentBase — code-based container deploy.</span>
+      Full control over crawler, analysis, and LLM orchestration.</p></div></div>
+    <div class="step"><div class="n">3</div><div>
+      <h4>Hero use case</h4><p><span class="choice">Backward diagnosis — "is it us or the market?"</span>
+      The most votable, visceral story; showcases the core differentiator.</p></div></div>
+    <div class="step"><div class="n">4</div><div>
+      <h4>Architecture</h4><p><span class="choice">Hybrid orchestrator + Evidence Ledger.</span>
+      Multi-module synthesis where every claim must cite ledger evidence — mechanical anti-hallucination.</p></div></div>
+    <div class="step"><div class="n">5</div><div>
+      <h4>Output</h4><p><span class="choice">Interactive HTML report with charts.</span>
+      Internal-vs-market overlay + a likelihood×evidence confidence matrix — far more votable than text.</p></div></div>
+    <div class="step"><div class="n">6</div><div>
+      <h4>Demo subject</h4><p><span class="choice">Your own Roblox game</span> (real dashboard data, anonymized) +
+      public Roblox-ecosystem signals. The agent <span class="choice">discovers the notable movement from the data.</span></p></div></div>
+    <div class="step"><div class="n">7</div><div>
+      <h4>Reach</h4><p><span class="choice">Self-serve, platform-agnostic onboarding.</span>
+      Any team connects data via chat (CSV + Roblox adapters, LLM-assisted column mapping) — no code.</p></div></div>
+    <div class="step"><div class="n">8</div><div>
+      <h4>Framework (long-term best)</h4><p><span class="choice">LangGraph on AgentBase.</span>
+      Graph nodes = our modules, ledger = graph state; native multi-turn memory + conditional drill-down,
+      while staying deterministic (we author the graph).</p></div></div>
+    <div class="step"><div class="n">9</div><div>
+      <h4>Analytical rigor (research-backed)</h4><p><span class="choice">Causal, not just descriptive.</span>
+      Market → <b>CausalImpact</b> counterfactual; Segment → <b>Adtributor</b> (ratio-KPI root-cause, citable %);
+      Anomaly → <b>change-point + STL</b>; confidence → <b>self-consistency abstention</b>. Multi-agent debate
+      was researched and rejected. Verified across 25 sources.</p></div></div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <h2 id="arch"><span class="dot"></span>How it works</h2>
+  <p class="sub">Deterministic where it must be (analysis, evidence, confidence), AI where it adds value
+    (intent, column-mapping, narrative). The LLM never invents findings.</p>
+  <div class="card">
+    <div class="flow">
+      <div class="row">
+        <div class="node">Roblox export</div>
+        <div class="node">Generic CSV</div>
+        <div class="node">Live crawl<br><small>RoMonitor · news · social</small></div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="row">
+        <div class="node key">Adapters → Canonical schema<br><small>date · metric · value · dims</small></div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="row">
+        <div class="node key">LangGraph orchestrator<br><small>route: setup vs analyze</small></div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="row">
+        <div class="node int">Anomaly<br><small>change-point + STL</small></div>
+        <div class="node int">Segment<br><small>Adtributor RCA</small></div>
+        <div class="node mkt">Market benchmark<br><small>CausalImpact counterfactual</small></div>
+        <div class="node mkt">Competitor &amp; events<br><small>external · crawl</small></div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="row">
+        <div class="node key">Evidence Ledger<br><small>every claim → a cited entry</small></div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="row">
+        <div class="node">Synthesizer (LLM)<br><small>narrative + likelihood</small></div>
+        <div class="arrow" style="align-self:center">+</div>
+        <div class="node">Rule engine<br><small>evidence quality</small></div>
+        <div class="arrow" style="align-self:center">→</div>
+        <div class="node">Citation validator<br><small>drops uncited claims</small></div>
+        <div class="arrow" style="align-self:center">→</div>
+        <div class="node">Abstention gate<br><small>self-consistency</small></div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="row">
+        <div class="node key">HTML report renderer<br><small>Plotly + Jinja2 (self-contained)</small></div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="row">
+        <div class="node">AgentBase SDK · <code>POST /invocations</code> · port 8080</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUT MOCKUP -->
+  <h2 id="output"><span class="dot"></span>What the agent tells you</h2>
+  <p class="sub">A mock <em>Attribution Hypothesis</em> for the hero demo — this is the kind of report the agent renders.
+    <span class="note">(Illustrative values.)</span></p>
+
+  <div class="grid g2">
+    <div class="mock">
+      <div class="head">Your game · DAU −40% (early May)</div>
+      <div style="margin:6px 0 12px">
+        <span class="badge b-int">Likely</span>
+        <span class="badge b-conf">Moderate evidence</span>
+      </div>
+      <p style="margin:0 0 6px">Most of the drop is <b>internal, not market-wide</b> — a retention dip after the
+        v3.2 update among new installs drove the bulk; the genre was roughly flat.</p>
+
+      <div class="cause int"><b>🔵 Internal (primary driver)</b>
+        <span class="badge b-int">Likely</span> <span class="badge b-conf">Strong</span><br>
+        D7 retention 18% → 11% for v3.2 new-installs <span class="cite">[L2]</span>;
+        concentrated in SEA / Android <span class="cite">[L3]</span>, coinciding with the May-4 update <span class="cite">[L7]</span>.</div>
+
+      <div class="cause mkt"><b>🟠 Market (largely ruled out)</b>
+        <span class="badge b-mkt">Possible</span> <span class="badge b-conf">Moderate</span><br>
+        Same-genre top titles roughly flat (−3%) over the window <span class="cite">[L9]</span>;
+        no ecosystem-wide downturn <span class="cite">[L10]</span>.</div>
+
+      <p style="margin:12px 0 4px"><b>Next scenarios</b></p>
+      <p style="margin:0;font-size:14px">• Hotfix/rollback recovers ~15–20% in 2–3 wks — <span class="badge b-conf">Moderate</span><br>
+      • Competitor's regional push siphons installs → drop persists — <span class="badge b-mkt">Weak</span></p>
+
+      <div class="gaps"><b>Assumptions &amp; gaps:</b> no UA-spend data → can't fully rule out an acquisition cut.</div>
+    </div>
+
+    <div class="grid" style="gap:16px">
+      <div class="card">
+        <h3 style="color:#cfe0ff">You vs the market <span class="note">(indexed to 100)</span></h3>
+        <p style="margin:0 0 6px">The money chart: your metric dives while the genre holds — so it's <b>you</b>, not the market.</p>
+        <svg viewBox="0 0 600 300" role="img" aria-label="Indexed line chart: your game drops, genre flat">
+          <!-- gridlines + axes -->
+          <g stroke="#2a323d" stroke-width="1">
+            <line x1="60" y1="40" x2="60" y2="260"/>
+            <line x1="60" y1="260" x2="560" y2="260"/>
+            <line x1="60" y1="76.7" x2="560" y2="76.7" stroke-dasharray="3 5"/>
+            <line x1="60" y1="150" x2="560" y2="150" stroke-dasharray="3 5"/>
+          </g>
+          <!-- anomaly shade -->
+          <rect x="310" y="40" width="250" height="220" fill="#f87171" opacity="0.07"/>
+          <!-- y labels -->
+          <g fill="#9aa7b8" font-size="12">
+            <text x="30" y="80">100</text>
+            <text x="36" y="154">80</text>
+            <text x="36" y="227">60</text>
+            <text x="52" y="284">May 1</text>
+            <text x="288" y="284">May 2</text>
+            <text x="532" y="284">May 3</text>
+          </g>
+          <!-- genre (orange) -->
+          <polyline fill="none" stroke="#f59e0b" stroke-width="3"
+            points="60,76.7 310,80.3 560,84"/>
+          <g fill="#f59e0b"><circle cx="60" cy="76.7" r="4"/><circle cx="310" cy="80.3" r="4"/><circle cx="560" cy="84" r="4"/></g>
+          <!-- game (blue) -->
+          <polyline fill="none" stroke="#3b82f6" stroke-width="3"
+            points="60,76.7 310,113.3 560,223.3"/>
+          <g fill="#3b82f6"><circle cx="60" cy="76.7" r="4"/><circle cx="310" cy="113.3" r="4"/><circle cx="560" cy="223.3" r="4"/></g>
+        </svg>
+        <div class="legend">
+          <span><span class="swatch" style="background:#3b82f6"></span>Your game</span>
+          <span><span class="swatch" style="background:#f59e0b"></span>Genre benchmark</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="color:#bbf7d0">Dual-confidence matrix</h3>
+        <p style="margin:0 0 6px">The signature view: "likely-but-thin" sits in a different quadrant than "rare-but-well-evidenced."</p>
+        <svg viewBox="0 0 600 320" role="img" aria-label="Scatter of claims by likelihood and evidence quality">
+          <g stroke="#2a323d" stroke-width="1">
+            <line x1="90" y1="40" x2="90" y2="270"/>
+            <line x1="90" y1="270" x2="560" y2="270"/>
+            <line x1="247" y1="40" x2="247" y2="270" stroke-dasharray="3 5"/>
+            <line x1="404" y1="40" x2="404" y2="270" stroke-dasharray="3 5"/>
+            <line x1="90" y1="120" x2="560" y2="120" stroke-dasharray="3 5"/>
+            <line x1="90" y1="195" x2="560" y2="195" stroke-dasharray="3 5"/>
+          </g>
+          <g fill="#9aa7b8" font-size="12">
+            <text x="120" y="292">Weak</text>
+            <text x="210" y="292">Moderate</text>
+            <text x="375" y="292">Strong</text>
+            <text x="2" y="100">Very likely</text>
+            <text x="34" y="160">Likely</text>
+            <text x="20" y="235">Possible</text>
+            <text x="488" y="305" font-size="11">evidence →</text>
+          </g>
+          <!-- dots: x∈{170 weak,325 mod,480 strong}; y∈{90 vlikely,160 likely,230 possible} -->
+          <g>
+            <circle cx="480" cy="160" r="9" fill="#3b82f6"/>
+            <text x="412" y="150" fill="#bcd5ff" font-size="11">v3.2 retention</text>
+
+            <circle cx="325" cy="160" r="9" fill="#7c8aa0"/>
+            <text x="300" y="148" fill="#cdd6e2" font-size="11">hotfix recovers</text>
+
+            <circle cx="325" cy="230" r="9" fill="#f59e0b"/>
+            <text x="250" y="252" fill="#ffe0ad" font-size="11">genre flat (ruled out)</text>
+
+            <circle cx="170" cy="230" r="9" fill="#f59e0b" opacity="0.7"/>
+            <text x="120" y="218" fill="#ffe0ad" font-size="11">competitor push</text>
+          </g>
+        </svg>
+        <div class="legend">
+          <span><span class="swatch" style="background:#3b82f6"></span>Internal cause</span>
+          <span><span class="swatch" style="background:#f59e0b"></span>Market cause</span>
+          <span><span class="swatch" style="background:#7c8aa0"></span>Scenario</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLANS -->
+  <h2 id="plans"><span class="dot"></span>The build plan</h2>
+  <p class="sub">Four TDD implementation plans. The pure-logic core is framework-agnostic; Plan 0 adds the
+    AgentBase + LangGraph shell. Maps onto three parallel streams + integration.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Plan 0 — AgentBase + LangGraph integration <span class="badge b-conf">9 tasks</span></h3>
+      <p>MaaS LLM client, LangGraph <code>GraphAgent</code> (route/analyze/onboard nodes over the engine),
+         memory checkpointer, SDK <code>main.py</code>, deploy via the installed skills. Governs the platform shell.</p>
+    </div>
+    <div class="card">
+      <h3>Plan 1 — Foundations &amp; data <span class="badge b-conf">10 tasks</span></h3>
+      <p>Canonical metrics schema, ColumnMapping/GameProfile, CSV + Roblox adapters, sqlite ProfileStore.
+         The platform-agnostic data seam.</p>
+    </div>
+    <div class="card">
+      <h3>Plan 2 — Analysis engine <span class="badge b-conf">14 tasks</span></h3>
+      <p>Hypothesis/ledger schema, rule-based evidence quality, MetricsStore, the 4 modules, source interfaces,
+         synthesizer + citation validator, query planner.</p>
+    </div>
+    <div class="card">
+      <h3>Plan 3 — Onboarding, render &amp; demo <span class="badge b-conf">10 tasks</span></h3>
+      <p>Cached crawler, live RoMonitor/web-signal sources, LLM column-profiler, 4 Plotly charts,
+         self-contained HTML report, demo packaging.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Build order</h3>
+    <div class="flow"><div class="row">
+      <div class="node">① Scaffold + data<br><small>Plan 0·T1 · Plan 1·T2–6</small></div>
+      <div class="arrow" style="align-self:center">→</div>
+      <div class="node">② Engine + LLM<br><small>Plan 2·T1–13 · Plan 0·T2–3</small></div>
+      <div class="arrow" style="align-self:center">→</div>
+      <div class="node">③ Render + onboard + crawl<br><small>Plan 3·T1–4,6,7</small></div>
+      <div class="arrow" style="align-self:center">→</div>
+      <div class="node key">④ Graph + deploy<br><small>Plan 0·T4–9</small></div>
+    </div></div>
+  </div>
+
+  <!-- TIMELINE -->
+  <h2 id="timeline"><span class="dot"></span>7-day plan</h2>
+  <p class="sub">Training 10 Jun → submit 17 Jun 12:00. De-risk the deploy on Day 1; submit early.</p>
+  <div class="tl">
+    <div class="day"><b>Day 1 · 10 Jun</b>Scaffold + schemas; hello-world deployed to AgentBase</div>
+    <div class="day"><b>Day 2 · 11 Jun</b>Data store + adapters + crawler; anomaly + segment modules; chart prototypes</div>
+    <div class="day"><b>Day 3 · 12 Jun</b>Benchmark + competitor modules; Evidence Ledger; chat-assisted mapping</div>
+    <div class="day"><b>Day 4 · 13 Jun</b>Synthesizer + dual confidence + validator; full HTML report; first end-to-end run</div>
+    <div class="day"><b>Day 5 · 14 Jun</b>LangGraph integration; tune prompts; full agent deployed + judge-callable</div>
+    <div class="day"><b>Day 6 · 15 Jun</b>Hardening, fallbacks, README + form; demo video draft</div>
+    <div class="day"><b>Day 7 · 16 Jun</b>Buffer; final video; submit early</div>
+  </div>
+
+  <!-- SCOPE -->
+  <h2 id="scope"><span class="dot"></span>Scope — ruthless focus</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3 class="in">✓ In</h3>
+      <table>
+        <tr><td>Backward diagnosis (is it us or the market?)</td></tr>
+        <tr><td>4 modules → Evidence Ledger → cited synthesis</td></tr>
+        <tr><td>Dual confidence: likelihood × evidence quality</td></tr>
+        <tr><td>Interactive HTML report (overlay + confidence matrix)</td></tr>
+        <tr><td>Self-serve onboarding (CSV + Roblox, chat-assisted)</td></tr>
+        <tr><td>LangGraph on AgentBase, MaaS LLM, multi-turn memory</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 class="out">✗ Out (for now)</h3>
+      <table>
+        <tr><td>Forward-looking potential/investment scoring</td></tr>
+        <tr><td>Structured benchmarks for non-Roblox platforms (web-search fallback instead)</td></tr>
+        <tr><td>Dedicated adapters beyond CSV + Roblox</td></tr>
+        <tr><td>Custom frontend beyond the HTML report</td></tr>
+        <tr><td>Real-time streaming, model fine-tuning, macro/financial sources</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    <p><b>Tech stack:</b> Python 3.11 · GreenNode AgentBase SDK · LangGraph + langchain-openai (MaaS) ·
+       Pydantic · pandas / duckdb · Plotly + Jinja2 · pytest. Inviolable principles:
+       <em>give scenarios, not solutions</em> · <em>minimize hallucination — lower confidence honestly when evidence is thin.</em></p>
+    <p class="note">Generated as a project-review overview. Full design spec: <code>docs/superpowers/specs/2026-06-10-game-attribution-agent-design.md</code>.
+       Plans: <code>docs/superpowers/plans/</code>. Charts above use illustrative values.</p>
+  </footer>
+</div>
+</body>
+</html>
