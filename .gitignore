@@ -8,3 +8,25 @@
 .vscode/
 .idea/
 *.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Secrets / runtime / state
+.env
+.greennode.json
+.agentbase/
+.agentbase-state.json
+*.credentials.json
+
+# Local data / db
+*.sqlite
+*.sqlite3
+data/cache/

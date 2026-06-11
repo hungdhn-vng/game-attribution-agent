@@ -1,0 +1,15 @@
+greennode-agentbase
+greennode-agent-bridge[langgraph]
+langgraph>=1.0.0,<2.0.0
+langchain-openai>=1.1.0,<2.0.0
+python-dotenv
+pandas==2.*
+duckdb==1.*
+pyarrow==17.*
+statsmodels==0.14.*
+ruptures==1.1.*
+plotly==5.*
+jinja2==3.*
+httpx==0.27.*
+beautifulsoup4==4.*
+pytest==8.*
