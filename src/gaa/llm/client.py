@@ -29,9 +29,14 @@ class LangChainMaaSLLM:
         import os
         from langchain_openai import ChatOpenAI
         s = settings or Settings()
+        # Qwen 3.5 is a *thinking* model: without this, hidden reasoning tokens consume the
+        # budget before any JSON is emitted (finish_reason=length, empty content). Disabling
+        # thinking yields direct JSON in <1s. extra_body is the OpenAI-compatible passthrough
+        # to vLLM's chat_template_kwargs.
         self._llm = ChatOpenAI(model=s.llm_model, base_url=s.llm_base_url,
                                api_key=s.llm_api_key, temperature=0,
-                               max_tokens=int(os.environ.get("GAA_MAX_TOKENS", "1024")))
+                               max_tokens=int(os.environ.get("GAA_MAX_TOKENS", "1536")),
+                               extra_body={"chat_template_kwargs": {"enable_thinking": False}})
 
     def complete_json(self, system: str, user: str) -> dict:
         from langchain_core.messages import SystemMessage, HumanMessage
