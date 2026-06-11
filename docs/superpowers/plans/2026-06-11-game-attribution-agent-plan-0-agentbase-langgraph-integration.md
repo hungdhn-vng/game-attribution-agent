@@ -427,6 +427,17 @@ git add src/gaa/graph.py tests/test_graph.py
 git commit -m "feat: LangGraph GraphAgent (route + analyze nodes over the engine)"
 ```
 
+> **Note — surface the run trace in runtime logs.** The per-run reasoning trace from **[Plan 2 · Task 15](2026-06-10-game-attribution-agent-plan-2-analysis-engine.md)** rides on `res.hypothesis.trace` and already leaves the agent inside the `/invocations` response (it's part of `res.hypothesis.model_dump()`), and is rendered as the report panel via **[Plan 3 · Task 7](2026-06-10-game-attribution-agent-plan-3-onboarding-renderer-demo.md)**. But **`/agentbase-monitor` runtime logs only capture stdout/stderr** — so emit a one-line summary in `_analyze` so a deployed run is debuggable from the logs alone (e.g. spotting a module that silently went `data_gap` or `error` in prod). Add at module top `import logging; log = logging.getLogger("gaa.graph")`, then before the `_analyze` return:
+>
+> ```python
+>         tr = res.hypothesis.trace
+>         if tr:
+>             log.info("analyze trace (%s findings): %s", tr.total_entries,
+>                      " → ".join(f"{e.module}:{e.status}({e.entries_added})" for e in tr.events))
+> ```
+>
+> Pure observability — no test or return-shape change (the response already carries `hypothesis.trace`). Reads in logs as e.g. `analyze trace (4 findings): anomaly:ok(1) → segment:ok(1) → market:ok(1) → competitor:data_gap(1)`. View with `/agentbase-monitor`.
+
 ---
 
 ### Task 5: Onboarding nodes (multi-turn propose → confirm)
@@ -710,7 +721,7 @@ git commit -m "docs: README (AgentBase), model declaration, demo snapshot + scri
 
 ## Self-Review (completed during authoring)
 
-**Coverage of the platform/integration delta:** scaffold files (Task 1) ✓; MaaS config + LLM client (Tasks 2, 3) ✓; LangGraph state/route/analyze (Task 4) ✓; multi-turn onboarding nodes (Task 5) ✓; memory checkpointer (Task 6) ✓; SDK `main.py` entrypoint (Task 7) ✓; deploy via skills (Task 8) ✓; README/declaration/snapshot (Task 9) ✓. Supersession map reconciles every superseded earlier task.
+**Coverage of the platform/integration delta:** scaffold files (Task 1) ✓; MaaS config + LLM client (Tasks 2, 3) ✓; LangGraph state/route/analyze (Task 4; analyze node logs the run trace to stdout for /agentbase-monitor) ✓; multi-turn onboarding nodes (Task 5) ✓; memory checkpointer (Task 6) ✓; SDK `main.py` entrypoint (Task 7) ✓; deploy via skills (Task 8) ✓; README/declaration/snapshot (Task 9) ✓. Supersession map reconciles every superseded earlier task.
 
 **Placeholder scan:** none. `GAA_BENCHMARK_URL_TMPL` / `GAA_SIGNALS_URL_TMPL` are env-configured live endpoints (the "confirm at build time" seam noted in Plan 3 Tasks 2–3), not gaps.
 

@@ -741,6 +741,23 @@ git add src/gaa/render/templates/report.html.j2 src/gaa/render/report.py tests/r
 git commit -m "feat: self-contained HTML report renderer (inline plotly)"
 ```
 
+> **Note — trace panel ("How this was computed"), optional demo polish.** The hypothesis carries the per-run reasoning trace from **[Plan 2 · Task 15](2026-06-10-game-attribution-agent-plan-2-analysis-engine.md)** at `h.trace` (a `RunTrace` with ordered `events`). Rendering it makes the agent *show its work* — which module fired, what it found, where data was thin — the relatability win that sells the demo to voters. **No `render_report` change is needed** (`h` is already in template scope; `h.trace` rides through `model_dump()` to `/analyze` too). Drop this block into `report.html.j2` just before the closing footer `<p class="cite">…</p>`, guarded so older/snapshot hypotheses with no trace still render:
+>
+> ```html
+>  {% if h.trace %}
+>  <h3>How this was computed</h3>
+>  <ol class="cite">
+>  {% for ev in h.trace.events %}
+>    <li>{{ ev.module }} — <span class="badge">{{ ev.status }}</span>
+>        {{ ev.entries_added }} finding(s){% if ev.ledger_ids %} ({{ ev.ledger_ids|join(', ') }}){% endif %}
+>        <span class="cite">{{ '%.0f'|format(ev.elapsed_ms) }} ms</span>
+>        {% if ev.note %}<br><span class="cite">{{ ev.note }}</span>{% endif %}</li>
+>  {% endfor %}
+>  </ol>{% endif %}
+> ```
+>
+> To lock it under test, attach a `RunTrace` to `_hyp()` in `tests/render/test_report.py` (`from gaa.schema.trace import RunTrace, TraceEvent`) and add `assert "How this was computed" in html`. Optional CSS: color the status badge (`data_gap`→amber, `error`→red) reusing the existing `.gaps` palette.
+
 ---
 
 ### Task 8: Wire the HTML report into `/analyze`
@@ -1183,6 +1200,7 @@ Expected: health ok; chat returns a setup message; demo returns the snapshot. Re
 - Chat-assisted onboarding (propose → confirm → ingest) → Tasks 4, 5 ✓
 - 4 charts incl. internal-vs-market overlay + dual-confidence matrix → Task 6 ✓
 - Self-contained HTML report (inline Plotly) → Task 7 ✓
+- Reasoning-trace panel ("How this was computed", surfaces Plan 2 Task 15's `hypothesis.trace`) → Task 7 note (optional polish) ✓
 - `/analyze` returns real `html` → Task 8 ✓
 - `/chat` router (setup vs analysis) → Task 9 ✓
 - Reliability: cache replay (Task 1), LLM fallback (Plan 2 Task 10), pre-baked snapshot (Task 10) ✓

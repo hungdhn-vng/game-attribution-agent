@@ -1622,6 +1622,214 @@ git commit -m "feat: attribution engine assembly + /analyze endpoint"
 
 ---
 
+### Task 15: Run trace / observability (which module fired, what it wrote)
+
+> **Why:** Observability is a first-class harness responsibility — the agent must record *every step* so a run can be debugged and, here, **shown**. This task gives each analysis run a structured `RunTrace`: per-module status (`ok` / `data_gap` / `error`), the ledger ids that module wrote, and its elapsed time. It doubles as demo material — Plan 3's report can render it as a "how this was computed" panel, and `/agentbase-monitor` logs stay at the container level while this is the *reasoning*-level trace.
+>
+> **Reconciliation:** The trace wraps `module.run()` from the *outside* and never touches module internals, so **Plan 2A's** research-backed modules (Adtributor / CausalImpact / change-point) trace unchanged as long as they keep the `name` + `run(ctx, ledger)` contract; if 2A adds a synthesis-level abstention step, append a final `TraceEvent(module="synthesis", …)` there. **Plan 0's** LangGraph nodes call `engine.analyze()` and get the trace on `hypothesis.trace` — surface it in graph state / logs.
+
+**Files:**
+- Create: `src/gaa/schema/trace.py`
+- Modify: `src/gaa/schema/hypothesis.py` (add optional `trace` field)
+- Modify: `src/gaa/engine.py` (populate trace; capture per-module errors instead of crashing the run)
+- Test: `tests/test_trace.py`
+
+- [ ] **Step 1: Write the failing test**
+
+`tests/test_trace.py`:
+```python
+import pandas as pd
+from gaa.engine import AttributionEngine
+from gaa.llm.client import FakeLLM
+from gaa.sources.fixtures import FixtureBenchmarkSource, FixtureSignalsSource
+from gaa.schema.profile import GameProfile, ColumnMapping
+
+
+def _profile():
+    return GameProfile(name="MyGame", platform="roblox", genre="survival",
+                       mapping=ColumnMapping(date_col="Date",
+                                             metric_cols={"DAU": "dau"}, dim_cols={}))
+
+
+def _metrics():
+    rows = []
+    for d, sea, na in [("2026-05-01", 1000, 800), ("2026-05-03", 400, 770)]:
+        rows += [{"date": d, "metric": "dau", "value": float(sea), "region": "SEA"},
+                 {"date": d, "metric": "dau", "value": float(na), "region": "NA"}]
+    df = pd.DataFrame(rows)
+    for c in ["platform", "version", "cohort", "device", "source"]:
+        df[c] = None
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
+def _engine(signals_events):
+    preset = {"main_story": "x", "causes": {"internal": [], "market": []},
+              "scenarios": [], "risks": [], "assumptions_and_gaps": []}
+    return AttributionEngine(
+        llm=FakeLLM(preset),
+        benchmark=FixtureBenchmarkSource({"2026-05-01": 100.0, "2026-05-03": 98.0}),
+        signals=FixtureSignalsSource(signals_events))
+
+
+def test_trace_records_every_module_in_order():
+    engine = _engine([{"date": "2026-05-02", "title": "patch v3.2", "kind": "patch",
+                       "url": "u", "sentiment": -0.1}])
+    h = engine.analyze(_profile(), _metrics(), "what happened?")
+    assert h.trace is not None
+    assert [ev.module for ev in h.trace.events] == ["anomaly", "segment", "market", "competitor"]
+    assert [ev.step for ev in h.trace.events] == [1, 2, 3, 4]
+    # the ids each module reports writing reconcile, in order, with the full ledger
+    written = [i for ev in h.trace.events for i in ev.ledger_ids]
+    assert written == [e.id for e in h.evidence]
+    assert h.trace.total_entries == len(h.evidence)
+    assert all(ev.elapsed_ms >= 0 for ev in h.trace.events)
+
+
+def test_trace_flags_data_gap_module():
+    engine = _engine([])  # no signals -> competitor records a derived/low gap entry
+    h = engine.analyze(_profile(), _metrics(), "what happened?")
+    comp = next(ev for ev in h.trace.events if ev.module == "competitor")
+    assert comp.status == "data_gap" and comp.entries_added == 1
+    anomaly = next(ev for ev in h.trace.events if ev.module == "anomaly")
+    assert anomaly.status == "ok" and anomaly.entries_added >= 1
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/test_trace.py -v`
+Expected: FAIL — `AttributeError`/`ImportError` (`AttributionHypothesis` has no `trace`; `gaa.schema.trace` missing).
+
+- [ ] **Step 3: Write `src/gaa/schema/trace.py`**
+
+```python
+from typing import Literal
+from pydantic import BaseModel, Field
+
+TraceStatus = Literal["ok", "data_gap", "error"]
+
+
+class TraceEvent(BaseModel):
+    step: int                       # 1-based execution order
+    module: str                     # "anomaly" | "segment" | "market" | "competitor"
+    status: TraceStatus
+    entries_added: int              # ledger entries this module appended
+    ledger_ids: list[str] = Field(default_factory=list)  # e.g. ["L1", "L2"]
+    elapsed_ms: float = 0.0
+    note: str = ""                  # error detail or gap reason
+
+
+class RunTrace(BaseModel):
+    query: str
+    events: list[TraceEvent] = Field(default_factory=list)
+    total_entries: int = 0
+```
+
+- [ ] **Step 4: Add the `trace` field to `src/gaa/schema/hypothesis.py`**
+
+Add the import and one optional field (no other change). `trace.py` imports nothing from `hypothesis.py`, so there is no import cycle:
+
+```python
+from typing import Optional
+from gaa.schema.trace import RunTrace
+# ... existing imports ...
+
+
+class AttributionHypothesis(BaseModel):
+    main_story: str
+    confidence: Confidence
+    causes: Causes
+    scenarios: list[Scenario] = []
+    risks: list[Risk] = []
+    evidence: list[LedgerEntry] = []
+    assumptions_and_gaps: list[str] = []
+    trace: Optional[RunTrace] = None   # NEW — populated by the engine (Task 15)
+```
+
+> Defaulting to `None` keeps every existing constructor call (synthesizer, validator, their tests) green.
+
+- [ ] **Step 5: Populate the trace in `src/gaa/engine.py`**
+
+Replace `analyze()` with a module loop and add the `_run_traced` helper. Behaviour is identical except that each module is timed/recorded and an unexpected exception is captured as an `error` event instead of aborting the run (modules are contractually non-raising, so this branch only fires on a real bug — better a partial, visibly-flagged result on stage than a 500):
+
+```python
+import time
+from gaa.schema.trace import TraceEvent, RunTrace
+# ... existing imports unchanged ...
+
+
+class AttributionEngine:
+    def __init__(self, llm: LLM, benchmark: BenchmarkSource, signals: SignalsSource) -> None:
+        self._synth = Synthesizer(llm)
+        self._benchmark = benchmark
+        self._signals = signals
+
+    def analyze(self, profile: GameProfile, metrics: pd.DataFrame,
+                query: str) -> AttributionHypothesis:
+        parsed = parse_query(query)
+        ctx = AnalysisContext(profile=profile, metrics=metrics, query=query,
+                              metric=parsed["metric"], direction=parsed["direction"])
+        ledger = EvidenceLedger()
+        trace = RunTrace(query=query)
+        # order matters: anomaly resolves metric/window first (incl. scan mode)
+        modules = [
+            AnomalyDetection(),
+            SegmentDecomposition(),
+            MarketBenchmark(self._benchmark),
+            CompetitorSignals(self._signals),
+        ]
+        for step, module in enumerate(modules, start=1):
+            self._run_traced(module, ctx, ledger, trace, step)
+        trace.total_entries = len(ledger.all())
+
+        hyp = self._synth.synthesize(ledger, query)
+        hyp = validate_citations(hyp, ledger)
+        hyp.trace = trace
+        return hyp
+
+    @staticmethod
+    def _run_traced(module, ctx: AnalysisContext, ledger: EvidenceLedger,
+                    trace: RunTrace, step: int) -> None:
+        before = len(ledger.all())
+        t0 = time.perf_counter()
+        status, note = "ok", ""
+        try:
+            module.run(ctx, ledger)
+        except Exception as exc:  # modules shouldn't raise; record instead of crashing
+            status, note = "error", f"{type(exc).__name__}: {exc}"
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        added = ledger.all()[before:]
+        # a module that only logged a derived/low "data gap" entry is a gap, not a finding
+        if status == "ok" and added and all(
+                e.source_type == "derived" and e.strength == "low" for e in added):
+            status = "data_gap"
+        trace.events.append(TraceEvent(
+            step=step, module=module.name, status=status,
+            entries_added=len(added), ledger_ids=[e.id for e in added],
+            elapsed_ms=round(elapsed_ms, 3), note=note))
+```
+
+> No `/analyze` change needed: the response already returns `hypothesis.model_dump()`, so `trace` is nested under `hypothesis` automatically. Plan 3's renderer reads `hypothesis.trace.events`; Plan 0's graph node can log/emit it.
+
+- [ ] **Step 6: Run test to verify it passes**
+
+Run: `pytest tests/test_trace.py -v`
+Expected: PASS (2 passed).
+
+- [ ] **Step 7: Run the full suite (no regressions)**
+
+Run: `pytest -q`
+Expected: all green — the new `trace` field defaults to `None`, so Task 1/11/12/14 tests are unaffected.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/gaa/schema/trace.py src/gaa/schema/hypothesis.py src/gaa/engine.py tests/test_trace.py
+git commit -m "feat: per-run reasoning trace (module status, ledger ids, timing)"
+```
+
+---
+
 ## Self-Review (completed during authoring)
 
 **Spec coverage (Plan 2 portion):**
@@ -1633,7 +1841,8 @@ git commit -m "feat: attribution engine assembly + /analyze endpoint"
 - Graceful degradation (modules log "data gap" instead of raising) → Tasks 6–9 (derived/low entries) ✓
 - LLM external + MaaS fallback → Task 10 ✓
 - `/analyze` returns `{html, hypothesis, markdown_summary}` → Task 14 (html stubbed for Plan 3) ✓
-- Deferred to Plan 3: live BenchmarkSource/SignalsSource (crawler), chat-assisted onboarding/router, Plotly HTML report.
+- Run trace / observability (per-module status, ledger ids written, data-gap/error, timing) → Task 15 ✓
+- Deferred to Plan 3: live BenchmarkSource/SignalsSource (crawler), chat-assisted onboarding/router, Plotly HTML report (incl. rendering `hypothesis.trace`).
 
 **Placeholder scan:** No TBD/TODO. The `html: ""` field is an explicit, documented Plan-3 handoff, not a placeholder gap.
 
