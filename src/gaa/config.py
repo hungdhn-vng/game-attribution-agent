@@ -15,3 +15,6 @@ class Settings:
     memory_id: str = field(default_factory=lambda: _env("MEMORY_ID"))
     db_path: str = field(default_factory=lambda: _env("GAA_DB_PATH", "gaa.sqlite"))
     cache_dir: str = field(default_factory=lambda: _env("GAA_CACHE_DIR", "data/cache"))
+    perplexity_api_key: str = field(default_factory=lambda: _env("PERPLEXITY_API_KEY", ""))
+    perplexity_base_url: str = field(default_factory=lambda: _env("PERPLEXITY_BASE_URL", "https://api.perplexity.ai"))
+    perplexity_model: str = field(default_factory=lambda: _env("PERPLEXITY_MODEL", "sonar"))
