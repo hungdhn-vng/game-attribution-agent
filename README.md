@@ -49,16 +49,72 @@ curl -X POST $EP/invocations -H 'content-type: application/json' \
 Returns `{ status, mode, hypothesis, markdown_summary, html }` (the `html` is a self-contained,
 offline interactive report).
 
+## Async analyze (job + poll)
+
+Analysis runs as a **resumable async job** across up to five pipeline stages
+(`plan → crawl → modules → synth → render`).  Each `/invocations` call
+advances the job as far as the per-request budget allows, then suspends.
+
+**Start / continue an analysis**
+```bash
+# First call — starts a new job and runs the first stage(s)
+POST /invocations  {"message": "what is going on with my game?"}
+# Response (may not be done yet):
+{
+  "status": "success", "mode": "analyze",
+  "job_id": "abc123", "job_status": "running",
+  "stage": "crawl", "activity": "...", "done": false
+}
+
+# Poll until done
+POST /invocations  {"action": "analyze_status", "job_id": "abc123"}
+# When done:
+{
+  "status": "success", "done": true,
+  "hypothesis": {...}, "markdown_summary": "...", "html": "..."
+}
+```
+
+The `GAA_REQUEST_BUDGET_S` env var controls how long each call is allowed to
+run before it suspends (default 40 s).  Set `GAA_N_SAMPLES` to control
+self-consistency sampling (default 3).
+
+## Live market benchmark
+
+Benchmark data comes from three tiers, applied in order:
+
+1. **Snapshot floor** (always on) — `src/gaa/data/seed/benchmark_snapshot.json`
+   is seeded into the benchmark store on every cold start.  It ensures
+   `genre_trend` never returns empty even if crawl is disabled or offline.
+   Rebuild the snapshot against live trackers with:
+   ```bash
+   python scripts/build_benchmark_snapshot.py
+   ```
+2. **Quant crawl** (opt-in, `GAA_BENCHMARK_MODE=crawl`) — `RobloxBenchmarkProvider`
+   and `SteamBenchmarkProvider` hit the configured tracker URL templates
+   (`GAA_ROBLOX_DISCOVER_URL_TMPL`, `GAA_ROBLOX_SERIES_URL_TMPL`,
+   `GAA_STEAM_DISCOVER_URL_TMPL`, `GAA_STEAM_SERIES_URL_TMPL`) to fetch live
+   CCU / player-count series for comparator games.
+3. **Perplexity web tier** (opt-in, `PERPLEXITY_API_KEY=pplx-...`) — if the quant
+   crawl yields insufficient data, `WebSearchBenchmarkProvider` queries the
+   **Perplexity sonar** model for a qualitative trend summary with citations.
+
 ## Models
-Uses the **GreenNode AI Platform (MaaS)**, OpenAI-compatible, model **Qwen 3.5 27B**
-(`qwen/qwen3-5-27b`) via `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`. No external (non-MaaS)
-provider is used. The deterministic analytics (CausalImpact-style counterfactual, Adtributor,
-change-point) run in-process; the LLM only handles routing, column mapping, and narrative synthesis.
+- **GreenNode AI Platform (MaaS)** — OpenAI-compatible, model **Qwen 3.5 27B**
+  (`qwen/qwen3-5-27b`) via `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`.  Used for intent
+  routing, column mapping, and narrative synthesis.
+- **Perplexity (external, web tier)** — `sonar` model via `PERPLEXITY_API_KEY`, used only when
+  `GAA_BENCHMARK_MODE=crawl` and the quant providers return insufficient data.  Disabled by
+  default; leave `PERPLEXITY_API_KEY` blank to never call Perplexity.
+
+The deterministic analytics (CausalImpact-style counterfactual, Adtributor, change-point) run
+in-process; the LLM only handles routing, column mapping, and narrative synthesis.
 
 ## Data
 Demo internal data is **aggregate, PII-stripped** game metrics (no customer/confidential data).
-External/market data is public (genre benchmark; live Roblox-ecosystem crawl is configurable via
-`GAA_BENCHMARK_URL_TMPL` / `GAA_SIGNALS_URL_TMPL`, with a bundled seeded benchmark as the default).
+External/market data is public (genre benchmark; live Roblox/Steam crawl is configurable via
+`GAA_BENCHMARK_MODE=crawl` + URL templates, with a bundled snapshot as the default floor;
+`GAA_SIGNALS_URL_TMPL` enables live competitor signals).
 
 ## Deployment (AgentBase Runtime)
 - **Runtime:** `gaa` — `runtime-2951893e-745f-40c5-a6d2-66908941f7cb`
@@ -69,4 +125,4 @@ External/market data is public (genre benchmark; live Roblox-ecosystem crawl is 
   credentials are auto-injected by the runtime (not in the image or env file).
 
 ## Tests
-`pytest -q` → 87 passing (TDD throughout; engine verified end-to-end with a fake LLM, deploy verified live).
+`pytest -q` → 177 passing (TDD throughout; engine verified end-to-end with a fake LLM, deploy verified live).
