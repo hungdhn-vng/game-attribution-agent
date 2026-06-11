@@ -40,3 +40,24 @@ def test_headline_confidence_present():
         "main_story": "x", "causes": {"internal": [], "market": []},
         "scenarios": [], "risks": [], "assumptions_and_gaps": []})).synthesize(_ledger(), "q")
     assert h.confidence.likelihood in ("Very likely", "Likely", "Possible", "Unlikely")
+
+
+def test_tolerates_llm_key_variations():
+    """Live Qwen sometimes omits 'description' or uses alt keys / string signals — must not crash."""
+    led = _ledger()
+    preset = {
+        "main_story": "ok",
+        "causes": {"internal": [{"cause": "alt-key cause", "evidence": ["L1"]}],
+                   "market": [{"claim": "", "evidence_ids": ["L2"]}]},   # empty claim → dropped
+        "scenarios": [{"scenario": "alt-key scenario", "signals": "watch this"},
+                      {"likelihood": "Likely"}],                          # no text → dropped
+        "risks": [{"text": "risk via text"}, {"foo": "bar"}],             # second dropped
+        "assumptions_and_gaps": [],
+    }
+    h = Synthesizer(FakeLLM(preset)).synthesize(led, "q")
+    assert h.causes.internal[0].claim == "alt-key cause"
+    assert h.causes.internal[0].evidence_ids == ["L1"]
+    assert h.causes.market == []                       # empty-claim cause dropped
+    assert [s.description for s in h.scenarios] == ["alt-key scenario"]
+    assert h.scenarios[0].signals_to_watch == ["watch this"]
+    assert [r.description for r in h.risks] == ["risk via text"]

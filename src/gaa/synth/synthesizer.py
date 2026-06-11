@@ -34,27 +34,56 @@ class Synthesizer:
     def _eq(self, ledger: EvidenceLedger, ids: list) -> str:
         return evidence_quality(ledger.by_ids(ids))
 
-    def _cause(self, ledger, item) -> Cause:
-        ids = item.get("evidence_ids", [])
-        return Cause(claim=item["claim"], evidence_ids=ids,
+    @staticmethod
+    def _text(item: dict, *keys: str) -> str:
+        for k in keys:
+            v = item.get(k)
+            if isinstance(v, str) and v.strip():
+                return v
+        return ""
+
+    @staticmethod
+    def _watch(item: dict) -> list:
+        v = item.get("signals_to_watch") or item.get("signals") or []
+        return [v] if isinstance(v, str) else (v if isinstance(v, list) else [])
+
+    def _cause(self, ledger, item):
+        if not isinstance(item, dict):
+            return None
+        claim = self._text(item, "claim", "cause", "description", "text")
+        if not claim:
+            return None
+        ids = item.get("evidence_ids") or item.get("evidence") or []
+        ids = [str(i) for i in ids] if isinstance(ids, list) else []
+        return Cause(claim=claim, evidence_ids=ids,
                      likelihood=item.get("likelihood", "Possible"),
                      evidence_quality=self._eq(ledger, ids))
 
     def _assemble(self, raw: dict, ledger: EvidenceLedger) -> AttributionHypothesis:
-        causes_raw = raw.get("causes", {})
-        internal = [self._cause(ledger, c) for c in causes_raw.get("internal", [])]
-        market = [self._cause(ledger, c) for c in causes_raw.get("market", [])]
-        scenarios = [
-            Scenario(description=s["description"],
-                     likelihood=s.get("likelihood", "Possible"),
-                     evidence_quality=self._eq(ledger, s.get("evidence_ids", [])),
-                     signals_to_watch=s.get("signals_to_watch", []))
-            for s in raw.get("scenarios", [])]
-        risks = [
-            Risk(description=r["description"],
-                 likelihood=r.get("likelihood", "Possible"),
-                 evidence_quality=self._eq(ledger, r.get("evidence_ids", [])))
-            for r in raw.get("risks", [])]
+        causes_raw = raw.get("causes")
+        if not isinstance(causes_raw, dict):
+            causes_raw = {}
+        internal = [c for c in (self._cause(ledger, x) for x in (causes_raw.get("internal") or [])) if c]
+        market = [c for c in (self._cause(ledger, x) for x in (causes_raw.get("market") or [])) if c]
+        scenarios = []
+        for s in (raw.get("scenarios") or []):
+            if not isinstance(s, dict):
+                continue
+            desc = self._text(s, "description", "scenario", "text", "claim")
+            if not desc:
+                continue
+            scenarios.append(Scenario(description=desc, likelihood=s.get("likelihood", "Possible"),
+                                      evidence_quality=self._eq(ledger, s.get("evidence_ids") or []),
+                                      signals_to_watch=self._watch(s)))
+        risks = []
+        for r in (raw.get("risks") or []):
+            if not isinstance(r, dict):
+                continue
+            desc = self._text(r, "description", "risk", "text", "claim")
+            if not desc:
+                continue
+            risks.append(Risk(description=desc, likelihood=r.get("likelihood", "Possible"),
+                              evidence_quality=self._eq(ledger, r.get("evidence_ids") or [])))
 
         all_internal_ids = [i for c in internal for i in c.evidence_ids]
         headline_eq = self._eq(ledger, all_internal_ids) if all_internal_ids \

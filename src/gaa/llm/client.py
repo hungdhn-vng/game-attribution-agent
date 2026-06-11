@@ -26,10 +26,12 @@ def _extract_json(text: str) -> dict:
 class LangChainMaaSLLM:
     """OpenAI-compatible client against GreenNode AI Platform (MaaS) via langchain-openai."""
     def __init__(self, settings: Optional[Settings] = None) -> None:
+        import os
         from langchain_openai import ChatOpenAI
         s = settings or Settings()
         self._llm = ChatOpenAI(model=s.llm_model, base_url=s.llm_base_url,
-                               api_key=s.llm_api_key, temperature=0)
+                               api_key=s.llm_api_key, temperature=0,
+                               max_tokens=int(os.environ.get("GAA_MAX_TOKENS", "1024")))
 
     def complete_json(self, system: str, user: str) -> dict:
         from langchain_core.messages import SystemMessage, HumanMessage
