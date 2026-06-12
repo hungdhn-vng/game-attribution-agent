@@ -12,6 +12,7 @@ from gaa.adapters.csv_adapter import CSVAdapter
 from gaa.adapters.roblox_adapter import RobloxAdapter
 from gaa.jobs.job_store import JobStore
 from gaa.jobs.pipeline import AnalysisPipeline
+from gaa.admin_actions import ADMIN_ACTIONS
 
 
 class GraphAgent:
@@ -24,6 +25,7 @@ class GraphAgent:
         benchmark: BenchmarkSource,
         profiler: Profiler,
         request_budget_s: float = 40.0,
+        admin=None,
         # Legacy params kept for backward compat (engine, checkpointer ignored)
         engine=None,
         checkpointer=None,
@@ -35,6 +37,7 @@ class GraphAgent:
         self._benchmark = benchmark
         self._profiler = profiler
         self._request_budget_s = request_budget_s
+        self._admin = admin
 
     # ---- onboarding helpers ----
     @staticmethod
@@ -89,6 +92,11 @@ class GraphAgent:
     def handle(self, payload: dict, session_id: str, user_id: str) -> dict:
         action = payload.get("action")
 
+        if action in ADMIN_ACTIONS:
+            if self._admin is None:
+                return {"status": "error", "error": "admin actions not configured"}
+            return self._admin.handle(action, payload)
+
         if action == "onboard_propose":
             return self._onboard_propose(payload)
 
@@ -115,6 +123,22 @@ class GraphAgent:
             return {"status": "success", "mode": "setup",
                     "message": "Let's connect your data. Send your CSV path to onboard "
                                "(action=onboard_propose); I'll propose a column mapping to confirm."}
+
+        if intent == "help":
+            return {"status": "success", "mode": "help",
+                    "message": (
+                        "I'm the Game Attribution Agent. I figure out **why** a game metric moved — "
+                        "separating internal causes (your own updates, segments, monetization) from "
+                        "market-wide ones — and back every claim with cited evidence and two confidence "
+                        "scores (how likely it is, and how strong the evidence is).\n\n"
+                        "How to use me:\n"
+                        "1. Connect your game's data (CSV or Roblox export) — send `action=onboard_propose` "
+                        "with your file; I'll propose a column mapping for you to confirm.\n"
+                        "2. Then ask me something like `why did my revenue drop last week?`. I'll "
+                        "live-cross-check the market (SteamCharts + cited web search), stream my reasoning "
+                        "as I work, and return an interactive report.\n\n"
+                        "I give **scenarios, not decisions** — the call is always yours."
+                    )}
 
         # intent == "analyze"
         try:
