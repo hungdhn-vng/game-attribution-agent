@@ -55,7 +55,8 @@ description: Call the Game Attribution Agent (GAA) API — analyze game metrics,
 # Game Attribution Agent (GAA) skill
 
 Credentials live in `~/.openclaw/workspace/.env` (GAA_ENDPOINT, GAA_ADMIN_KEY).
-Always `source ~/.openclaw/workspace/.env` before the curl commands below.
+Always `. ~/.openclaw/workspace/.env` before the curl commands below
+(the exec shell is POSIX sh — `source` does NOT exist there, use `.`).
 
 IMPORTANT: run these curls yourself with your exec tool IN THE SAME TURN and reply
 immediately — NEVER spawn subagents or background tasks for GAA requests. The chat
@@ -64,7 +65,7 @@ client is waiting synchronously for your reply.
 ## Start an analysis (any user)
 When the user asks why a game metric moved or what's happening with their game:
 
-    source ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
+    . ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
       -H 'content-type: application/json' \\
       -d '{"message": "<the user question, verbatim>", "budget_s": 1}'
 
@@ -90,7 +91,7 @@ For everyone else: refuse, and suggest they contact the admin. Never reveal GAA_
 
 View config (keys, resolved values, origin store/env/default; secrets masked):
 
-    source ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
+    . ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
       -H 'content-type: application/json' \\
       -d '{"action":"admin_get_config","admin_key":"'"$GAA_ADMIN_KEY"'"}'
 
@@ -98,13 +99,13 @@ Change config — valid keys: benchmark_mode ("snapshot"|"crawl"),
 roblox_discover_url_tmpl, roblox_series_url_tmpl, steam_series_url_tmpl,
 perplexity_api_key, signals_url_tmpl. Use null to clear a key back to env/default:
 
-    source ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
+    . ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
       -H 'content-type: application/json' \\
       -d '{"action":"admin_set_config","admin_key":"'"$GAA_ADMIN_KEY"'","config":{"benchmark_mode":"crawl"}}'
 
 Set report behavior (output language, focus metrics, tone — max 2000 chars):
 
-    source ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
+    . ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
       -H 'content-type: application/json' \\
       -d '{"action":"admin_set_behavior","admin_key":"'"$GAA_ADMIN_KEY"'","instructions":"Answer in Vietnamese."}'
 
