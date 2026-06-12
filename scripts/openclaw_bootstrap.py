@@ -65,7 +65,10 @@ client is waiting synchronously for your reply.
 When the user asks why a game metric moved or what's happening with their game:
 
     source ~/.openclaw/workspace/.env && curl -s -X POST "$GAA_ENDPOINT/invocations" \\
-      -H 'content-type: application/json' -d '{"message": "<the user question, verbatim>"}'
+      -H 'content-type: application/json' \\
+      -d '{"message": "<the user question, verbatim>", "budget_s": 1}'
+
+This returns within a few seconds (budget_s caps the first-call work).
 
 The response includes `job_id`, `job_status`, `stage`, `activity`. DO NOT poll it.
 Reply with ONE short sentence ("Analysis started — crunching your metrics against

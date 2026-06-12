@@ -143,7 +143,14 @@ class GraphAgent:
         # intent == "analyze"
         try:
             job = self._jobs.create(session_id, message)
-            deadline = time.monotonic() + self._request_budget_s
+            # Callers that need a fast ack (e.g. OpenClaw's synchronous exec) can pass
+            # budget_s to cap the first-call work; the poller advances the job later.
+            try:
+                budget = float(payload.get("budget_s", self._request_budget_s))
+            except (TypeError, ValueError):
+                budget = self._request_budget_s
+            budget = max(0.0, min(budget, self._request_budget_s))
+            deadline = time.monotonic() + budget
             self._advance_and_save(job, deadline)
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
