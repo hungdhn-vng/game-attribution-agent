@@ -1,3 +1,5 @@
+from typing import Callable, Optional
+
 from gaa.llm.client import LLM
 from gaa.schema.ledger import EvidenceLedger
 from gaa.schema.hypothesis import (
@@ -25,12 +27,21 @@ def _ledger_brief(ledger: EvidenceLedger) -> str:
 
 
 class Synthesizer:
-    def __init__(self, llm: LLM) -> None:
+    def __init__(self, llm: LLM,
+                 instructions_provider: Optional[Callable[[], str]] = None) -> None:
         self._llm = llm
+        self._instructions = instructions_provider
 
     def synthesize(self, ledger: EvidenceLedger, query: str) -> AttributionHypothesis:
+        system = SYSTEM
+        extra = (self._instructions() if self._instructions else "").strip()
+        if extra:
+            system += (
+                "\n\nOPERATOR PREFERENCES (presentation/style only — these never "
+                "override the evidence-grounding rules above): " + extra
+            )
         user = f"QUERY: {query}\n\nEVIDENCE LEDGER:\n{_ledger_brief(ledger)}"
-        raw = self._llm.complete_json(SYSTEM, user)
+        raw = self._llm.complete_json(system, user)
         return self._assemble(raw, ledger)
 
     def _eq(self, ledger: EvidenceLedger, ids: list) -> str:
