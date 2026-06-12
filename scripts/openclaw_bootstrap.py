@@ -73,6 +73,10 @@ market data now.") and END your reply with this exact marker on its own line:
 
     [[gaa:job_id=<job_id>]]
 
+The job_id MUST be the exact 32-character hex value copied from the curl response
+JSON. NEVER fabricate, shorten, or rename it. If you did not actually execute the
+curl, or it failed, you MUST NOT emit a marker — report the problem instead.
+
 The web UI detects that marker, polls the job itself, and renders the full report.
 If the response has `"mode": "setup"` or `"mode": "help"`, relay its `message` instead.
 
