@@ -57,6 +57,10 @@ description: Call the Game Attribution Agent (GAA) API — analyze game metrics,
 Credentials live in `~/.openclaw/workspace/.env` (GAA_ENDPOINT, GAA_ADMIN_KEY).
 Always `source ~/.openclaw/workspace/.env` before the curl commands below.
 
+IMPORTANT: run these curls yourself with your exec tool IN THE SAME TURN and reply
+immediately — NEVER spawn subagents or background tasks for GAA requests. The chat
+client is waiting synchronously for your reply.
+
 ## Start an analysis (any user)
 When the user asks why a game metric moved or what's happening with their game:
 

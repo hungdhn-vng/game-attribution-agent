@@ -78,8 +78,11 @@ _agent = GraphAgent(
 @app.entrypoint
 def handler(payload: dict, context: RequestContext) -> dict:
     try:
+        # Session/user headers are optional for API callers (e.g. OpenClaw's curl
+        # sends none) — default them so job creation never sees None.
         return {"status": "success",
-                **_agent.handle(payload, context.session_id, context.user_id)}
+                **_agent.handle(payload, context.session_id or "default",
+                                context.user_id or "anon")}
     except Exception as exc:  # graceful degradation — never 500 the judge's request
         return {"status": "error", "error": str(exc)}
 
