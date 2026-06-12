@@ -11,14 +11,9 @@ from gaa.store.benchmark_store import BenchmarkStore
 from gaa.store.benchmark_seed import seed_benchmark_store
 from gaa.onboarding.profiler import Profiler
 from gaa.sources.crawling_benchmark import CrawlingBenchmarkSource
-from gaa.sources.web_signals import WebSignalsSource
-from gaa.sources.fixtures import FixtureSignalsSource
-from gaa.sources.providers.roblox import RobloxBenchmarkProvider
-from gaa.sources.providers.steam import SteamBenchmarkProvider
-from gaa.sources.providers.web import WebSearchBenchmarkProvider
-from gaa.crawl.fetcher import CachedFetcher
-from gaa.crawl.perplexity import perplexity_answer
-from gaa.crawl.refresher import BenchmarkRefresher
+from gaa.admin_actions import AdminActions
+from gaa.store.config_store import ConfigStore
+from gaa.sources.dynamic import DynamicRefresher, DynamicSignals
 from gaa.synth.synthesizer import Synthesizer
 from gaa.jobs.job_store import JobStore
 from gaa.jobs.pipeline import AnalysisPipeline
@@ -41,55 +36,17 @@ _snapshot_path = os.path.join(
 seed_benchmark_store(_benchmark_store, _snapshot_path)
 _benchmark = CrawlingBenchmarkSource(_benchmark_store)
 
-# ── Benchmark providers (quant crawl + optional Perplexity web tier) ─────────
-_benchmark_mode = os.environ.get("GAA_BENCHMARK_MODE", "")
-
-if _benchmark_mode == "crawl":
-    _roblox_fetcher = CachedFetcher(settings.cache_dir + "/benchmark")
-    _steam_fetcher = CachedFetcher(settings.cache_dir + "/benchmark")
-    _roblox_provider = RobloxBenchmarkProvider(
-        fetcher=_roblox_fetcher,
-        discover_url_tmpl=os.environ.get("GAA_ROBLOX_DISCOVER_URL_TMPL", ""),
-        series_url_tmpl=os.environ.get("GAA_ROBLOX_SERIES_URL_TMPL", ""),
-    )
-    _steam_provider = SteamBenchmarkProvider(
-        fetcher=_steam_fetcher,
-        discover_url_tmpl=os.environ.get("GAA_STEAM_DISCOVER_URL_TMPL", ""),
-        series_url_tmpl=os.environ.get("GAA_STEAM_SERIES_URL_TMPL", ""),
-    )
-    _providers_by_platform: dict = {
-        "roblox": [_roblox_provider],
-        "steam": [_steam_provider],
-    }
-    _web_provider = (
-        WebSearchBenchmarkProvider(
-            lambda prompt: perplexity_answer(prompt, settings)
-        )
-        if settings.perplexity_api_key
-        else None
-    )
-else:
-    # Default / demo mode — snapshot floor serves all data; crawl short-circuits.
-    _providers_by_platform = {}
-    _web_provider = None
-
-_refresher = BenchmarkRefresher(
-    store=_benchmark_store,
-    providers_by_platform=_providers_by_platform,
-    web_provider=_web_provider,
-)
-
-# ── Signals source ────────────────────────────────────────────────────────────
-_sig_tmpl = os.environ.get("GAA_SIGNALS_URL_TMPL")
-_signals = (
-    WebSignalsSource(cache_dir=settings.cache_dir + "/signals", query_url_tmpl=_sig_tmpl)
-    if _sig_tmpl
-    else FixtureSignalsSource([])
-)
+# ── Runtime config + dynamic sources (admin-changeable, no restart needed) ───
+_config = ConfigStore(settings.db_path)
+_refresher = DynamicRefresher(config=_config, settings=settings, store=_benchmark_store)
+_signals = DynamicSignals(config=_config, settings=settings)
 
 # ── LLM clients ───────────────────────────────────────────────────────────────
 _llm = LangChainMaaSLLM(settings)
-_synth = Synthesizer(_llm)
+_synth = Synthesizer(
+    _llm,
+    instructions_provider=lambda: _config.resolve("behavior_instructions")[0],
+)
 
 # ── Pipeline + job store ──────────────────────────────────────────────────────
 _pipeline = AnalysisPipeline(
@@ -104,6 +61,8 @@ _pipeline = AnalysisPipeline(
 _jobs = JobStore(settings.cache_dir + "/jobs.sqlite")
 
 # ── Agent — shares the same ProfileStore + MetricsStore as the pipeline ───────
+_admin = AdminActions(config=_config, profiles=_profile_store)
+
 _agent = GraphAgent(
     jobs=_jobs,
     pipeline=_pipeline,
@@ -112,6 +71,7 @@ _agent = GraphAgent(
     benchmark=_benchmark,
     profiler=Profiler(_llm),
     request_budget_s=float(os.environ.get("GAA_REQUEST_BUDGET_S", "40")),
+    admin=_admin,
 )
 
 
