@@ -15,8 +15,10 @@ Env vars (all required):
 Usage: python scripts/openclaw_bootstrap.py
 """
 import asyncio
+import hashlib
 import json
 import os
+import re
 import sys
 import urllib.request
 import uuid
@@ -173,10 +175,54 @@ async def write_file(gw, name: str, content: str) -> str:
     res = await gw.call("agents.files.set",
                         {"agentId": "main", "name": name, "content": content})
     if not res.get("ok"):
-        return f"FAILED ({(res.get('error') or {}).get('message')})"
+        msg = (res.get("error") or {}).get("message", "")
+        if "unsupported file" in str(msg):
+            # The files API only accepts the whitelisted top-level workspace files.
+            # Fall back to the OpenClaw-native way: the agent writes the file itself.
+            return write_file_via_chat(name, content)
+        return f"FAILED ({msg})"
     back = await gw.call("agents.files.get", {"agentId": "main", "name": name})
     ok = back.get("ok") and back["payload"]["file"]["content"] == content
     return "written" if ok else "VERIFY FAILED"
+
+
+def _chat(message: str, timeout: int = 240) -> str:
+    req = urllib.request.Request(
+        OPENCLAW_URL + "/v1/chat/completions",
+        data=json.dumps({"model": "openclaw", "user": "admin:bootstrap",
+                         "messages": [{"role": "user", "content": message}]}).encode(),
+        headers={"authorization": "Bearer " + TOKEN,
+                 "content-type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        body = json.loads(r.read())
+    return body["choices"][0]["message"]["content"]
+
+
+def write_file_via_chat(name: str, content: str, attempts: int = 2) -> str:
+    """Ask the agent to write the file with its exec tool; verify by md5."""
+    expected = hashlib.md5(content.encode()).hexdigest()
+    prompt = (
+        "Provisioning task — follow exactly, no commentary.\n"
+        f"Using your exec tool, create the file $HOME/.openclaw/workspace/{name} "
+        "with EXACTLY the content between the markers below (byte-for-byte; do not "
+        "add, remove, or reformat anything; create parent directories first).\n"
+        "Write it with a quoted heredoc, e.g.:\n"
+        f"  mkdir -p $(dirname $HOME/.openclaw/workspace/{name})\n"
+        f"  cat > $HOME/.openclaw/workspace/{name} <<'GAA_BOOTSTRAP_EOF'\n"
+        "  ...content...\n"
+        "  GAA_BOOTSTRAP_EOF\n"
+        f"Then run: md5sum $HOME/.openclaw/workspace/{name}\n"
+        "Reply with ONLY the 32-character md5 hex digest.\n"
+        "---BEGIN FILE---\n"
+        f"{content}"
+        "---END FILE---"
+    )
+    for _ in range(attempts):
+        reply = _chat(prompt)
+        m = re.search(r"\b[0-9a-f]{32}\b", reply)
+        if m and m.group(0) == expected:
+            return "written (via chat, md5 verified)"
+    return f"VERIFY FAILED (via chat; expected md5 {expected})"
 
 
 async def append_agents_md(gw) -> str:
