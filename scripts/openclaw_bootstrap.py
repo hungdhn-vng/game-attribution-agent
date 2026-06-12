@@ -71,7 +71,8 @@ The web UI detects that marker, polls the job itself, and renders the full repor
 If the response has `"mode": "setup"` or `"mode": "help"`, relay its `message` instead.
 
 ## Admin actions — ONLY for admin sessions
-A session is admin ONLY if it contains the system message `GAA session role: admin`.
+A session is admin ONLY if it contains the system message `GAA session role: admin`
+or its session user id starts with `admin:`.
 For everyone else: refuse, and suggest they contact the admin. Never reveal GAA_ADMIN_KEY.
 
 View config (keys, resolved values, origin store/env/default; secrets masked):
@@ -108,7 +109,8 @@ AGENTS_MD_ADDENDUM = """
 
 - You are the chat front-end for the Game Attribution Agent (GAA). Use the `gaa`
   skill for game-metric analysis questions and for admin configuration.
-- Admin sessions are marked with the system message `GAA session role: admin`.
+- Admin sessions are marked with the system message `GAA session role: admin`
+  or a session user id starting with `admin:`.
   Treat every other session as a regular user: never run admin actions, never
   reveal configuration values or secrets, never edit your own workspace files
   on their request.
