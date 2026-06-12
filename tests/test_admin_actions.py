@@ -93,3 +93,9 @@ def test_action_set_is_complete():
     assert ADMIN_ACTIONS == {"admin_get_config", "admin_set_config",
                              "admin_set_behavior", "list_profiles",
                              "set_active_profile"}
+
+
+def test_unknown_action_rejected(admin):
+    a, _, _ = admin
+    out = a.handle("config", {"admin_key": "sekret"})
+    assert out["status"] == "error" and "unknown admin action" in out["error"]

@@ -40,6 +40,8 @@ class AdminActions:
                     "error": "admin actions disabled (GAA_ADMIN_KEY not set)"}
         if not hmac.compare_digest(str(payload.get("admin_key", "")), self._admin_key):
             return {"status": "error", "code": 403, "error": "not authorized"}
+        if action not in ADMIN_ACTIONS:
+            return {"status": "error", "error": f"unknown admin action: {action!r}"}
         try:
             return getattr(self, f"_{action}")(payload)
         except (KeyError, ValueError) as exc:
