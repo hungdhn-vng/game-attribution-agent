@@ -16,7 +16,10 @@ def perplexity_answer(prompt: str, settings: Settings | None = None) -> dict:
     )
     resp.raise_for_status()
     data = resp.json()
+    # The live API returns citations as plain URL strings; normalize to dicts.
+    citations = [c if isinstance(c, dict) else {"url": c}
+                 for c in data.get("citations", [])]
     return {
         "content": data["choices"][0]["message"]["content"],
-        "citations": data.get("citations", []),
+        "citations": citations,
     }

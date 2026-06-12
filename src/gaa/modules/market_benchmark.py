@@ -30,10 +30,13 @@ class MarketBenchmark:
             ctx_q = getattr(self._source, "qualitative_context", lambda *_: None)(ctx.profile.genre)
             if ctx_q:
                 cite = ctx_q.get("citations") or []
+                # Persisted payloads may hold citations as URL strings or dicts.
+                first = cite[0] if cite else None
+                src = (first.get("url") if isinstance(first, dict) else first) or "web-search"
                 ledger.add(module=self.name,
                     claim=f"market context: genre trending {ctx_q.get('direction','?')} — {ctx_q.get('summary','')}",
                     value=ctx_q.get("direction","?"),
-                    source=(cite[0].get("url") if cite else "web-search"),
+                    source=src,
                     source_type="external", strength="low", timeframe=f"{ctx.start}..{ctx.end}")
             return
 

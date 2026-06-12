@@ -84,6 +84,33 @@ def test_qualitative_context_emits_external_low_entry():
     assert entry.source == "https://example.com/report"
 
 
+class _SourceWithStringCitations:
+    """Stub source whose qual payload carries citations as plain URL strings,
+    as persisted by crawls that stored the raw Perplexity citation list."""
+    def genre_trend(self, genre, start, end):
+        return {}
+
+    def qualitative_context(self, genre):
+        return {
+            "direction": "down",
+            "summary": "Players are churning due to new competitor",
+            "citations": ["https://example.com/report"],
+        }
+
+
+def test_qualitative_context_tolerates_string_citations():
+    """Persisted qual payloads may hold citations as URL strings — the module
+    must not crash and must still cite the URL as the entry source."""
+    df = _df([1000, 600], start="2026-05-01")
+    led = EvidenceLedger()
+    MarketBenchmark(_SourceWithStringCitations()).run(_ctx(df, "2026-05-01", "2026-05-02"), led)
+
+    qual_entries = [e for e in led.all()
+                    if e.module == "market" and e.source_type == "external" and e.strength == "low"]
+    assert qual_entries, "expected an external/low market context entry"
+    assert qual_entries[0].source == "https://example.com/report"
+
+
 def test_fixture_source_without_qualitative_context_no_crash():
     """FixtureBenchmarkSource (no qualitative_context method) must not crash — only the
     gap entry is emitted (derived/low), no external entry."""
