@@ -75,12 +75,22 @@ def splice_http_endpoint(raw: str) -> str:
 
 
 def capability_gate_commands(repo_url: str) -> list:
-    """Shell commands (run via chat-driven exec) that ship the code + gate on deps."""
+    """Shell commands (run via chat-driven exec) that ship the code + gate on deps.
+
+    Spike (2026-06-13) verified the OpenClaw template image is Debian 12 / Python
+    3.11 running as root WITH network egress but NO pip/uv/ensurepip. So pip is
+    bootstrapped via get-pip.py and installs use --break-system-packages (PEP 668;
+    safe — it's a disposable single-purpose container we own as root).
+    """
     ws = "$HOME/.openclaw/workspace"
     return [
         "python3 --version",
+        # bootstrap pip if absent (template ships none; root + network available)
+        "python3 -m pip --version 2>/dev/null || "
+        "(curl -sSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py && "
+        "python3 /tmp/get-pip.py --break-system-packages)",
         f"cd {ws} && (test -d gaa/.git && (cd gaa && git pull) || git clone {repo_url} gaa)",
-        f"cd {ws}/gaa && (pip install -e . || python3 -m pip install -e .)",
+        f"cd {ws}/gaa && python3 -m pip install --break-system-packages -e .",
         f"cd {ws}/gaa && python3 -c 'import statsmodels, ruptures, pyarrow; print(\"DEPS\"+\"OK\")'",
         "gaa --help >/dev/null 2>&1 && echo gaa-on-path || echo gaa-missing",
     ]

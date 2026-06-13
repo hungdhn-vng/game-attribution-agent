@@ -113,5 +113,6 @@ def test_dry_run_manifest_lists_files_and_capability_gate(capsys, tmp_path, monk
     inst.main(["--dry-run", "--workspace", str(ws)])
     out = capsys.readouterr().out
     assert "AGENTS.md" in out and "skills/gaa/SKILL.md" in out
-    assert "pip install -e ." in out
+    assert "get-pip.py" in out                                  # pip bootstrap (template ships none)
+    assert "pip install --break-system-packages -e ." in out    # PEP-668 install of the package
     assert "gaa doctor" in out
