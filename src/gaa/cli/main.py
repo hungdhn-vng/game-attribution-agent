@@ -7,6 +7,7 @@ import time
 from typing import Any, Optional
 
 from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
+from gaa.cli.commands.doctor import cmd_doctor
 from gaa.cli.wiring import GaaContext, build_context
 from gaa.runs.store import RunBusy
 
@@ -114,6 +115,9 @@ def _build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=_cmd_step)
     st.set_defaults(func=_cmd_status)
     j.set_defaults(func=_cmd_jobs)
+
+    d = sub.add_parser("doctor", help="check environment health")
+    d.set_defaults(func=cmd_doctor)
 
     cfg = sub.add_parser("config", help="get/set runtime configuration")
     cfg_sub = cfg.add_subparsers(dest="config_command", required=True)
