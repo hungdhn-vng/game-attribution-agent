@@ -2,7 +2,7 @@ import pytest
 
 import gaa.core.sources.dynamic as dyn
 from gaa.core.settings import Settings
-from gaa.core.store.config_store import ConfigStore
+from gaa.config import GaaConfig
 
 
 class StubRefresher:
@@ -41,7 +41,7 @@ def config(tmp_path, monkeypatch):
                 "GAA_ROBLOX_SERIES_URL_TMPL", "GAA_STEAM_SERIES_URL_TMPL",
                 "PERPLEXITY_API_KEY", "GAA_SIGNALS_URL_TMPL"):
         monkeypatch.delenv(var, raising=False)
-    return ConfigStore(str(tmp_path / "c.sqlite"))
+    return GaaConfig(str(tmp_path / "gaa-config.toml"))
 
 
 @pytest.fixture
@@ -63,7 +63,8 @@ def test_crawl_mode_builds_providers_from_current_config(config, settings, monke
     r = dyn.DynamicRefresher(config=config, settings=settings, store="STORE")
     # flip config AFTER constructing the facade — must take effect on next call
     config.set("benchmark_mode", "crawl")
-    config.set("perplexity_api_key", "pplx-test")
+    # perplexity_api_key is env-only in GaaConfig; set via env var instead
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "pplx-test")
     r.refresh("steam", "survival")
     kw = StubRefresher.last_kwargs
     assert set(kw["providers_by_platform"]) == {"roblox", "steam"}

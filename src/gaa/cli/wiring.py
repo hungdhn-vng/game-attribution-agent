@@ -12,7 +12,7 @@ from gaa.core.sources.crawling_benchmark import CrawlingBenchmarkSource
 from gaa.core.sources.dynamic import DynamicRefresher, DynamicSignals
 from gaa.core.store.benchmark_seed import seed_benchmark_store
 from gaa.core.store.benchmark_store import BenchmarkStore
-from gaa.core.store.config_store import ConfigStore
+from gaa.config import GaaConfig
 from gaa.core.store.metrics_store import MetricsStore
 from gaa.core.store.profile_store import ProfileStore
 from gaa.core.synth.synthesizer import Synthesizer
@@ -46,7 +46,7 @@ class GaaContext:
     settings: Settings
     profiles: ProfileStore
     metrics: MetricsStore
-    config: ConfigStore
+    config: GaaConfig
     benchmark: CrawlingBenchmarkSource
     profiler: Profiler
     pipeline: AnalysisPipeline
@@ -73,7 +73,7 @@ def build_context(llm: Optional[Any] = None, today: Optional[str] = None) -> Gaa
         seed_benchmark_store(benchmark_store, snapshot_path)
     benchmark = CrawlingBenchmarkSource(benchmark_store)
 
-    config = ConfigStore(settings.db_path)
+    config = GaaConfig(os.environ.get("GAA_CONFIG_PATH", "gaa-config.toml"))
     # DynamicRefresher takes (config, settings, store); DynamicSignals takes (config, settings)
     refresher = DynamicRefresher(config=config, settings=settings, store=benchmark_store)
     signals = DynamicSignals(config=config, settings=settings)

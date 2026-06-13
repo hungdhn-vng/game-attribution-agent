@@ -1,6 +1,6 @@
 """Config-driven source facades.
 
-These rebuild their underlying provider stack from the current ConfigStore values
+These rebuild their underlying provider stack from the current GaaConfig values
 on every call, so admin config changes take effect on the next job without a
 process restart — and AnalysisPipeline keeps its existing refresher/signals API.
 """
@@ -16,13 +16,10 @@ from gaa.core.sources.providers.roblox import RobloxBenchmarkProvider
 from gaa.core.sources.providers.steam import SteamBenchmarkProvider
 from gaa.core.sources.providers.web import WebSearchBenchmarkProvider
 from gaa.core.sources.web_signals import WebSignalsSource
-from gaa.core.store.config_store import ConfigStore
-
-
 class DynamicRefresher:
-    """BenchmarkRefresher facade that honors the live ConfigStore on each refresh."""
+    """BenchmarkRefresher facade that honors the live config on each refresh."""
 
-    def __init__(self, config: ConfigStore, settings: Settings, store) -> None:
+    def __init__(self, config, settings: Settings, store) -> None:
         self._config = config
         self._settings = settings
         self._store = store
@@ -63,9 +60,9 @@ class DynamicRefresher:
 
 
 class DynamicSignals:
-    """SignalsSource facade that honors the live ConfigStore on each call."""
+    """SignalsSource facade that honors the live config on each call."""
 
-    def __init__(self, config: ConfigStore, settings: Settings) -> None:
+    def __init__(self, config, settings: Settings) -> None:
         self._config = config
         self._settings = settings
 
