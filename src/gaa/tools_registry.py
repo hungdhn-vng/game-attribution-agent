@@ -93,8 +93,10 @@ class ToolRegistry:
         lines = ["# Promoted tools", ""]
         items = self.list()
         for t in items:
+            name = " ".join(str(t["name"]).split())
+            desc = " ".join(str(t["description"]).split())
             warn = "" if t["md5_ok"] else "  ⚠️ md5 mismatch — re-promote"
-            lines.append(f"- **{t['name']}** — {t['description']}{warn}")
+            lines.append(f"- **{name}** — {desc}{warn}")
         if not items:
             lines.append("_(none promoted yet)_")
         text = "\n".join(lines) + "\n"

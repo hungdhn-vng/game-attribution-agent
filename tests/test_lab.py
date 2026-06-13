@@ -106,3 +106,21 @@ def test_add_evidence_unknown_run_raises(tmp_path, monkeypatch):
     import pytest
     with pytest.raises(ValueError):
         lab.add_evidence("nope", claim="c", value="v", source="s")
+
+
+def test_add_evidence_busy_run_raises_clear_error(tmp_path, monkeypatch):
+    import fcntl
+    import gaa.lab as lab
+    rid = _workspace(tmp_path, monkeypatch)
+    # hold the run's lock from "another process"
+    lock_path = tmp_path / "cache" / "runs" / rid / ".lock"
+    held = lock_path.open("w")
+    fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        import pytest
+        with pytest.raises(RuntimeError) as exc:
+            lab.add_evidence(rid, claim="c", value="v", source="s")
+        assert "busy" in str(exc.value).lower()
+    finally:
+        fcntl.flock(held, fcntl.LOCK_UN)
+        held.close()

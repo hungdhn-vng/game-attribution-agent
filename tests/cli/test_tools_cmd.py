@@ -148,3 +148,9 @@ def test_tools_export_then_import_roundtrip(tmp_path):
     assert _run(["tools", "list"], tmp_path)["tools"] == []
     assert _run(["tools", "import", "--tarball", tarball], tmp_path)["status"] == "success"
     assert any(t["name"] == "t" for t in _run(["tools", "list"], tmp_path)["tools"])
+
+
+def test_tools_run_unknown_tool_is_clear_error(tmp_path):
+    resp = _run(["tools", "run", "ghost", "--run", "whatever"], tmp_path)
+    assert resp["status"] == "error"
+    assert "unknown tool" in resp["error"].lower()

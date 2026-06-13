@@ -45,3 +45,16 @@ def test_promote_missing_script_raises(tmp_path):
     reg = ToolRegistry(str(tmp_path / "tools"))
     with pytest.raises(ValueError):
         reg.promote("t", "d", str(tmp_path / "does-not-exist.py"))
+
+
+def test_sync_docs_sanitizes_injection(tmp_path):
+    reg = ToolRegistry(str(tmp_path / "tools"))
+    reg.promote("t", "line1\n# Injected Header\n- injected bullet", _script(tmp_path))
+    out = tmp_path / "tools.md"
+    reg.sync_docs(str(out))
+    lines = out.read_text().splitlines()
+    # no injected header/bullet lines
+    assert not any(l.startswith("# Injected") for l in lines)
+    assert not any(l.strip() == "- injected bullet" for l in lines)
+    # description content survives inline (collapsed to one line with the tool)
+    assert any("**t**" in l and "Injected Header" in l for l in lines)

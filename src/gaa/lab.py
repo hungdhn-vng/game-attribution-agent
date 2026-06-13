@@ -18,7 +18,7 @@ from gaa.core.schema.ledger import EvidenceLedger
 from gaa.core.sources.crawling_benchmark import CrawlingBenchmarkSource
 from gaa.core.store.benchmark_store import BenchmarkStore
 from gaa.core.store.metrics_store import MetricsStore
-from gaa.runs.store import RunStore
+from gaa.runs.store import RunStore, RunBusy
 
 _STRENGTH_CAP = {"high": "med", "med": "med", "low": "low"}
 
@@ -82,15 +82,18 @@ def add_evidence(rid: str, *, claim: str, value: str, source: str,
     tool = os.environ.get("GAA_TOOL_NAME", "").strip()
     module = f"tool:{tool}" if tool else "adhoc"
     capped = _STRENGTH_CAP.get(strength, "med")
-    with runs.locked(rid):
-        run = runs.get(rid)
-        if run is None:
-            raise ValueError(f"unknown run: {rid!r}")
-        ledger = EvidenceLedger()
-        ledger.load(run.state.get("ledger", []))
-        eid = ledger.add(module=module, claim=claim, value=value, source=source,
-                         source_type=source_type, strength=capped, timeframe=timeframe)
-        run.state["ledger"] = [e.model_dump() for e in ledger.all()]
-        run.add_activity(module, f"ad-hoc evidence: {claim[:60]}")
-        runs.save(run)
+    try:
+        with runs.locked(rid):
+            run = runs.get(rid)
+            if run is None:
+                raise ValueError(f"unknown run: {rid!r}")
+            ledger = EvidenceLedger()
+            ledger.load(run.state.get("ledger", []))
+            eid = ledger.add(module=module, claim=claim, value=value, source=source,
+                             source_type=source_type, strength=capped, timeframe=timeframe)
+            run.state["ledger"] = [e.model_dump() for e in ledger.all()]
+            run.add_activity(module, f"ad-hoc evidence: {claim[:60]}")
+            runs.save(run)
+    except RunBusy as exc:
+        raise RuntimeError(f"run {rid!r} is busy (an analysis step is in progress) — retry shortly") from exc
     return eid

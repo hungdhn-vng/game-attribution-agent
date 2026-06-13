@@ -59,6 +59,9 @@ def cmd_tools_run(ctx, args) -> dict:
     import subprocess
     import sys
 
+    if not ctx.tools.path(args.name).exists():
+        return {"status": "error", "error": f"unknown tool: {args.name!r}"}
+
     try:
         ok = ctx.tools.verify(args.name)
     except ValueError as exc:
