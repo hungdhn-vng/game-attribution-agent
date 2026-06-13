@@ -7,7 +7,7 @@ import { DataStreamProvider } from "@/components/chat/data-stream-provider";
 import { ChatShell } from "@/components/chat/shell";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { ActiveChatProvider } from "@/hooks/use-active-chat";
-import { auth } from "../(auth)/auth";
+import { auth } from "@/lib/auth";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
