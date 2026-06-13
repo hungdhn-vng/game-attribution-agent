@@ -7,7 +7,7 @@ import time
 from typing import Any, Optional
 
 from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
-from gaa.cli.commands.tools import cmd_tools_promote
+from gaa.cli.commands.tools import cmd_tools_promote, cmd_tools_run
 from gaa.cli.commands.doctor import cmd_doctor
 from gaa.cli.commands.onboarding import (
     cmd_onboard_propose, cmd_onboard_confirm, cmd_profile_list, cmd_profile_use)
@@ -194,6 +194,12 @@ def _build_parser() -> argparse.ArgumentParser:
                      help="path to the script (relative to the run's scratch/ when --run is given)")
     tlp.add_argument("--run", default=None, help="source run id (for provenance + scratch resolution)")
     tlp.set_defaults(func=cmd_tools_promote)
+
+    tlr = tl_sub.add_parser("run", help="md5-verify and execute a promoted tool")
+    tlr.add_argument("name")
+    tlr.add_argument("--run", default=None, help="run id the tool operates on")
+    tlr.add_argument("--args", default=None, help="JSON args passed to the tool as GAA_TOOL_ARGS")
+    tlr.set_defaults(func=cmd_tools_run)
 
     return p
 
