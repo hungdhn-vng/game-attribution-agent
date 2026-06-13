@@ -6,6 +6,7 @@ import sys
 import time
 from typing import Any, Optional
 
+from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
 from gaa.cli.wiring import GaaContext, build_context
 from gaa.runs.store import RunBusy
 
@@ -108,15 +109,23 @@ def _build_parser() -> argparse.ArgumentParser:
     j.add_argument("--session", default=None)
     j.add_argument("--prune", type=int, default=0, metavar="DAYS",
                    help="delete runs older than DAYS instead of listing")
+
+    a.set_defaults(func=_cmd_analyze)
+    s.set_defaults(func=_cmd_step)
+    st.set_defaults(func=_cmd_status)
+    j.set_defaults(func=_cmd_jobs)
+
+    cfg = sub.add_parser("config", help="get/set runtime configuration")
+    cfg_sub = cfg.add_subparsers(dest="config_command", required=True)
+    cg = cfg_sub.add_parser("get", help="show config (all keys, or one)")
+    cg.add_argument("key", nargs="?", default=None)
+    cg.set_defaults(func=cmd_config_get)
+    cs = cfg_sub.add_parser("set", help="set or clear a config key")
+    cs.add_argument("key")
+    cs.add_argument("value")
+    cs.set_defaults(func=cmd_config_set)
+
     return p
-
-
-_DISPATCH = {
-    "analyze": _cmd_analyze,
-    "step": _cmd_step,
-    "status": _cmd_status,
-    "jobs": _cmd_jobs,
-}
 
 
 def main(argv: Optional[list] = None, *, llm: Any = None, today: Optional[str] = None) -> dict:
@@ -127,7 +136,7 @@ def main(argv: Optional[list] = None, *, llm: Any = None, today: Optional[str] =
     args = _build_parser().parse_args(argv if argv is not None else sys.argv[1:])
     try:
         ctx = build_context(llm=llm, today=today)
-        result = _DISPATCH[args.command](ctx, args)
+        result = args.func(ctx, args)
     except Exception as exc:  # never raise to the shell with a traceback
         result = {"status": "error", "error": str(exc)}
     _emit(result, as_text=args.text)
