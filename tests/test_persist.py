@@ -65,3 +65,33 @@ def test_restore_noop_when_no_snapshot(tmp_path, monkeypatch):
     ctx = _ctx(tmp_path, monkeypatch)
     s3 = FakeS3()
     assert persist.restore(ctx, client=s3, bucket="b") is False
+
+
+def test_roundtrip_persists_config_and_db_under_production_layout(tmp_path, monkeypatch):
+    # Production layout: cache_dir is BELOW the db/config (one level deeper). The old
+    # relpath-based root skipped gaa.sqlite + gaa-config.toml; they MUST round-trip.
+    monkeypatch.setenv("GAA_DB_PATH", str(tmp_path / "gaa.sqlite"))
+    monkeypatch.setenv("GAA_CACHE_DIR", str(tmp_path / "data" / "cache"))
+    monkeypatch.setenv("GAA_CONFIG_PATH", str(tmp_path / "gaa-config.toml"))
+    ctx = build_context(llm=FakeLLM({}), today="2026-06-13")
+    ctx.config.set("benchmark_mode", "crawl")  # writes gaa-config.toml
+    from gaa.core.schema.profile import GameProfile, ColumnMapping
+    ctx.profiles.save(GameProfile(name="ShooterX", platform="roblox", genre="shooter",
+                                  mapping=ColumnMapping(date_col="d", metric_cols={"dau": "dau"})))
+
+    s3 = FakeS3()
+    assert persist.snapshot(ctx, client=s3, bucket="b") is True
+    # the tar must actually contain the config + db (the bug skipped them)
+    import io as _io, tarfile as _tf
+    names = _tf.open(fileobj=_io.BytesIO(s3.objects[("b", persist.STATE_KEY)]), mode="r:gz").getnames()
+    assert "config.toml" in names
+    assert "profiles.sqlite" in names
+
+    # mutate config + wipe the db, then restore must bring both back
+    ctx.config.set("benchmark_mode", "snapshot")
+    os.remove(ctx.settings.db_path)
+    assert persist.restore(ctx, client=s3, bucket="b") is True
+
+    ctx2 = build_context(llm=FakeLLM({}), today="2026-06-13")
+    assert ctx2.config.resolve("benchmark_mode")[0] == "crawl"
+    assert "ShooterX" in ctx2.profiles.list_names()

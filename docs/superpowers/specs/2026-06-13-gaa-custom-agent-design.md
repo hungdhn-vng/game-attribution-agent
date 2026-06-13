@@ -195,6 +195,7 @@ The backend was implemented on branch `feat/gaa-custom-agent-backend` via 9 TDD 
 - **Action dispatch** aliases `run` ⇄ `run_id`: the agent tool-guide uses `run`, but `status`/`step` handlers read `run_id` while drilldowns read `run` — dispatch fills in whichever is missing so all resolve. Handler tracebacks are logged.
 - **Chat loop robustness:** if the LLM returns unparseable JSON (a routine thinking-model failure) the loop still emits a terminal `done` SSE event (no hung stream); a decision that is neither `action` nor `final` is corrected and retried (bounded by `max_iters`) instead of aborting; the `[[gaa:run_id=…]]` marker is only set from a non-error result.
 - **Artifact route** is anchored to the runs ROOT (`run_dir.parent == runs_root`), not to a `run_dir` derived from the untrusted `run_id` — verified safe against encoded `..`, encoded slashes, absolute paths, and symlink vectors.
+- The open artifact route also serves `job.json` (full run state) for run-state inspection, beyond the spec §5 list — read-only, no secrets.
 - **Startup** uses a FastAPI `lifespan` handler (not the deprecated `on_event`): `persist.restore(ctx)` (best-effort) then `persona.ensure_seeded(ctx)`.
 - **`persist.restore`** treats only `NoSuchKey`/`NoSuchBucket`/`404` as "first boot" (returns False) and re-raises real errors; `snapshot` skips (and warns on stderr) any durable path that would resolve outside the snapshot root.
 
@@ -204,6 +205,7 @@ The backend was implemented on branch `feat/gaa-custom-agent-backend` via 9 TDD 
 - `GAA_AGENT_TOKEN` — Bearer gate for `/chat` + `/invocations` (held server-side by the frontend proxy; leak = RCE, treat as high-sensitivity).
 - `GAA_ADMIN_KEY` — gates the dangerous tools (`exec`/`browse`/`self_edit`/mutations); `X-GAA-Admin-Key` header on `/chat`, `admin_key` body field on `/invocations`.
 - `VSTORAGE_ENDPOINT` / `VSTORAGE_BUCKET` / `VSTORAGE_ACCESS_KEY` / `VSTORAGE_SECRET_KEY` — persistence; if unset, persistence is a local-only no-op.
+- `GAA_STEP_BUDGET_S` — set high (e.g. `600`) so an in-process `analyze` advances to completion within a single `/chat` turn (the reused CLI handler clamps the per-call budget to this).
 
 ### Deploy (via `agentbase-deploy`)
 Build `linux/amd64` → push to the managed Container Registry → create a Custom Agent runtime (`/agent-runtimes`, PUBLIC, flavor sized for the analytics deps). The platform only requires `:8080` + `GET /health`.

@@ -30,7 +30,7 @@ class _Args(types.SimpleNamespace):
 
 # Per-action defaults for attributes the handler will read with a non-None expectation.
 _DEFAULTS = {
-    "analyze": {"session": "default", "budget": "20", "query": ""},
+    "analyze": {"session": "default", "budget": "600", "query": ""},
     "jobs": {"session": None, "prune": None},
     "onboard_propose": {"adapter": "generic"},
     "onboard_confirm": {"adapter": "generic"},
