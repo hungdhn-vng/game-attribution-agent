@@ -43,3 +43,66 @@ def test_adhoc_reference_states_readonly_and_verbatim():
     assert "gaa.lab" in adhoc
     assert "read-only" in adhoc or "read only" in adhoc
     assert "verbatim" in adhoc or "never report a number" in adhoc
+
+
+import importlib.util
+
+_SPEC = importlib.util.spec_from_file_location(
+    "openclaw_install",
+    Path(__file__).resolve().parents[1] / "scripts" / "openclaw_install.py")
+
+
+def _mod():
+    m = importlib.util.module_from_spec(_SPEC)
+    _SPEC.loader.exec_module(m)
+    return m
+
+
+def test_collect_workspace_files_walks_tree(tmp_path):
+    inst = _mod()
+    ws = tmp_path / "workspace"
+    (ws / "skills" / "gaa" / "references").mkdir(parents=True)
+    (ws / "AGENTS.md").write_text("a")
+    (ws / "skills" / "gaa" / "SKILL.md").write_text("b")
+    (ws / "skills" / "gaa" / "references" / "analysis.md").write_text("c")
+    files = inst.collect_workspace_files(str(ws))
+    assert files["AGENTS.md"] == "a"
+    assert files["skills/gaa/SKILL.md"] == "b"
+    assert files["skills/gaa/references/analysis.md"] == "c"
+
+
+def test_md5_matches_hashlib(tmp_path):
+    inst = _mod()
+    import hashlib
+    assert inst._md5("hello") == hashlib.md5(b"hello").hexdigest()
+
+
+def test_splice_http_endpoint_inserts_once():
+    inst = _mod()
+    raw = "module.exports = {\n    bind: 'lan',\n    other: 1,\n}\n"
+    out = inst.splice_http_endpoint(raw)
+    assert "chatCompletions" in out
+    assert inst.splice_http_endpoint(out) == out
+
+
+def test_workspace_env_excludes_dead_keys():
+    inst = _mod()
+    env = inst.render_workspace_env({"LLM_API_KEY": "k", "LLM_MODEL": "qwen",
+                                     "PERPLEXITY_API_KEY": "p", "GAA_BENCHMARK_MODE": "crawl"})
+    assert "LLM_API_KEY=k" in env and "GAA_BENCHMARK_MODE=crawl" in env
+    assert "GAA_ENDPOINT" not in env
+    assert "GAA_ADMIN_KEY" not in env
+
+
+def test_dry_run_manifest_lists_files_and_capability_gate(capsys, tmp_path, monkeypatch):
+    inst = _mod()
+    ws = tmp_path / "workspace"
+    (ws / "skills" / "gaa").mkdir(parents=True)
+    (ws / "AGENTS.md").write_text("a")
+    (ws / "skills" / "gaa" / "SKILL.md").write_text("b")
+    monkeypatch.setenv("GAA_REPO_URL", "https://example.com/repo.git")
+    inst.main(["--dry-run", "--workspace", str(ws)])
+    out = capsys.readouterr().out
+    assert "AGENTS.md" in out and "skills/gaa/SKILL.md" in out
+    assert "pip install -e ." in out
+    assert "gaa doctor" in out
