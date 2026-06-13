@@ -127,3 +127,24 @@ def test_tools_list_and_show_and_remove(tmp_path):
 def test_tools_show_unknown_is_error(tmp_path):
     resp = _run(["tools", "show", "nope"], tmp_path)
     assert resp["status"] == "error"
+
+
+def test_tools_sync_docs_writes_catalog(tmp_path):
+    _run(["tools", "promote", "--name", "t", "--description", "the desc",
+          "--script", _script(tmp_path)], tmp_path)
+    out = tmp_path / "tools.md"
+    resp = _run(["tools", "sync-docs", "--out", str(out)], tmp_path)
+    assert resp["status"] == "success"
+    text = out.read_text()
+    assert "the desc" in text and "**t**" in text
+
+
+def test_tools_export_then_import_roundtrip(tmp_path):
+    _run(["tools", "promote", "--name", "t", "--description", "d",
+          "--script", _script(tmp_path)], tmp_path)
+    tarball = str(tmp_path / "tools.tgz")
+    assert _run(["tools", "export", "--out", tarball], tmp_path)["status"] == "success"
+    _run(["tools", "remove", "t"], tmp_path)
+    assert _run(["tools", "list"], tmp_path)["tools"] == []
+    assert _run(["tools", "import", "--tarball", tarball], tmp_path)["status"] == "success"
+    assert any(t["name"] == "t" for t in _run(["tools", "list"], tmp_path)["tools"])

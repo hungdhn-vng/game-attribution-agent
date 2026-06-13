@@ -36,6 +36,25 @@ def cmd_tools_remove(ctx, args) -> dict:
     return {"status": "success", "removed": args.name}
 
 
+def cmd_tools_sync_docs(ctx, args) -> dict:
+    out = args.out or os.environ.get("GAA_TOOLS_DOC_PATH") or str(ctx.tools._root / "tools.md")
+    ctx.tools.sync_docs(out)
+    return {"status": "success", "doc_path": out}
+
+
+def cmd_tools_export(ctx, args) -> dict:
+    ctx.tools.export(args.out)
+    return {"status": "success", "tarball": args.out}
+
+
+def cmd_tools_import(ctx, args) -> dict:
+    try:
+        ctx.tools.import_(args.tarball)
+    except Exception as exc:  # noqa: BLE001
+        return {"status": "error", "error": str(exc)}
+    return {"status": "success", "tools": ctx.tools.list()}
+
+
 def cmd_tools_run(ctx, args) -> dict:
     import subprocess
     import sys

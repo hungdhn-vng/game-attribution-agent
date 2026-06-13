@@ -7,7 +7,7 @@ import time
 from typing import Any, Optional
 
 from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
-from gaa.cli.commands.tools import cmd_tools_promote, cmd_tools_run, cmd_tools_list, cmd_tools_show, cmd_tools_remove
+from gaa.cli.commands.tools import cmd_tools_promote, cmd_tools_run, cmd_tools_list, cmd_tools_show, cmd_tools_remove, cmd_tools_sync_docs, cmd_tools_export, cmd_tools_import
 from gaa.cli.commands.doctor import cmd_doctor
 from gaa.cli.commands.onboarding import (
     cmd_onboard_propose, cmd_onboard_confirm, cmd_profile_list, cmd_profile_use)
@@ -209,6 +209,16 @@ def _build_parser() -> argparse.ArgumentParser:
     tlrm = tl_sub.add_parser("remove", help="remove a promoted tool")
     tlrm.add_argument("name")
     tlrm.set_defaults(func=cmd_tools_remove)
+
+    tlsd = tl_sub.add_parser("sync-docs", help="regenerate the promoted-tools catalog")
+    tlsd.add_argument("--out", default=None, help="output path (default: GAA_TOOLS_DOC_PATH or <tools>/tools.md)")
+    tlsd.set_defaults(func=cmd_tools_sync_docs)
+    tle = tl_sub.add_parser("export", help="export the tool registry to a tarball")
+    tle.add_argument("--out", required=True)
+    tle.set_defaults(func=cmd_tools_export)
+    tli = tl_sub.add_parser("import", help="import a tool registry tarball")
+    tli.add_argument("--tarball", required=True)
+    tli.set_defaults(func=cmd_tools_import)
 
     return p
 
