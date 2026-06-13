@@ -1353,3 +1353,19 @@ No placeholders, TODOs, or undefined references remain.
 **Plan 4 — Frontend + proxy.**
 - Clone `vercel/ai-chatbot`; gut NextAuth/Postgres to single-user; point chat at the `/openclaw/*` SSE passthrough; rebuild the artifacts pane as the analysis pane (poll `/gaa/step`, render `activity.log`/`ledger.jsonl`/`thinking.md`, iframe `report.html`).
 - Four allowlisted route handlers: `/openclaw/*`, `POST /gaa/step`, `GET /gaa/run/<id>/<artifact>`, `POST /gaa/onboard`.
+
+---
+
+## As-built notes (deviations recorded during execution)
+
+Plan 1 was executed via subagent-driven development with two-stage review. These deviations from the task text above are intentional and were verified; **Plans 2–4 should treat the as-built code/contract below as authoritative.**
+
+1. **CLI JSON contract (Task 8 `_run_view`).** The Task 8 pseudocode was internally contradictory (it returned a fixed `status:"success"` envelope plus `job_status`, while the task's own tests asserted `status` itself holds the run lifecycle value). As-built resolution: top-level **`status`** carries the run lifecycle (`running`/`done`/`error`); **`done`** is the boolean polling signal; on failure (unknown run, lifecycle error, or caught exception) `status` is `"error"` with an `error` field. There is no `job_status` key. The `jobs` command returns `{"status":"success","runs":[…]}` (here `status` is a command marker, not a lifecycle) — Plan 4's proxy should branch on the command, not assume a single meaning. On a done run the view also carries `report_path` and `summary_path`.
+
+2. **Task 7b — lazy LLM construction** (commit `ea117c4`, not in the original task list). `build_context` wraps real MaaS-client creation in a `_LazyLLM` proxy so file-only commands (`jobs`/`status`) and the LLM-free `plan` stage run **without** credentials; the client is built only when the `synth` stage or onboarding first invokes it. This is load-bearing for Plan 3 (the OpenClaw skill calls `status`/`jobs` constantly).
+
+3. **Review fixes** (commit `6a024a0`): `RunStore.save()` writes `job.json` atomically (temp file + `os.replace`) so the lock-free read path (`status`/`jobs`/`get`) and the Plan 4 polling frontend never observe a half-written file; `RunStore.path_for(run_id)` is the public accessor for a run directory (use it in Plan 4, not the private `_dir`); `pyproject.toml` declares `package-data` so a non-editable wheel ships the Jinja template and seed/sample assets.
+
+4. **`src/gaa/data/` stays at the package root** (not under `core/`); `core/render/templates/report.html.j2` moved with `render/`. `ConfigStore` (SQLite) is retained as the Plan 1→2 bridge and is migrated to TOML in Plan 2.
+
+Final state: **198 tests passing**; `gaa` console entry point installed and smoke-verified (human-readable run ids, file-backed run dirs, clean degradation without an LLM key / active profile).
