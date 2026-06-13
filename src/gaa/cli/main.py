@@ -8,7 +8,8 @@ from typing import Any, Optional
 
 from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
 from gaa.cli.commands.doctor import cmd_doctor
-from gaa.cli.commands.onboarding import cmd_onboard_propose, cmd_onboard_confirm
+from gaa.cli.commands.onboarding import (
+    cmd_onboard_propose, cmd_onboard_confirm, cmd_profile_list, cmd_profile_use)
 from gaa.cli.wiring import GaaContext, build_context
 from gaa.runs.store import RunBusy
 
@@ -144,6 +145,14 @@ def _build_parser() -> argparse.ArgumentParser:
     obc.add_argument("--genre", required=True)
     obc.add_argument("--adapter", choices=["csv", "roblox"], default="csv")
     obc.set_defaults(func=cmd_onboard_confirm)
+
+    pf = sub.add_parser("profile", help="manage game profiles")
+    pf_sub = pf.add_subparsers(dest="profile_command", required=True)
+    pfl = pf_sub.add_parser("list", help="list profiles + the active one")
+    pfl.set_defaults(func=cmd_profile_list)
+    pfu = pf_sub.add_parser("use", help="set the active profile")
+    pfu.add_argument("name")
+    pfu.set_defaults(func=cmd_profile_use)
 
     return p
 

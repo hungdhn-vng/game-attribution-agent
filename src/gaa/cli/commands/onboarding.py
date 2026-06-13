@@ -43,3 +43,19 @@ def cmd_onboard_confirm(ctx, args) -> dict:
         "row_count": int(len(df)),
         "metrics": sorted(df["metric"].unique().tolist()),
     }
+
+
+def cmd_profile_list(ctx, args) -> dict:
+    active = ctx.profiles.get_active()
+    return {
+        "status": "success",
+        "profiles": ctx.profiles.list_names(),
+        "active": active.name if active else None,
+    }
+
+
+def cmd_profile_use(ctx, args) -> dict:
+    if args.name not in ctx.profiles.list_names():
+        return {"status": "error", "error": f"unknown profile: {args.name!r}"}
+    ctx.profiles.set_active(args.name)
+    return {"status": "success", "active": args.name}
