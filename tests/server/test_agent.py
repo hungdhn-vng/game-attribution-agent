@@ -77,3 +77,26 @@ def test_max_iterations_terminates(tmp_path, monkeypatch):
     events = _collect(ChatAgent(ctx, llm, max_iters=5), [{"role": "user", "content": "loop"}])
     assert events[-1]["type"] == "done"
     assert sum(1 for e in events if e["type"] == "activity") <= 5
+
+
+def test_llm_error_yields_graceful_done(tmp_path, monkeypatch):
+    # If complete_json raises (no/invalid JSON), the stream must still end with a done event.
+    ctx = _ctx(tmp_path, monkeypatch, {})
+
+    class RaisingLLM:
+        def complete_json(self, system, user):
+            raise ValueError("no JSON object in LLM response")
+
+    events = _collect(ChatAgent(ctx, RaisingLLM()), [{"role": "user", "content": "hi"}])
+    assert events[-1]["type"] == "done"
+    assert any(e["type"] == "token" for e in events)
+
+
+def test_malformed_decision_is_corrected_then_continues(tmp_path, monkeypatch):
+    # A dict that is neither action nor final should NOT abort; the loop corrects and continues.
+    ctx = _ctx(tmp_path, monkeypatch, {})
+    llm = ScriptedLLM([{"foo": 1}, {"final": "ok now"}])
+    events = _collect(ChatAgent(ctx, llm), [{"role": "user", "content": "hi"}])
+    tokens = "".join(e["text"] for e in events if e["type"] == "token")
+    assert "ok now" in tokens
+    assert events[-1]["type"] == "done"

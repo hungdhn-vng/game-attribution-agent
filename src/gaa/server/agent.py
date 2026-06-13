@@ -42,7 +42,18 @@ class ChatAgent:
         last_run_id = None
 
         for _ in range(self._max_iters):
-            decision = self._llm.complete_json(system, convo)
+            try:
+                decision = self._llm.complete_json(system, convo)
+            except Exception:
+                # The model returned no parseable JSON (a routine thinking-model failure).
+                # Degrade gracefully with a well-formed terminal stream rather than letting
+                # the exception unwind out of the generator (which would leave the SSE
+                # response with no `done` event).
+                yield {"type": "token",
+                       "text": "(the model returned an unreadable response; please retry)"}
+                yield {"type": "done", "run_id": last_run_id}
+                return
+
             if isinstance(decision, dict) and "final" in decision:
                 text = str(decision["final"])
                 if last_run_id:
@@ -52,16 +63,22 @@ class ChatAgent:
                 yield {"type": "done", "run_id": last_run_id}
                 return
 
-            action = (decision or {}).get("action")
-            a_args = (decision or {}).get("args", {}) or {}
+            action = decision.get("action") if isinstance(decision, dict) else None
+            action_args = (decision.get("args", {}) or {}) if isinstance(decision, dict) else {}
             if not action:
-                yield {"type": "token", "text": "(no action or final produced)"}
-                yield {"type": "done", "run_id": last_run_id}
-                return
+                # Neither action nor final — feed a correction and try again (still bounded
+                # by max_iters) rather than aborting the whole request on one off-format turn.
+                convo += ('\nSYSTEM: Your last message was not a valid decision. Reply with '
+                          'exactly one JSON object: {"action": "<name>", "args": {...}} '
+                          'or {"final": "<message>"}.')
+                continue
 
             yield {"type": "activity", "text": f"running {action}…"}
-            result = actions.dispatch(ctx, action, a_args, is_admin=is_admin)
-            if isinstance(result, dict) and result.get("run_id"):
+            result = actions.dispatch(ctx, action, action_args, is_admin=is_admin)
+            # Only latch a run_id from a non-error result, so the dossier marker never points
+            # at a run whose report.html doesn't exist.
+            if (isinstance(result, dict) and result.get("run_id")
+                    and result.get("status") != "error"):
                 last_run_id = result["run_id"]
             if (action in actions.MUTATING_ACTIONS
                     and isinstance(result, dict) and result.get("status") == "success"):
