@@ -1,10 +1,8 @@
 # Analysis (golden path)
 
-Prefix every command with the workspace+env line from SKILL.md.
-
 Start (fast ack — `--budget` caps the first call so you can reply immediately):
 
-    cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && gaa analyze "<user question, verbatim>" --budget 2
+    gaa analyze "<user question, verbatim>" --budget 2
 
 Returns `{run_id, status, stage, done}`. Reply in one sentence and end with `[[gaa:run_id=<run_id>]]`.
 

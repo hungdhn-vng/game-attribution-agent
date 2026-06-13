@@ -1,5 +1,3 @@
-Prefix every command with the workspace+env line from SKILL.md (`cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && …`).
-
 Note: `config get`, `doctor`, `tools list`, and `tools show` are read-only and fine for any session.
 The commands below marked admin-only are the WRITE/exec operations that mutate config, workspace state, or execute code.
 

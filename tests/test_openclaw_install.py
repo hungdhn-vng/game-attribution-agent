@@ -27,10 +27,12 @@ def test_no_dead_architecture_references():
         assert "/invocations" not in text, f"{rel} references the dead HTTP endpoint"
 
 
-def test_skill_teaches_env_sourcing():
+def test_skill_says_gaa_is_self_contained(tmp_path):
     skill = _read("skills/gaa/SKILL.md")
-    assert ". ./.env" in skill and "set -a" in skill
+    assert "gaa analyze" in skill
     assert "already loaded" not in skill.lower()
+    # the cd-into-repo + source prefix is gone (the wrapper handles env)
+    assert "set -a && . ./.env" not in skill
 
 
 def test_skill_describes_the_cli_and_marker():
@@ -101,6 +103,8 @@ def test_workspace_env_excludes_dead_keys():
     assert "LLM_API_KEY=k" in env and "GAA_BENCHMARK_MODE=crawl" in env
     assert "GAA_ENDPOINT" not in env
     assert "GAA_ADMIN_KEY" not in env
+    assert "GAA_DB_PATH=/root/.openclaw/workspace/gaa/gaa.sqlite" in env
+    assert "GAA_CACHE_DIR=/root/.openclaw/workspace/gaa/data/cache" in env
 
 
 def test_dry_run_manifest_lists_files_and_capability_gate(capsys, tmp_path, monkeypatch):
@@ -116,3 +120,5 @@ def test_dry_run_manifest_lists_files_and_capability_gate(capsys, tmp_path, monk
     assert "get-pip.py" in out                                  # pip bootstrap (template ships none)
     assert "pip install --break-system-packages -e ." in out    # PEP-668 install of the package
     assert "gaa doctor" in out
+    assert "/usr/local/bin/gaa" in out or "gaa wrapper" in out
+    assert "cp artifacts" in out or "cp " in out

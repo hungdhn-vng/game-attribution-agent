@@ -1,9 +1,9 @@
 # Ad-hoc analysis (Tier 3 — when no built-in command fits)
 
-Prefix every command with the workspace+env line from SKILL.md (`cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && …`).
-Scratch scripts also need the env and the run id:
+Scratch scripts need the env (for creds + absolute GAA_* state paths) and the run id.
+Run them with:
 
-    cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && GAA_RUN_ID=<id> python runs/<id>/scratch/01-arpu.py
+    set -a && . $HOME/.openclaw/workspace/gaa/.env && set +a && GAA_RUN_ID=<id> python <scratch-script-path>
 
 (So `lab.run_id()` resolves and `gaa.lab` finds the stores.)
 

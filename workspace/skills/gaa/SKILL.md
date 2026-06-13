@@ -9,14 +9,13 @@ The `gaa` CLI lives in this workspace (installed from the repo under `~/.opencla
 It outputs **compact JSON on stdout** — read it, don't guess. The exec shell is POSIX `sh`
 (use `.` not `source`).
 
-## Before every command: enter the workspace and load the env
-Each exec is a fresh POSIX `sh`, with NO env or cwd carried over. So PREFIX every `gaa`
-(or `python`) invocation with this one line — it enters the repo dir (where the code, `.env`,
-and all state live) and exports the credentials:
+## Just run `gaa`
+`gaa` is installed on PATH and is self-contained — it loads its own workspace config and
+credentials, so run it directly from any directory, e.g.:
 
-    cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && <your gaa command>
+    gaa analyze "<the user's question, verbatim>" --budget 2
 
-(`.` not `source` — this is dash. `set -a` exports the `.env` vars to `gaa`.)
+(No `cd` or sourcing needed for `gaa` commands — a wrapper handles that.)
 
 ## Run things yourself, in this turn
 Run `gaa` with your exec tool IN THE SAME TURN and reply immediately. NEVER spawn subagents or
@@ -26,7 +25,7 @@ background tasks. Long commands get backgrounded with a random process name (e.g
 ## Decision guide — pick the smallest command that fits
 1. **A fresh question about a game's metrics** ("why did revenue drop?", "what's going on with my game?")
    → start an analysis:
-   `cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && gaa analyze "<the user's question, verbatim>" --budget 2`
+   `gaa analyze "<the user's question, verbatim>" --budget 2`
    It returns fast with a `run_id`, `status`, `stage`. See references/analysis.md.
 2. **A follow-up about an existing run** ("which region?", "re-check vs the market", "answer my new question")
    → a drilldown against that run, then re-synthesize: `gaa segments --run <id> --dimension region`,

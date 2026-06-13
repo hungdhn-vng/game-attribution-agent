@@ -1,5 +1,3 @@
-Prefix every command with the workspace+env line from SKILL.md (`cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && …`).
-
 # Onboarding & profiles
 
 Connect a game's data (two steps, human-confirmed mapping). ADMIN sessions only (see AGENTS.md).

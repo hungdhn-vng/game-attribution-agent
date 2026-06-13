@@ -30,6 +30,15 @@ from pathlib import Path
 SCOPES = ["operator.admin", "operator.read", "operator.write",
           "operator.approvals", "operator.pairing"]
 
+GAA_WRAPPER = """#!/bin/sh
+# Installed by openclaw_install: source the workspace .env (LLM creds + absolute GAA_*
+# state paths) then run gaa, so it behaves identically from any cwd the exec shell uses.
+set -a
+[ -f /root/.openclaw/workspace/gaa/.env ] && . /root/.openclaw/workspace/gaa/.env
+set +a
+exec python3 -m gaa.cli.main "$@"
+"""
+
 HTTP_BLOCK = """    bind: 'lan',
     http: {
       endpoints: {
@@ -59,8 +68,17 @@ def collect_workspace_files(root: str) -> dict:
 
 
 def render_workspace_env(env: dict) -> str:
-    """Render the workspace .env from selected keys (NO GAA_ENDPOINT, NO GAA_ADMIN_KEY)."""
+    """Render the workspace .env: LLM/secret keys from the installer env, PLUS absolute
+    GAA_* state paths so gaa + scratch scripts share one state dir regardless of cwd.
+    (NO GAA_ENDPOINT, NO GAA_ADMIN_KEY.)"""
     lines = [f"{k}={env[k]}" for k in _ENV_KEYS if env.get(k)]
+    base = "/root/.openclaw/workspace/gaa"
+    lines += [
+        f"GAA_DB_PATH={base}/gaa.sqlite",
+        f"GAA_CACHE_DIR={base}/data/cache",
+        f"GAA_CONFIG_PATH={base}/gaa-config.toml",
+        f"GAA_TOOLS_DIR={base}/data/cache/tools",
+    ]
     return "\n".join(lines) + ("\n" if lines else "")
 
 
@@ -107,9 +125,13 @@ def _print_manifest(workspace: str, repo_url: str) -> None:
     print("## capability gate (chat-driven exec, in order):")
     for c in capability_gate_commands(repo_url):
         print(f"  $ {c}")
-    print("\n## workspace files to push:")
+    print("\n## workspace files (from clone, via cp):")
     for name, content in files.items():
         print(f"  {name}  (md5 {_md5(content)})")
+    print("\n## install steps:")
+    print("  install gaa wrapper -> /usr/local/bin/gaa")
+    print("  write .env (base64) -> gaa/.env")
+    print("  cp artifacts from clone (gaa/workspace/ -> workspace root)")
     print("\n## verify:")
     for c in verify_commands():
         print(f"  $ {c}")
@@ -165,17 +187,18 @@ def _exec_via_chat(url: str, token: str, command: str, timeout: int = 600) -> st
     return body["choices"][0]["message"]["content"]
 
 
-def _write_file_via_chat(url: str, token: str, name: str, content: str, attempts: int = 2) -> str:
-    """Ask the agent to write a workspace file via exec heredoc; verify by md5."""
-    import re
+def _write_text_via_chat(url: str, token: str, path: str, content: str,
+                         attempts: int = 8, chmod: str = "") -> str:
+    """Write a file via chat-driven exec using base64 (robust to reformatting) and
+    RETRY until the container's md5 matches (the agent garbles long strings intermittently)."""
+    import base64
     expected = _md5(content)
-    cmd = (f"mkdir -p $(dirname $HOME/.openclaw/workspace/{name}) && "
-           f"cat > $HOME/.openclaw/workspace/{name} <<'GAA_EOF'\n{content}\nGAA_EOF\n"
-           f"md5sum $HOME/.openclaw/workspace/{name} | cut -d' ' -f1")
+    b64 = base64.b64encode(content.encode()).decode()
+    chmod_part = f" && chmod {chmod} {path}" if chmod else ""
+    cmd = (f"mkdir -p $(dirname {path}) && echo {b64} | base64 -d > {path}{chmod_part} && "
+           f"md5sum {path} | cut -d' ' -f1")
     for _ in range(attempts):
-        reply = _exec_via_chat(url, token, cmd)
-        m = re.search(r"\b[0-9a-f]{32}\b", reply)
-        if m and m.group(0) == expected:
+        if expected in _exec_via_chat(url, token, cmd, timeout=180):
             return "written (md5 verified)"
     return f"VERIFY FAILED (expected {expected})"
 
@@ -198,9 +221,9 @@ async def _install_live(args) -> None:
             res = await gw.call("config.set", {"raw": spliced, "baseHash": payload["hash"]})
             if not res.get("ok"):
                 sys.exit(f"config.set failed: {res.get('error')}")
-    print("[1/5] chatCompletions endpoint: ok")
+    print("[1/6] chatCompletions endpoint: ok")
 
-    print("[2/5] capability gate:")
+    print("[2/6] capability gate:")
     for cmd in capability_gate_commands(repo):
         reply = _exec_via_chat(url, token, cmd)
         print(f"  $ {cmd}\n    -> {reply.strip()[:200]}")
@@ -208,14 +231,25 @@ async def _install_live(args) -> None:
             sys.exit("CAPABILITY GATE FAILED — the template image cannot run the pipeline deps. "
                      "Stop: the combine needs a rethink (vendor wheels / custom image) before continuing.")
 
-    print("[3/5] workspace .env")
-    env_text = render_workspace_env(os.environ)
-    print("  .env:", _write_file_via_chat(url, token, "gaa/.env", env_text))
-    print("[4/5] push workspace artifacts")
-    for name, content in files.items():
-        print(f"  {name}: {_write_file_via_chat(url, token, name, content)}")
+    # [3/6] install the gaa wrapper (location-independent gaa)
+    print("[3/6] gaa wrapper:",
+          _write_text_via_chat(url, token, "/usr/local/bin/gaa", GAA_WRAPPER, chmod="+x"))
 
-    print("[5/5] verify")
+    # [4/6] write the workspace .env (LLM creds + absolute state paths)
+    print("[4/6] .env:",
+          _write_text_via_chat(url, token, "$HOME/.openclaw/workspace/gaa/.env",
+                               render_workspace_env(os.environ)))
+
+    # [5/6] copy skill artifacts from the cloned repo (byte-exact via git; `src/.` avoids dir nesting)
+    cp = ("rm -rf $HOME/.openclaw/workspace/skills && mkdir -p $HOME/.openclaw/workspace/skills && "
+          "cp -rf $HOME/.openclaw/workspace/gaa/workspace/skills/. $HOME/.openclaw/workspace/skills/ && "
+          "cp -f $HOME/.openclaw/workspace/gaa/workspace/AGENTS.md $HOME/.openclaw/workspace/AGENTS.md && "
+          "echo ARTIFACTS_COPIED")
+    r = _exec_via_chat(url, token, cp)
+    print("[5/6] artifacts:", "copied" if "ARTIFACTS_COPIED" in r else f"CHECK: {r.strip()[:160]}")
+
+    # [6/6] verify
+    print("[6/6] verify")
     for cmd in verify_commands():
         print(f"  $ {cmd}\n    -> {_exec_via_chat(url, token, cmd).strip()[:200]}")
     print("Install complete.")
