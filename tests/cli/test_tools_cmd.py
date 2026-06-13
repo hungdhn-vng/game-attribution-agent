@@ -106,3 +106,24 @@ def test_tools_run_refuses_tampered_tool(tmp_path):
     resp = _run(["tools", "run", "counter", "--run", rid], tmp_path)
     assert resp["status"] == "error"
     assert "md5" in resp["error"].lower()
+
+
+def test_tools_list_and_show_and_remove(tmp_path):
+    _run(["tools", "promote", "--name", "t", "--description", "desc",
+          "--script", _script(tmp_path)], tmp_path)
+    listed = _run(["tools", "list"], tmp_path)
+    assert listed["status"] == "success"
+    assert any(t["name"] == "t" and t["md5_ok"] for t in listed["tools"])
+
+    shown = _run(["tools", "show", "t"], tmp_path)
+    assert shown["status"] == "success"
+    assert shown["description"] == "desc" and "print" in shown["source"]
+
+    removed = _run(["tools", "remove", "t"], tmp_path)
+    assert removed["status"] == "success"
+    assert _run(["tools", "list"], tmp_path)["tools"] == []
+
+
+def test_tools_show_unknown_is_error(tmp_path):
+    resp = _run(["tools", "show", "nope"], tmp_path)
+    assert resp["status"] == "error"

@@ -7,7 +7,7 @@ import time
 from typing import Any, Optional
 
 from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
-from gaa.cli.commands.tools import cmd_tools_promote, cmd_tools_run
+from gaa.cli.commands.tools import cmd_tools_promote, cmd_tools_run, cmd_tools_list, cmd_tools_show, cmd_tools_remove
 from gaa.cli.commands.doctor import cmd_doctor
 from gaa.cli.commands.onboarding import (
     cmd_onboard_propose, cmd_onboard_confirm, cmd_profile_list, cmd_profile_use)
@@ -200,6 +200,15 @@ def _build_parser() -> argparse.ArgumentParser:
     tlr.add_argument("--run", default=None, help="run id the tool operates on")
     tlr.add_argument("--args", default=None, help="JSON args passed to the tool as GAA_TOOL_ARGS")
     tlr.set_defaults(func=cmd_tools_run)
+
+    tll = tl_sub.add_parser("list", help="list promoted tools")
+    tll.set_defaults(func=cmd_tools_list)
+    tls = tl_sub.add_parser("show", help="show a tool's metadata + source")
+    tls.add_argument("name")
+    tls.set_defaults(func=cmd_tools_show)
+    tlrm = tl_sub.add_parser("remove", help="remove a promoted tool")
+    tlrm.add_argument("name")
+    tlrm.set_defaults(func=cmd_tools_remove)
 
     return p
 

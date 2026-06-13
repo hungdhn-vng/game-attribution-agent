@@ -17,6 +17,25 @@ def cmd_tools_promote(ctx, args) -> dict:
             "provenance": meta["provenance"]}
 
 
+def cmd_tools_list(ctx, args) -> dict:
+    return {"status": "success", "tools": ctx.tools.list()}
+
+
+def cmd_tools_show(ctx, args) -> dict:
+    try:
+        return {"status": "success", **ctx.tools.show(args.name)}
+    except ValueError as exc:
+        return {"status": "error", "error": str(exc)}
+
+
+def cmd_tools_remove(ctx, args) -> dict:
+    try:
+        ctx.tools.remove(args.name)
+    except ValueError as exc:
+        return {"status": "error", "error": str(exc)}
+    return {"status": "success", "removed": args.name}
+
+
 def cmd_tools_run(ctx, args) -> dict:
     import subprocess
     import sys
