@@ -9,6 +9,9 @@ DIMS = ["version", "region", "platform", "cohort", "device", "source"]
 class SegmentDecomposition:
     name = "segment"
 
+    def __init__(self, dims: list | None = None) -> None:
+        self._dims = dims or DIMS
+
     def run(self, ctx: AnalysisContext, ledger: EvidenceLedger) -> None:
         if not (ctx.metric and ctx.start and ctx.end):
             return
@@ -16,8 +19,8 @@ class SegmentDecomposition:
         start, end = pd.Timestamp(ctx.start), pd.Timestamp(ctx.end)
 
         best = None  # (dim, adtributor-result)
-        for dim in DIMS:
-            if df[dim].isna().all():
+        for dim in self._dims:
+            if dim not in df.columns or df[dim].isna().all():
                 continue
             forecast = df[df["date"] == start].groupby(dim)["value"].sum().to_dict()
             actual = df[df["date"] == end].groupby(dim)["value"].sum().to_dict()
