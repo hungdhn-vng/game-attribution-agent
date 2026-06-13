@@ -7,6 +7,7 @@ import time
 from typing import Any, Optional
 
 from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
+from gaa.cli.commands.tools import cmd_tools_promote
 from gaa.cli.commands.doctor import cmd_doctor
 from gaa.cli.commands.onboarding import (
     cmd_onboard_propose, cmd_onboard_confirm, cmd_profile_list, cmd_profile_use)
@@ -183,6 +184,16 @@ def _build_parser() -> argparse.ArgumentParser:
     rep = sub.add_parser("report", help="re-render the dossier from the run's current hypothesis")
     rep.add_argument("--run", required=True)
     rep.set_defaults(func=cmd_report)
+
+    tl = sub.add_parser("tools", help="promote/run/manage ad-hoc tools")
+    tl_sub = tl.add_subparsers(dest="tools_command", required=True)
+    tlp = tl_sub.add_parser("promote", help="freeze a scratch script into a reusable tool")
+    tlp.add_argument("--name", required=True)
+    tlp.add_argument("--description", required=True)
+    tlp.add_argument("--script", required=True,
+                     help="path to the script (relative to the run's scratch/ when --run is given)")
+    tlp.add_argument("--run", default=None, help="source run id (for provenance + scratch resolution)")
+    tlp.set_defaults(func=cmd_tools_promote)
 
     return p
 

@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 import gaa as _gaa
 from gaa.core.settings import Settings
+from gaa.tools_registry import ToolRegistry
 from gaa.core.llm.client import LangChainMaaSLLM
 from gaa.core.onboarding.profiler import Profiler
 from gaa.core.sources.crawling_benchmark import CrawlingBenchmarkSource
@@ -53,6 +54,7 @@ class GaaContext:
     profiler: Profiler
     pipeline: AnalysisPipeline
     runs: RunStore
+    tools: ToolRegistry
     step_budget_s: float
 
 
@@ -96,6 +98,7 @@ def build_context(llm: Optional[Any] = None, today: Optional[str] = None) -> Gaa
         n_samples=int(os.environ.get("GAA_N_SAMPLES", "3")),
     )
     runs = RunStore(settings.cache_dir + "/runs", today=today)
+    tools = ToolRegistry(os.environ.get("GAA_TOOLS_DIR", settings.cache_dir + "/tools"))
 
     return GaaContext(
         settings=settings,
@@ -108,5 +111,6 @@ def build_context(llm: Optional[Any] = None, today: Optional[str] = None) -> Gaa
         profiler=Profiler(llm),
         pipeline=pipeline,
         runs=runs,
+        tools=tools,
         step_budget_s=float(os.environ.get("GAA_STEP_BUDGET_S", "20")),
     )
