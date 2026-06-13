@@ -119,3 +119,28 @@ def test_no_thinking_when_toggle_off(tmp_path, monkeypatch):
     llm = ScriptedLLM([{"thought": "secret reasoning", "final": "Hi."}])
     events = _collect(ChatAgent(ctx, llm), [{"role": "user", "content": "hi"}])
     assert not [e for e in events if e["type"] == "thinking"]
+
+
+def test_synthesis_thinking_after_analyze(tmp_path, monkeypatch):
+    import json as _json, pandas as _pd
+    monkeypatch.setenv("GAA_STREAM_REASONING", "1")
+    _SYNTH = {"main_story": "DAU fell.", "rationale": "The SEA region drove the decline.",
+              "causes": {"internal": [], "market": []}, "scenarios": [], "risks": [],
+              "assumptions_and_gaps": []}
+    ctx = _ctx(tmp_path, monkeypatch, _SYNTH)
+    csv = tmp_path / "m.csv"
+    _pd.DataFrame({"day": ["2026-05-01", "2026-05-03"], "region": ["SEA", "SEA"],
+                   "dau": [1000, 400]}).to_csv(csv, index=False)
+    actions.dispatch(ctx, "onboard_confirm",
+                     {"csv": str(csv), "mapping": _json.dumps(
+                         {"date_col": "day", "metric_cols": {"dau": "dau"},
+                          "dim_cols": {"region": "region"}}),
+                      "name": "G", "platform": "roblox", "genre": "survival"}, is_admin=True)
+    llm = ScriptedLLM([
+        {"thought": "Let me analyze.", "action": "analyze",
+         "args": {"query": "why did dau drop?", "budget": "600"}},
+        {"final": "Done."},
+    ])
+    events = _collect(ChatAgent(ctx, llm), [{"role": "user", "content": "why did dau drop?"}])
+    synth = [e for e in events if e["type"] == "thinking" and e.get("scope") == "synthesis"]
+    assert synth and "SEA region drove" in synth[0]["text"]

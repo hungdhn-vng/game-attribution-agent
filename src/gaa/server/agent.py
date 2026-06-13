@@ -91,6 +91,11 @@ class ChatAgent:
                     persist.snapshot(ctx)
                 except Exception:
                     pass  # persistence is best-effort; never break the chat
+            if (persona.reasoning_enabled() and action in ("analyze", "synth")
+                    and isinstance(result, dict) and result.get("status") not in (None, "error")):
+                rationale = result.get("rationale")
+                if isinstance(rationale, str) and rationale.strip():
+                    yield {"type": "thinking", "text": rationale.strip(), "scope": "synthesis"}
             convo += f"\nTOOL[{action}] -> {json.dumps(result)[:4000]}"
 
         # max iterations reached without a final
