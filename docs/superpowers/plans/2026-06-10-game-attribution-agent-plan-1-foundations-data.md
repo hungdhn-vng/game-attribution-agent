@@ -1,5 +1,7 @@
 # Game Attribution Agent — Plan 1: Foundations & Data Layer
 
+> ✅ **IMPLEMENTED & DEPLOYED** (verified live 2026-06-12) — executed via subagent-driven development, merged to `main`, running on AgentBase (181 backend tests passing). The agent later gained an **async job/poll pipeline + live benchmark crawl + thinking trace** (see the design spec's "§16 Async pipeline" section); some downstream tasks here were superseded by it.
+
 > ⚠️ **RECONCILED BY [Plan 0 — AgentBase + LangGraph Integration](2026-06-11-game-attribution-agent-plan-0-agentbase-langgraph-integration.md).** This plan's **pure-logic tasks (2–6: canonical schema, ColumnMapping/GameProfile, CSV+Roblox adapters, ProfileStore) remain valid as written.** **Superseded:** Task 0 (skeleton → AgentBase scaffold), Task 1 (config → MaaS `LLM_*` env vars), Tasks 7–9 (FastAPI app + generic Dockerfile + generic deploy → SDK `main.py` + scaffold Dockerfile + `/agentbase-deploy`). Build on the `src/gaa` layout with a root `main.py`. See Plan 0's supersession map before executing.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

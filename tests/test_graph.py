@@ -154,3 +154,12 @@ def test_analyze_status_unknown_job_id(tmp_path):
                        session_id="s1", user_id="u1")
     assert out["status"] == "error"
     assert "unknown job_id" in out["error"]
+
+
+def test_greeting_with_profile_returns_help_not_analysis(tmp_path):
+    """With an active profile, 'hi, what can you do?' returns a help message — not a job."""
+    agent = GraphAgent(**_deps(tmp_path))
+    out = agent.handle({"message": "hi, what can you do?"}, session_id="s1", user_id="u1")
+    assert out["mode"] == "help", f"expected help, got {out}"
+    assert "job_id" not in out, "a greeting must not start an analysis job"
+    assert "Game Attribution Agent" in out["message"]

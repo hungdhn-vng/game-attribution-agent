@@ -1,5 +1,7 @@
 # Game Attribution Agent — Plan 3: Onboarding UX, Report Renderer & Demo
 
+> ✅ **IMPLEMENTED & DEPLOYED** (verified live 2026-06-12) — executed via subagent-driven development, merged to `main`, running on AgentBase. Onboarding (`Profiler` + chat propose/confirm), the HTML report renderer, and the demo flow are live. The blocking analyze path was replaced by an **async job/poll pipeline that streams a thinking trace**; the React "Attribution Console" frontend (`gaa-test-frontend`) now polls and renders the live activity log (see the design spec's "§16 Async pipeline" section).
+
 > ⚠️ **RECONCILED BY [Plan 0 — AgentBase + LangGraph Integration](2026-06-11-game-attribution-agent-plan-0-agentbase-langgraph-integration.md).** This plan's pure-logic tasks (1–4, 6, 7: cached fetcher, live RoMonitor benchmark, live web signals, `Profiler`, Plotly charts, HTML `render_report`) **remain valid as written.** **Superseded:** Tasks 5, 8, 9 (FastAPI `/onboard`, `/analyze` html, `/chat` routes → LangGraph nodes in Plan 0; the handlers `Profiler`, `render_report`, `classify_intent`, `to_markdown` are reused verbatim). **Amended:** Task 10 (FastAPI `/demo` + live wiring + README → Plan 0 Tasks 8–9). See Plan 0's supersession map.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

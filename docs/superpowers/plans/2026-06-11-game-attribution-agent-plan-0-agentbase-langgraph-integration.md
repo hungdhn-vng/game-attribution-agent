@@ -1,5 +1,7 @@
 # Game Attribution Agent — Plan 0: AgentBase + LangGraph Integration
 
+> ✅ **IMPLEMENTED & DEPLOYED** (verified live 2026-06-12) — executed via subagent-driven development, merged to `main`, running on AgentBase (`/health` 200; `/invocations` verified live). **Amendment:** the LangGraph `StateGraph` for the `analyze` route was later **replaced by a custom resumable async pipeline** (langgraph remains a dependency; its checkpointer model didn't fit the per-request-budget + cooperative-poll requirement). Setup/onboard routing still flows through the graph handler. See the design spec's "§16 Async pipeline" section.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax. **The GreenNode AgentBase skill toolkit is installed at `.claude/skills/` — invoke `/agentbase-llm` and `/agentbase-deploy` for platform operations (they hold the authoritative API URLs; never construct platform URLs from memory).**
 
 **Goal:** Wrap the (framework-agnostic) `gaa` engine in a **LangGraph** graph served by the **GreenNode AgentBase SDK** (`GreenNodeAgentBaseApp`), using the **GreenNode AI Platform MaaS** (OpenAI-compatible) LLM, and deploy it to AgentBase Runtime.

@@ -342,3 +342,43 @@ From a verified deep-research pass (25 sources, adversarially fact-checked). Tie
 ### Honest caveats (these *reinforce* "scenarios, not decisions")
 - **Domain-transfer gap:** these RCA methods were validated on IT/AIOps/ad metrics, not game KPIs — they transfer as *techniques*; we build the game-KPI segment/causal structure ourselves and do not trust borrowed accuracy figures.
 - **Causal-validity gap:** every counterfactual estimator is only as valid as its assumptions (control independence, good pre-period fit), imperfect for real games — which is exactly *why* outputs stay **cited hypotheses with stated assumptions**, never decisions.
+
+---
+
+## 16. Async pipeline + live benchmark crawl + thinking trace (addendum — ✅ implemented & deployed 2026-06-12)
+
+> This section records the design **as actually built and shipped**, extending §1–15. It supersedes the synchronous-`analyze` assumption baked into Plans 0/2/3. Driven by two user requirements: (a) the market benchmark must **crawl live external game data** instead of relying on uploaded/bundled data (the L3 gap), and (b) **accuracy over speed** — the user is willing to wait for the most trustworthy result, and wants the **model's reasoning shown live**.
+
+### 16.1 Hard constraint that shaped everything
+The AgentBase gateway **hard-closes any request at ~50s** (verified: HTTP 000 at 50s; not configurable). The runtime is a single replica, request-driven, with an **ephemeral filesystem on redeploy** and **no guaranteed background CPU** after a response returns. So *total* analysis work can be unbounded, but **each HTTP request must finish < 50s**, and work can only happen *during* a request.
+
+### 16.2 Decision — async job + cooperative polling
+`analyze` is an **async job advanced across poll requests**:
+- **Start:** `POST /invocations {"message":"<query>"}` (no `job_id`) → creates a `Job`, advances it within a per-request budget, returns `{job_id, job_status, stage, activity[], done:false}`.
+- **Poll:** `POST /invocations {"action":"analyze_status","job_id":"<id>"}` → resumes the job, advances another budgeted slice, returns the same shape; when `done:true` it also carries `{hypothesis, markdown_summary, html}`.
+- `activity[]` is a cumulative list of `{ts, stage, text}` lines — the **thinking trace** the frontend streams. Onboarding actions (`onboard_propose` / `onboard_confirm`) are unchanged.
+
+This sidesteps "no background CPU" (work happens *inside* poll requests, never detached) and the 50s ceiling (each slice is bounded; the job persists between slices).
+
+### 16.3 Resumable pipeline
+`AnalysisPipeline` (`src/gaa/jobs/pipeline.py`) with stages **plan → crawl → modules → synth → render**. `advance(job, deadline_monotonic)` runs stages from `job.stage` until the deadline (`GAA_REQUEST_BUDGET_S` ≈ 40s, checked **between** stages — one stage per call when the budget is already spent) or completion, persisting `job.state` + appending `activity` after each stage. State lives in a sqlite `JobStore` (`src/gaa/jobs/job_store.py`); one active job per session; TTL cleanup. The `crawl` stage advances one provider/source per call so a slow multi-source crawl spans polls.
+
+### 16.4 Accuracy restorations (no compromises)
+Earlier latency hacks (single synthesis sample, capped tokens) are **removed**:
+- **Concurrent N-sample self-consistency** (`src/gaa/synth/concurrent.py`, `GAA_N_SAMPLES=3`) — N samples run in parallel via a thread pool (≈ one call's latency) feeding the §15 `apply_gate` abstention gate. Restores the gate **and** fits the budget.
+- **`max_tokens` lifted** to 4096 (no truncated synthesis). Qwen 3.5 is a *thinking* model, so the structured-JSON synthesis call sets `extra_body={"chat_template_kwargs":{"enable_thinking":False}}` for fast, clean JSON; the optional `GAA_SHOW_MODEL_REASONING=1` path runs one thinking-ON sample and surfaces its `reasoning_content`.
+
+### 16.5 Live benchmark crawl (`GAA_BENCHMARK_MODE=crawl`)
+`BenchmarkStore` (sqlite; stores **raw** series, applies `index_to_100` at read) is seeded on cold start from bundled `src/gaa/data/seed/benchmark_snapshot.json` (the ephemeral-FS floor). Tiered providers (`src/gaa/sources/providers/`):
+- **Quant — Steam:** real SteamCharts history `https://steamcharts.com/app/{id}/chart-data.json` (`[[ts_ms, players]]`); curated genre→appids discovery. **Validated live.** Feeds the §15 CausalImpact counterfactual as the genre control → `causalimpact:genre-control` ledger entry + report overlay.
+- **Qualitative — Perplexity:** `api.perplexity.ai` `sonar` (`src/gaa/crawl/perplexity.py`), returns `{direction, summary, citations}`, key-gated by `PERPLEXITY_API_KEY` (**external model — declared in README per the hackathon rules**). **Validated live.** Surfaces as an `external/low` **cited** market ledger entry **only when quant is absent** (via `getattr(source, "qualitative_context")`); no counterfactual.
+- **Roblox historical CCU is NOT freely available** (Rolimon's/Roblox API = current snapshot only; RoMonitor undocumented) → Roblox uses the snapshot floor + Perplexity qualitative tier. This is documented honestly rather than faked.
+
+### 16.6 Framework note — LangGraph → custom pipeline
+The original **LangGraph `StateGraph` for the `analyze` route was replaced by this custom resumable pipeline.** LangGraph's checkpointer model didn't fit the per-request-budget + cooperative-poll requirement (advance N seconds, suspend, resume on the next HTTP request). `langgraph` remains a dependency and setup/onboard routing still flows through the graph handler; only `analyze` moved to the pipeline. The Evidence Ledger, dual-confidence model, and all §15 analytics are unchanged — they are libraries the pipeline stages call.
+
+### 16.7 Frontend (React "Attribution Console", repo `gaa-test-frontend`)
+`useAnalyzePoller` hook (self-scheduling `setTimeout`, `resume(initial)` to avoid double-starting a job) drives an `ActivityLog` component that renders the streaming thinking trace; on `done` it publishes the dossier and shows the native + HTML report tabs. Talks to the agent via the `/api` Vite proxy with the `x-agent-base` + session headers.
+
+### 16.8 Verified live (2026-06-12)
+onboard → analyze **start returned `done` in 16s** (one request, ≪50s) with the full thinking trace + a Mobile-96%-internal cited hypothesis + a 4.5MB self-contained report; `analyze_status` re-fetch 0.5s. **181 backend tests pass; frontend `tsc` clean.** Built via subagent-driven development (parallel backend + frontend streams), merged to `main` in both repos. Endpoint unchanged: `https://endpoint-f6f69523-948a-4763-af77-05359b001b16.agentbase-runtime.aiplatform.vngcloud.vn`.

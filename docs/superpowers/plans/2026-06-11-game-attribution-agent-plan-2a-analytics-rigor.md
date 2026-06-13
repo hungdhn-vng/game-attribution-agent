@@ -1,5 +1,7 @@
 # Game Attribution Agent — Plan 2A: Analytics Rigor Upgrade
 
+> ✅ **IMPLEMENTED & DEPLOYED** (verified live 2026-06-12) — executed via subagent-driven development, merged to `main`, running on AgentBase. CausalImpact-style counterfactual (`analytics/causal.py`), Adtributor root-cause (`analytics/adtributor.py`), change-point/STL deviation (`analytics/changepoint.py`), and the self-consistency gate are live. Self-consistency now runs as **concurrent N-sample sampling** (`synth/concurrent.py`, `GAA_N_SAMPLES=3`) inside the async pipeline's synth stage (see the design spec's "§16 Async pipeline" section).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Replace the naive-delta versions of three analysis modules with research-backed attribution methods, and add a self-consistency abstention gate — turning the engine from *descriptive* to *causal*. Backed by a verified deep-research pass (see spec §15).

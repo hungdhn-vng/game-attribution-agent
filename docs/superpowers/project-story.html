@@ -105,11 +105,13 @@
       <span class="badge b-mkt">market</span> ones — with two independent confidence axes and every
       claim cited. It gives scenarios, never decisions.</p>
     <div class="pills">
+      <span class="pill" style="border-color:rgba(52,211,153,.5)"><b style="color:#34d399">✅ Built &amp; deployed</b> · verified live 12 Jun 2026</span>
       <span class="pill"><b>Hero question:</b> "Is it us, or the market?"</span>
-      <span class="pill"><b>Deploy:</b> AgentBase + LangGraph</span>
-      <span class="pill"><b>LLM:</b> GreenNode MaaS</span>
+      <span class="pill"><b>Deploy:</b> AgentBase · async job + poll</span>
+      <span class="pill" style="border-color:rgba(34,211,238,.5)"><b>Chat brain:</b> OpenClaw 1-Click · config-by-chat</span>
+      <span class="pill"><b>LLM:</b> Qwen 3.5 27B (MaaS) + Perplexity</span>
+      <span class="pill"><b>Live cross-check:</b> SteamCharts + web</span>
       <span class="pill"><b>Submit by:</b> 17 Jun 2026, 12:00</span>
-      <span class="pill"><b>Winner:</b> community vote</span>
     </div>
   </div>
 </header>
@@ -129,8 +131,8 @@
   <div class="grid g4">
     <div class="card"><div class="num">4</div><div class="label">analysis modules<br>(internal + external)</div></div>
     <div class="card"><div class="num">2</div><div class="label">confidence axes<br>likelihood × evidence</div></div>
-    <div class="card"><div class="num">4</div><div class="label">implementation plans<br>43 TDD tasks total</div></div>
-    <div class="card"><div class="num">3</div><div class="label">parallel build streams<br>+ integration</div></div>
+    <div class="card"><div class="num">6</div><div class="label">implementation plans<br>+ async-pipeline build</div></div>
+    <div class="card"><div class="num">2</div><div class="label">agents composed in prod<br>analysis engine + OpenClaw chat brain</div></div>
   </div>
 
   <!-- JOURNEY -->
@@ -167,18 +169,41 @@
       Market → <b>CausalImpact</b> counterfactual; Segment → <b>Adtributor</b> (ratio-KPI root-cause, citable %);
       Anomaly → <b>change-point + STL</b>; confidence → <b>self-consistency abstention</b>. Multi-agent debate
       was researched and rejected. Verified across 25 sources.</p></div></div>
+    <div class="step"><div class="n">10</div><div>
+      <h4>Accuracy over speed → async pipeline + live crawl + visible reasoning <span class="badge b-conf">shipped</span></h4>
+      <p>AgentBase hard-closes any request at ~50s, but we chose to never compromise accuracy. So <code>analyze</code>
+      became an <span class="choice">async job advanced across poll requests</span> — each slice stays under 50s, the job resumes,
+      and the <span class="choice">model's thinking streams live</span> as a stage-by-stage trace. The benchmark now
+      <span class="choice">crawls live external data</span> (real SteamCharts history + cited Perplexity web search), and
+      self-consistency runs as <b>concurrent N-sample sampling</b> at full token budget. This replaced the LangGraph
+      <code>StateGraph</code> for analyze with a <span class="choice">custom resumable pipeline</span> (its checkpointer model
+      didn't fit the per-request-budget + cooperative-poll loop). Built via subagent-driven development; backend + React
+      "Attribution Console" frontend in parallel. <span class="note">181 backend tests pass · verified live (start done in 16s).</span></p></div></div>
+    <div class="step"><div class="n">11</div><div>
+      <h4>Conversational layer → OpenClaw chat brain + config-by-chat <span class="badge b-conf">shipped 12 Jun</span></h4>
+      <p>Instead of re-implementing chat, we composed the <b>two patterns the platform offers</b>: the GAA stays a
+      custom-runtime <em>analysis engine</em>, and an <span class="choice">OpenClaw 1-Click instance ("gaa-chat") becomes the
+      conversational front-end</span>. The React console streams chat through OpenClaw's OpenAI-compatible endpoint
+      (unlocked programmatically over its gateway protocol); OpenClaw taught itself a <b>GAA skill</b> and calls the engine,
+      handing the job back via a <code>[[gaa:job_id]]</code> marker the console polls. The killer feature:
+      <span class="choice">the admin reconfigures the system by talking</span> — "switch benchmarks to live crawl",
+      "make reports answer in Vietnamese" — landing in a new key-guarded admin API whose settings (SQLite, store→env→default)
+      the engine re-reads per job. No redeploys, no restarts. <span class="note">214 backend tests · all five demo flows
+      live-verified end-to-end (reports came back in Vietnamese on command).</span></p></div></div>
   </div>
 
   <!-- ARCHITECTURE -->
   <h2 id="arch"><span class="dot"></span>How it works</h2>
   <p class="sub">Deterministic where it must be (analysis, evidence, confidence), AI where it adds value
-    (intent, column-mapping, narrative). The LLM never invents findings.</p>
+    (intent, column-mapping, narrative). The LLM never invents findings. <code>analyze</code> runs as an
+    <b>async, resumable pipeline</b> advanced across poll requests (each slice &lt;50s) that <b>streams its thinking trace</b>
+    stage by stage until the report is ready.</p>
   <div class="card">
     <div class="flow">
       <div class="row">
         <div class="node">Roblox export</div>
         <div class="node">Generic CSV</div>
-        <div class="node">Live crawl<br><small>RoMonitor · news · social</small></div>
+        <div class="node">Live crawl<br><small>SteamCharts · Perplexity (cited)</small></div>
       </div>
       <div class="arrow">▼</div>
       <div class="row">
@@ -186,13 +211,13 @@
       </div>
       <div class="arrow">▼</div>
       <div class="row">
-        <div class="node key">LangGraph orchestrator<br><small>route: setup vs analyze</small></div>
+        <div class="node key">Router → async pipeline<br><small>setup/onboard via graph · analyze = resumable job (plan→crawl→modules→synth→render)</small></div>
       </div>
-      <div class="arrow">▼</div>
+      <div class="arrow">▼ <small style="color:var(--muted)">each poll advances a stage &amp; streams a thinking-trace line</small></div>
       <div class="row">
         <div class="node int">Anomaly<br><small>change-point + STL</small></div>
         <div class="node int">Segment<br><small>Adtributor RCA</small></div>
-        <div class="node mkt">Market benchmark<br><small>CausalImpact counterfactual</small></div>
+        <div class="node mkt">Market benchmark<br><small>CausalImpact vs live SteamCharts control</small></div>
         <div class="node mkt">Competitor &amp; events<br><small>external · crawl</small></div>
       </div>
       <div class="arrow">▼</div>
@@ -215,7 +240,15 @@
       </div>
       <div class="arrow">▼</div>
       <div class="row">
-        <div class="node">AgentBase SDK · <code>POST /invocations</code> · port 8080</div>
+        <div class="node">AgentBase SDK · <code>POST /invocations</code> · port 8080<br><small>async job + <code>analyze_status</code> poll + key-guarded admin API</small></div>
+      </div>
+      <div class="arrow">▲ <small style="color:var(--muted)">GAA skill (curl) · admin config-by-chat</small></div>
+      <div class="row">
+        <div class="node key">OpenClaw "gaa-chat" — the chat brain<br><small>1-Click template · self-edits SOUL.md/AGENTS.md/skills · emits <code>[[gaa:job_id]]</code></small></div>
+      </div>
+      <div class="arrow">▲ chat (SSE) &nbsp;·&nbsp; ▼ marker → poll GAA directly</div>
+      <div class="row">
+        <div class="node key">React "Attribution Console"<br><small>chat via OpenClaw · admin-mode toggle · polls GAA · streams the thinking trace live</small></div>
       </div>
     </div>
   </div>
@@ -337,8 +370,9 @@
 
   <!-- PLANS -->
   <h2 id="plans"><span class="dot"></span>The build plan</h2>
-  <p class="sub">Four TDD implementation plans. The pure-logic core is framework-agnostic; Plan 0 adds the
-    AgentBase + LangGraph shell. Maps onto three parallel streams + integration.</p>
+  <p class="sub">Five TDD implementation plans, all <span class="badge b-conf">implemented &amp; deployed</span>. The pure-logic
+    core is framework-agnostic; Plan 0 adds the AgentBase shell; Plan 2A upgrades the analytics; a final async-pipeline
+    build (live crawl + thinking trace) was layered on top via two parallel subagent-driven streams.</p>
   <div class="grid g2">
     <div class="card">
       <h3>Plan 0 — AgentBase + LangGraph integration <span class="badge b-conf">9 tasks</span></h3>
@@ -357,8 +391,24 @@
     </div>
     <div class="card">
       <h3>Plan 3 — Onboarding, render &amp; demo <span class="badge b-conf">10 tasks</span></h3>
-      <p>Cached crawler, live RoMonitor/web-signal sources, LLM column-profiler, 4 Plotly charts,
+      <p>Cached crawler, live benchmark/web-signal sources, LLM column-profiler, 4 Plotly charts,
          self-contained HTML report, demo packaging.</p>
+    </div>
+    <div class="card">
+      <h3>Plan 2A — Analytics rigor <span class="badge b-conf">7 tasks</span></h3>
+      <p>Replaces the naive modules with research-backed methods: Adtributor root-cause, CausalImpact-style
+         counterfactual, change-point + STL, and the self-consistency abstention gate.</p>
+    </div>
+    <div class="card">
+      <h3>Async pipeline + live crawl + thinking trace <span class="badge b-conf">shipped</span></h3>
+      <p>Resumable job advanced across polls (each &lt;50s), concurrent N-sample self-consistency at full token budget,
+         live SteamCharts + cited Perplexity crawl, and a streamed reasoning trace — backend + React console built in parallel.</p>
+    </div>
+    <div class="card">
+      <h3>OpenClaw chat integration <span class="badge b-conf">13 tasks · shipped</span></h3>
+      <p>ConfigStore (store→env→default), key-guarded admin actions, per-job dynamic sources, operator prefs in synthesis,
+         idempotent workspace bootstrap over the gateway protocol, /openclaw SSE proxy + admin-mode chat in the console —
+         spec → plan → subagent-driven build → live E2E, in one day.</p>
     </div>
   </div>
   <div class="card" style="margin-top:16px">
@@ -380,7 +430,7 @@
   <div class="tl">
     <div class="day"><b>Day 1 · 10 Jun</b>Scaffold + schemas; hello-world deployed to AgentBase</div>
     <div class="day"><b>Day 2 · 11 Jun</b>Data store + adapters + crawler; anomaly + segment modules; chart prototypes</div>
-    <div class="day"><b>Day 3 · 12 Jun</b>Benchmark + competitor modules; Evidence Ledger; chat-assisted mapping</div>
+    <div class="day"><b>Day 3 · 12 Jun</b>OpenClaw chat brain + config-by-chat shipped &amp; live-verified (engine v11)</div>
     <div class="day"><b>Day 4 · 13 Jun</b>Synthesizer + dual confidence + validator; full HTML report; first end-to-end run</div>
     <div class="day"><b>Day 5 · 14 Jun</b>LangGraph integration; tune prompts; full agent deployed + judge-callable</div>
     <div class="day"><b>Day 6 · 15 Jun</b>Hardening, fallbacks, README + form; demo video draft</div>
@@ -398,24 +448,30 @@
         <tr><td>Dual confidence: likelihood × evidence quality</td></tr>
         <tr><td>Interactive HTML report (overlay + confidence matrix)</td></tr>
         <tr><td>Self-serve onboarding (CSV + Roblox, chat-assisted)</td></tr>
-        <tr><td>LangGraph on AgentBase, MaaS LLM, multi-turn memory</td></tr>
+        <tr><td>Async job/poll pipeline streaming the model's reasoning live</td></tr>
+        <tr><td>Live external cross-check (SteamCharts history + cited Perplexity web search)</td></tr>
+        <tr><td>OpenClaw chat brain in front of the engine — users chat, the <b>admin reconfigures sources &amp; report behavior by talking</b> (config-by-chat, no redeploy)</td></tr>
+        <tr><td>React "Attribution Console" + AgentBase, MaaS Qwen 3.5 27B</td></tr>
       </table>
     </div>
     <div class="card">
       <h3 class="out">✗ Out (for now)</h3>
       <table>
         <tr><td>Forward-looking potential/investment scoring</td></tr>
-        <tr><td>Structured benchmarks for non-Roblox platforms (web-search fallback instead)</td></tr>
+        <tr><td>Roblox historical CCU benchmark (not freely available → snapshot floor + cited Perplexity)</td></tr>
         <tr><td>Dedicated adapters beyond CSV + Roblox</td></tr>
-        <tr><td>Custom frontend beyond the HTML report</td></tr>
-        <tr><td>Real-time streaming, model fine-tuning, macro/financial sources</td></tr>
+        <tr><td>Token-by-token CoT streaming (we stream a grounded stage trace instead, off by default)</td></tr>
+        <tr><td>Model fine-tuning, macro/financial sources</td></tr>
       </table>
     </div>
   </div>
 
   <footer>
-    <p><b>Tech stack:</b> Python 3.11 · GreenNode AgentBase SDK · LangGraph + langchain-openai (MaaS) ·
-       Pydantic · pandas / duckdb · Plotly + Jinja2 · pytest. Inviolable principles:
+    <p><b>Tech stack:</b> Python 3.11 · GreenNode AgentBase SDK · OpenClaw 1-Click (chat brain: gateway-WS bootstrap,
+       OpenAI-compatible SSE chat, self-edited workspace skills) · LangGraph (routing) + a custom resumable
+       async pipeline (analyze) · langchain-openai → MaaS Qwen 3.5 27B · statsmodels + ruptures (CausalImpact / STL / change-point) ·
+       httpx → SteamCharts + Perplexity · sqlite job, benchmark &amp; config stores · Pydantic · pandas · Plotly + Jinja2 · pytest ·
+       React + Vite + TS "Attribution Console". Inviolable principles:
        <em>give scenarios, not solutions</em> · <em>minimize hallucination — lower confidence honestly when evidence is thin.</em></p>
     <p class="note">Generated as a project-review overview. Full design spec: <code>docs/superpowers/specs/2026-06-10-game-attribution-agent-design.md</code>.
        Plans: <code>docs/superpowers/plans/</code>. Charts above use illustrative values.</p>
