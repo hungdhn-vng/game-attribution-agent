@@ -55,3 +55,12 @@ def test_write_persona_rejects_unknown_target(tmp_path, monkeypatch):
         assert False, "expected ValueError"
     except ValueError:
         pass
+
+
+def test_write_persona_append_mode_joins_with_newline(tmp_path, monkeypatch):
+    ctx = _ctx(tmp_path, monkeypatch)
+    persona.ensure_seeded(ctx)
+    persona.write_persona(ctx, "MEMORY.md", "First line.", mode="replace")
+    persona.write_persona(ctx, "MEMORY.md", "Second line.", mode="append")
+    text = persona.load_memory(ctx)
+    assert "First line.\nSecond line." in text

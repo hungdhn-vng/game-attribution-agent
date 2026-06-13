@@ -82,7 +82,7 @@ def ensure_seeded(ctx) -> None:
 
 def _read(ctx, name: str) -> str:
     p = persona_dir(ctx) / name
-    return p.read_text() if p.exists() else ""
+    return p.read_text(encoding="utf-8") if p.exists() else ""
 
 
 def load_soul(ctx) -> str:
@@ -101,22 +101,21 @@ def write_persona(ctx, target: str, content: str, *, mode: str = "replace") -> i
     d.mkdir(parents=True, exist_ok=True)
     p = d / target
     if mode == "append":
-        existing = p.read_text() if p.exists() else ""
+        existing = p.read_text(encoding="utf-8") if p.exists() else ""
         content = existing + ("\n" if existing and not existing.endswith("\n") else "") + content
     elif mode != "replace":
         raise ValueError(f"mode must be 'replace' or 'append', got {mode!r}")
-    p.write_text(content)
+    p.write_text(content, encoding="utf-8")
     return len(content.encode("utf-8"))
 
 
 def assemble_system_prompt(ctx, *, admin: bool) -> str:
-    parts = [
-        load_soul(ctx).strip(),
-        "## MEMORY\n" + load_memory(ctx).strip(),
-        _REDLINES,
-        _PROTOCOL,
-        _ANALYSIS_TOOLS,
-    ]
+    soul = load_soul(ctx).strip()
+    memory = load_memory(ctx).strip()
+    parts = [soul]
+    if memory:
+        parts.append("## MEMORY\n" + memory)
+    parts += [_REDLINES, _PROTOCOL, _ANALYSIS_TOOLS]
     if admin:
         parts.append(_ADMIN_TOOLS)
     return "\n\n".join(p for p in parts if p)
