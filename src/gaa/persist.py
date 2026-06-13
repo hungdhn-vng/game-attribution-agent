@@ -28,12 +28,31 @@ def enabled() -> bool:
 
 
 def _client():
+    """boto3 S3 client tuned for VNG vStorage (Ceph-based, S3-compatible).
+
+    - path-style addressing + SigV4 (vStorage doesn't do virtual-host buckets).
+    - request/response checksum = "when_required": boto3 >=1.36 defaults uploads to
+      CRC64_NVME, which vStorage rejects (it supports only CRC32/CRC32C/SHA1/SHA256);
+      "when_required" suppresses that default so put_object succeeds. Falls back
+      gracefully on older botocore that lacks the knobs.
+    - region is configurable (VSTORAGE_REGION); only used for signing.
+    """
     import boto3
+    from botocore.config import Config
+
+    base = dict(signature_version="s3v4", s3={"addressing_style": "path"})
+    try:
+        cfg = Config(**base, request_checksum_calculation="when_required",
+                     response_checksum_validation="when_required")
+    except TypeError:  # botocore < 1.36 has no checksum knobs
+        cfg = Config(**base)
     return boto3.client(
         "s3",
         endpoint_url=os.environ["VSTORAGE_ENDPOINT"],
+        region_name=os.environ.get("VSTORAGE_REGION", "us-east-1"),
         aws_access_key_id=os.environ["VSTORAGE_ACCESS_KEY"],
         aws_secret_access_key=os.environ["VSTORAGE_SECRET_KEY"],
+        config=cfg,
     )
 
 

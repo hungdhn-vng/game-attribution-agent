@@ -204,7 +204,7 @@ The backend was implemented on branch `feat/gaa-custom-agent-backend` via 9 TDD 
 - `PERPLEXITY_API_KEY` (competitor signals), `GAA_BENCHMARK_MODE` (`snapshot`|`crawl`).
 - `GAA_AGENT_TOKEN` — Bearer gate for `/chat` + `/invocations` (held server-side by the frontend proxy; leak = RCE, treat as high-sensitivity).
 - `GAA_ADMIN_KEY` — gates the dangerous tools (`exec`/`browse`/`self_edit`/mutations); `X-GAA-Admin-Key` header on `/chat`, `admin_key` body field on `/invocations`.
-- `VSTORAGE_ENDPOINT` / `VSTORAGE_BUCKET` / `VSTORAGE_ACCESS_KEY` / `VSTORAGE_SECRET_KEY` — persistence; if unset, persistence is a local-only no-op.
+- `VSTORAGE_ENDPOINT` (e.g. `https://hcm04.vstorage.vngcloud.vn`) / `VSTORAGE_BUCKET` / `VSTORAGE_ACCESS_KEY` / `VSTORAGE_SECRET_KEY` — persistence; if unset, persistence is a local-only no-op. Optional `VSTORAGE_REGION` (default `us-east-1`, signing only). The boto3 client is tuned for vStorage (Ceph): path-style + SigV4 + checksum `when_required` (boto3 ≥1.36 otherwise defaults uploads to CRC64_NVME, which vStorage rejects).
 - `GAA_STEP_BUDGET_S` — set high (e.g. `600`) so an in-process `analyze` advances to completion within a single `/chat` turn (the reused CLI handler clamps the per-call budget to this).
 
 ### Deploy (via `agentbase-deploy`)
