@@ -56,3 +56,11 @@ def test_dispatch_routes_exec_when_admin(tmp_path, monkeypatch):
     assert r["status"] == "success" and "via-dispatch" in r["stdout"]
     r2 = actions.dispatch(ctx, "exec", {"command": "echo nope"}, is_admin=False)
     assert r2["status"] == "error" and "admin" in r2["error"].lower()
+
+
+def test_exec_tolerates_binary_output(tmp_path, monkeypatch):
+    # exec must not crash when a command emits non-UTF-8 bytes (e.g. base64 -d output).
+    ctx = _ctx(tmp_path, monkeypatch)
+    r = capabilities.exec_action(ctx, type("A", (), {"command": "printf '\\377\\376'"})())
+    assert r["status"] == "success"          # did not raise UnicodeDecodeError
+    assert "returncode" in r and r["returncode"] == 0

@@ -23,15 +23,15 @@ def exec_action(ctx, args) -> dict:
     if not command:
         return {"status": "error", "error": "exec requires a 'command' string"}
     try:
-        proc = subprocess.run(command, shell=True, capture_output=True, text=True,
+        proc = subprocess.run(command, shell=True, capture_output=True,
                               timeout=_EXEC_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         return {"status": "error", "error": f"command timed out ({_EXEC_TIMEOUT_S}s)"}
     return {
         "status": "success" if proc.returncode == 0 else "error",
         "returncode": proc.returncode,
-        "stdout": proc.stdout[-4000:],
-        "stderr": proc.stderr[-2000:],
+        "stdout": proc.stdout[-4000:].decode("utf-8", "replace"),
+        "stderr": proc.stderr[-2000:].decode("utf-8", "replace"),
         **({"error": f"exit {proc.returncode}"} if proc.returncode != 0 else {}),
     }
 
@@ -44,7 +44,7 @@ def browse_action(ctx, args) -> dict:
         resp = httpx.get(url, timeout=_BROWSE_TIMEOUT_S, follow_redirects=True,
                          headers={"User-Agent": "gaa-agent/1.0"})
         resp.raise_for_status()
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         return {"status": "error", "error": f"fetch failed: {exc}"}
     soup = BeautifulSoup(resp.text, "html.parser")
     for tag in soup(["script", "style", "noscript"]):
@@ -55,6 +55,7 @@ def browse_action(ctx, args) -> dict:
 
 
 def self_edit_action(ctx, args) -> dict:
+    persona.ensure_seeded(ctx)
     target = getattr(args, "target", None)
     content = getattr(args, "content", None)
     mode = getattr(args, "mode", None) or "replace"
