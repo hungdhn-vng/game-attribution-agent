@@ -5,13 +5,14 @@ Routes (auth in §7 of the spec):
   POST /invocations           Bearer-gated. Structured single-action dispatch.
   GET  /runs/<id>/<artifact>  open, read-only, allowlisted, traversal-safe.
   GET  /health                open.
-On startup: persist.restore(ctx) then persona.ensure_seeded(ctx).
+On startup (lifespan): persist.restore(ctx) then persona.ensure_seeded(ctx).
 """
 from __future__ import annotations
 
 import hmac
 import json
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
@@ -19,7 +20,7 @@ from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from gaa.cli.wiring import build_context
 from gaa.core.llm.client import LangChainMaaSLLM
 from gaa.server import actions, persona
-from gaa.server import capabilities  # noqa: F401  (registers exec/browse/self_edit)
+from gaa.server import capabilities  # noqa: F401  (import registers exec/browse/self_edit)
 from gaa.server.agent import ChatAgent
 from gaa import persist
 
@@ -45,7 +46,6 @@ def _bearer(request: Request) -> str | None:
 
 
 def create_app(ctx=None, chat_llm=None) -> FastAPI:
-    app = FastAPI(title="GAA Custom Agent")
     state = {"ctx": ctx, "chat_llm": chat_llm}
 
     def get_ctx():
@@ -62,14 +62,17 @@ def create_app(ctx=None, chat_llm=None) -> FastAPI:
         if not _const_eq(_bearer(request), os.environ.get("GAA_AGENT_TOKEN")):
             raise HTTPException(status_code=401, detail="missing or invalid agent token")
 
-    @app.on_event("startup")
-    def _startup():
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
         c = get_ctx()
         try:
             persist.restore(c)
         except Exception:
-            pass
+            pass  # restore is best-effort; a missing/empty bucket is fine
         persona.ensure_seeded(c)
+        yield
+
+    app = FastAPI(title="GAA Custom Agent", lifespan=lifespan)
 
     @app.get("/health")
     def health():
@@ -97,9 +100,9 @@ def create_app(ctx=None, chat_llm=None) -> FastAPI:
     def invocations(request: Request, body: dict):
         require_token(request)
         is_admin = _const_eq(body.get("admin_key"), os.environ.get("GAA_ADMIN_KEY"))
-        result = actions.dispatch(get_ctx(), body.get("action", ""),
-                                  body.get("args", {}) or {}, is_admin=is_admin)
-        if (body.get("action") in actions.MUTATING_ACTIONS
+        action = body.get("action", "")
+        result = actions.dispatch(get_ctx(), action, body.get("args", {}) or {}, is_admin=is_admin)
+        if (action in actions.MUTATING_ACTIONS
                 and isinstance(result, dict) and result.get("status") == "success"):
             try:
                 persist.snapshot(get_ctx())
@@ -111,9 +114,16 @@ def create_app(ctx=None, chat_llm=None) -> FastAPI:
     def artifact(run_id: str, artifact: str):
         if artifact not in _ARTIFACTS:
             raise HTTPException(status_code=404, detail="unknown artifact")
-        run_dir = get_ctx().runs.path_for(run_id).resolve()
+        runs = get_ctx().runs
+        # Anchor to the runs ROOT, not to a run_dir derived from the untrusted run_id —
+        # otherwise a crafted run_id like ".." escapes the runs directory. Require the
+        # resolved run_dir to be a direct child of the resolved runs root.
+        runs_root = runs.path_for("__root_probe__").parent.resolve()
+        run_dir = runs.path_for(run_id).resolve()
+        if run_dir.parent != runs_root:
+            raise HTTPException(status_code=404, detail="not found")
         path = (run_dir / artifact).resolve()
-        if not str(path).startswith(str(run_dir) + os.sep) or not path.exists():
+        if path.parent != run_dir or not path.exists():
             raise HTTPException(status_code=404, detail="not found")
         return FileResponse(str(path), media_type=_CONTENT_TYPES[artifact])
 

@@ -72,8 +72,27 @@ def test_artifact_route_serves_and_blocks_traversal(tmp_path, monkeypatch):
     (ctx.runs.path_for(run.run_id) / "report.html").write_text("<html>dossier</html>")
     ok = client.get(f"/runs/{run.run_id}/report.html")
     assert ok.status_code == 200 and "dossier" in ok.text
-    # traversal / disallowed artifact name
-    bad = client.get(f"/runs/{run.run_id}/../../etc/passwd")
-    assert bad.status_code in (400, 404)
-    bad2 = client.get(f"/runs/{run.run_id}/secret.txt")
-    assert bad2.status_code == 404  # not in the artifact allowlist
+    # disallowed artifact name (not in the allowlist) -> 404
+    assert client.get(f"/runs/{run.run_id}/secret.txt").status_code == 404
+    # encoded ".." that survives URL normalization as a single path segment must NOT
+    # escape the runs root. Plant a sentinel file one level above the runs root.
+    runs_root = ctx.runs.path_for("__probe__").parent
+    (runs_root.parent / "report.html").write_text("SECRET ABOVE ROOT")
+    esc = client.get("/runs/%2e%2e/report.html")
+    assert esc.status_code == 404
+    assert "SECRET ABOVE ROOT" not in esc.text
+
+
+def test_startup_lifespan_seeds_persona(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAA_DB_PATH", str(tmp_path / "gaa.sqlite"))
+    monkeypatch.setenv("GAA_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("GAA_CONFIG_PATH", str(tmp_path / "gaa-config.toml"))
+    monkeypatch.setenv("GAA_AGENT_TOKEN", "t0k")
+    ctx = build_context(llm=FakeLLM(_SYNTH), today="2026-06-13")
+    app = create_app(ctx=ctx)
+    # not seeded yet (we did NOT call ensure_seeded ourselves)
+    assert not (persona.persona_dir(ctx) / "SOUL.md").exists()
+    with TestClient(app) as client:  # entering the context runs the lifespan startup
+        assert client.get("/health").status_code == 200
+    # the startup handler must have seeded the persona
+    assert (persona.persona_dir(ctx) / "SOUL.md").exists()
