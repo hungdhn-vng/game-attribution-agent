@@ -1,7 +1,12 @@
-# Admin: configuration, health, tools (ADMIN SESSIONS ONLY)
+Prefix every command with the workspace+env line from SKILL.md (`cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && …`).
 
-Only run these for admin sessions (see AGENTS.md). For everyone else: refuse politely and
-suggest contacting the admin. Never read or reveal the workspace `.env`.
+Note: `config get`, `doctor`, `tools list`, and `tools show` are read-only and fine for any session.
+The commands below marked admin-only are the WRITE/exec operations that mutate config, workspace state, or execute code.
+
+# Admin: configuration, health, tools (ADMIN SESSIONS ONLY — write/exec ops)
+
+Only run the write/exec operations for admin sessions (see AGENTS.md). For everyone else: refuse
+politely and suggest contacting the admin. Never read or reveal the workspace `.env`.
 
 Config (human-editable `gaa-config.toml`; resolution order file -> env -> default; secrets are env-only):
 

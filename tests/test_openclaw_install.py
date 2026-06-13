@@ -17,11 +17,20 @@ def test_workspace_artifacts_exist():
 
 
 def test_no_dead_architecture_references():
-    for rel in ["SKILL.md", "references/analysis.md", "references/admin.md"]:
-        text = _read(f"skills/gaa/{rel}").lower()
+    rels = ["AGENTS.md", "skills/gaa/SKILL.md"] + [
+        f"skills/gaa/references/{n}.md" for n in
+        ["analysis", "drilldowns", "adhoc", "onboarding", "admin", "tools"]]
+    for rel in rels:
+        text = _read(rel).lower()
         assert "gaa_endpoint" not in text, f"{rel} references the dead GAA_ENDPOINT"
         assert "admin_key" not in text, f"{rel} references the dead admin_key"
         assert "/invocations" not in text, f"{rel} references the dead HTTP endpoint"
+
+
+def test_skill_teaches_env_sourcing():
+    skill = _read("skills/gaa/SKILL.md")
+    assert ". ./.env" in skill and "set -a" in skill
+    assert "already loaded" not in skill.lower()
 
 
 def test_skill_describes_the_cli_and_marker():

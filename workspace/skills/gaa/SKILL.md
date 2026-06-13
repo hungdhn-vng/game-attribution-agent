@@ -6,8 +6,17 @@ description: Drive the Game Attribution Agent (GAA) — answer "is it us or the 
 # Game Attribution Agent (GAA)
 
 The `gaa` CLI lives in this workspace (installed from the repo under `~/.openclaw/workspace/gaa`).
-It outputs **compact JSON on stdout** — read it, don't guess. The workspace `.env` is already
-loaded for your exec shell; the exec shell is POSIX `sh` (use `.` not `source`).
+It outputs **compact JSON on stdout** — read it, don't guess. The exec shell is POSIX `sh`
+(use `.` not `source`).
+
+## Before every command: enter the workspace and load the env
+Each exec is a fresh POSIX `sh`, with NO env or cwd carried over. So PREFIX every `gaa`
+(or `python`) invocation with this one line — it enters the repo dir (where the code, `.env`,
+and all state live) and exports the credentials:
+
+    cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && <your gaa command>
+
+(`.` not `source` — this is dash. `set -a` exports the `.env` vars to `gaa`.)
 
 ## Run things yourself, in this turn
 Run `gaa` with your exec tool IN THE SAME TURN and reply immediately. NEVER spawn subagents or
@@ -16,7 +25,8 @@ background tasks. Long commands get backgrounded with a random process name (e.g
 
 ## Decision guide — pick the smallest command that fits
 1. **A fresh question about a game's metrics** ("why did revenue drop?", "what's going on with my game?")
-   → start an analysis: `gaa analyze "<the user's question, verbatim>" --budget 2`
+   → start an analysis:
+   `cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && gaa analyze "<the user's question, verbatim>" --budget 2`
    It returns fast with a `run_id`, `status`, `stage`. See references/analysis.md.
 2. **A follow-up about an existing run** ("which region?", "re-check vs the market", "answer my new question")
    → a drilldown against that run, then re-synthesize: `gaa segments --run <id> --dimension region`,
@@ -38,5 +48,5 @@ polls the run itself, and renders the dossier — so you never paste the full re
 
 ## Reading run status
 `gaa status <run_id>` (read-only) and `gaa step <run_id>` (advance one slice) report
-`{status, stage, done, activity, ledger_count}`. The UI drives stepping; in pure chat you may
-`gaa step` a few times until `done`, then relay `gaa status`'s `summary_path`.
+`{status, stage, done, activity, ledger_count, report_path (once done)}`. The UI drives stepping;
+in pure chat you may `gaa step` a few times until `done`, then relay `gaa status`'s `summary_path`.

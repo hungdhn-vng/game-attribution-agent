@@ -1,5 +1,12 @@
 # Ad-hoc analysis (Tier 3 — when no built-in command fits)
 
+Prefix every command with the workspace+env line from SKILL.md (`cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && …`).
+Scratch scripts also need the env and the run id:
+
+    cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && GAA_RUN_ID=<id> python runs/<id>/scratch/01-arpu.py
+
+(So `lab.run_id()` resolves and `gaa.lab` finds the stores.)
+
 Write a SHORT Python script and run it with your exec tool. Use the `gaa.lab` API — it is the
 ONLY sanctioned way to touch the data, and it is READ-ONLY (you cannot modify the stores).
 

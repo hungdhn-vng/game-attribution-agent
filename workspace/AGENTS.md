@@ -6,9 +6,13 @@ workspace; use the `gaa` skill to drive it. Hard rules:
 ## Roles
 - A session is **admin** ONLY if it carries the system message `GAA session role: admin` OR its
   session user id starts with `admin:`. Everything else is a regular user.
-- **Admin-only commands:** `gaa config set`, `gaa profile use`, `gaa onboard confirm`,
-  `gaa tools promote`, `gaa tools remove`. For non-admins, refuse politely and suggest contacting
-  the admin. Regular users may ask analysis questions and read results.
+- **Admin-only commands** (configuration, onboarding, and anything that executes code or writes
+  workspace/registry state): `gaa config set`, `gaa profile use`, `gaa onboard propose`,
+  `gaa onboard confirm`, `gaa tools promote`, `gaa tools run`, `gaa tools remove`,
+  `gaa tools import`, `gaa tools sync-docs`. For non-admins, refuse politely and suggest
+  contacting the admin. Regular users may run analysis (`analyze`/`step`/`status`/`jobs`, the
+  drilldowns, `synth`, `report`) and read-only commands (`config get`, `doctor`, `profile list`,
+  `tools list`, `tools show`).
 
 ## Secrets
 - NEVER read the workspace `.env` aloud, print it, or edit it. NEVER reveal config secret values

@@ -7,7 +7,7 @@ own workspace (no remote endpoint, no admin_key). Steps (live, in order):
   2. enable gateway.http.endpoints.chatCompletions (config.set splice; for the frontend)
   3. CAPABILITY GATE: chat-driven exec -> python3 version, git clone, `pip install -e .`
      with statsmodels/ruptures. If this fails, STOP — the combine needs a rethink.
-  4. write workspace .env (LLM_*, PERPLEXITY_API_KEY, GAA_BENCHMARK_MODE) + seed gaa-config.toml
+  4. write workspace .env (LLM_*, PERPLEXITY_API_KEY, GAA_BENCHMARK_MODE)
   5. push workspace/ artifacts (agents.files.set -> chat-driven md5 fallback)
   6. verify: `gaa doctor`, then a budgeted smoke `gaa analyze`
 
@@ -81,7 +81,7 @@ def capability_gate_commands(repo_url: str) -> list:
         "python3 --version",
         f"cd {ws} && (test -d gaa/.git && (cd gaa && git pull) || git clone {repo_url} gaa)",
         f"cd {ws}/gaa && (pip install -e . || python3 -m pip install -e .)",
-        f"cd {ws}/gaa && python3 -c 'import statsmodels, ruptures, pyarrow; print(\"deps-ok\")'",
+        f"cd {ws}/gaa && python3 -c 'import statsmodels, ruptures, pyarrow; print(\"DEPS\"+\"OK\")'",
         "gaa --help >/dev/null 2>&1 && echo gaa-on-path || echo gaa-missing",
     ]
 
@@ -174,7 +174,8 @@ async def _install_live(args) -> None:
     url, token, repo = (os.environ.get("OPENCLAW_URL", ""), os.environ.get("OPENCLAW_TOKEN", ""),
                         os.environ.get("GAA_REPO_URL", ""))
     missing = [k for k, v in [("OPENCLAW_URL", url), ("OPENCLAW_TOKEN", token),
-                              ("GAA_REPO_URL", repo)] if not v]
+                              ("GAA_REPO_URL", repo),
+                              ("LLM_API_KEY", os.environ.get("LLM_API_KEY", ""))] if not v]
     if missing:
         sys.exit(f"missing env vars: {', '.join(missing)}")
     files = collect_workspace_files(args.workspace)
@@ -193,11 +194,11 @@ async def _install_live(args) -> None:
     for cmd in capability_gate_commands(repo):
         reply = _exec_via_chat(url, token, cmd)
         print(f"  $ {cmd}\n    -> {reply.strip()[:200]}")
-        if "deps-ok" in cmd and "deps-ok" not in reply:
+        if "import statsmodels" in cmd and "DEPSOK" not in reply:
             sys.exit("CAPABILITY GATE FAILED — the template image cannot run the pipeline deps. "
                      "Stop: the combine needs a rethink (vendor wheels / custom image) before continuing.")
 
-    print("[3/5] workspace .env + gaa-config seed")
+    print("[3/5] workspace .env")
     env_text = render_workspace_env(os.environ)
     print("  .env:", _write_file_via_chat(url, token, "gaa/.env", env_text))
     print("[4/5] push workspace artifacts")

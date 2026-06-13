@@ -1,3 +1,5 @@
+Prefix every command with the workspace+env line from SKILL.md (`cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && …`).
+
 # Drilldowns (follow-ups on an existing run)
 
 Each appends evidence to the run's ledger, then re-synthesize + re-render to update the dossier.
