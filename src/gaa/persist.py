@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import os
+import sys
 import tarfile
 from pathlib import Path
 
@@ -60,8 +61,8 @@ def snapshot(ctx, *, client=None, bucket: str | None = None) -> bool:
         for p in _durable_paths(ctx):
             arcname = os.path.relpath(str(p), root)
             if arcname.startswith(".."):
-                # Path is outside the snapshot root (e.g. GAA_TOOLS_DIR set to a
-                # foreign directory); skip it — it would fail extractall's filter.
+                print(f"persist: skipping {p} (outside snapshot root {root!r}); not persisted",
+                      file=sys.stderr)
                 continue
             tar.add(str(p), arcname=arcname)
     client.put_object(Bucket=bucket, Key=STATE_KEY, Body=buf.getvalue())
@@ -75,10 +76,13 @@ def restore(ctx, *, client=None, bucket: str | None = None) -> bool:
             return False
         client = _client()
     bucket = bucket or os.environ.get("VSTORAGE_BUCKET")
+    from botocore.exceptions import ClientError
     try:
         obj = client.get_object(Bucket=bucket, Key=STATE_KEY)
-    except Exception:  # NoSuchKey / first boot
-        return False
+    except ClientError as exc:  # missing key/bucket = first boot; anything else is a real error
+        if exc.response.get("Error", {}).get("Code") in ("NoSuchKey", "NoSuchBucket", "404"):
+            return False
+        raise
     data = obj["Body"].read()
     root = os.path.dirname(os.path.abspath(ctx.settings.cache_dir)) or "/"
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:

@@ -36,6 +36,8 @@ def test_enabled_false_without_env(tmp_path, monkeypatch):
 
 
 def test_snapshot_noop_when_disabled(tmp_path, monkeypatch):
+    for k in ("VSTORAGE_ENDPOINT", "VSTORAGE_BUCKET", "VSTORAGE_ACCESS_KEY", "VSTORAGE_SECRET_KEY"):
+        monkeypatch.delenv(k, raising=False)
     ctx = _ctx(tmp_path, monkeypatch)
     # disabled -> returns False, does not raise
     assert persist.snapshot(ctx, client=None) is False
