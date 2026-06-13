@@ -169,6 +169,8 @@ A `segments`/drilldown enriches the run's ledger + the chat answer but does **no
 
 ## 15. Forward dependency: backend reasoning-streaming (separate project)
 
+> **Mechanism superseded:** the backend project is now specified in `2026-06-13-reasoning-streaming-design.md`. A feasibility spike showed MaaS has **no** separate `reasoning_content` channel, so the design changed from token-streaming to **revealing** reasoning the model already produces (one `thinking` event per moment) — no streaming LLM client, no pipeline/thread restructure. **The SSE contract below is unchanged**, so this frontend's renderer is unaffected (it appends `thinking.text` whether it arrives as one event or many). The Phase-1/Phase-2 sketch below is retained for context but the authoritative mechanism is the reasoning-streaming spec.
+
 "Streaming the thinking process" is **mostly a backend change** and is scoped as its **own spec → plan → build**, sequenced before/with this frontend's implementation so the events exist to test against. This frontend only **renders** what that project emits.
 
 **Shared contract (the new SSE event the backend will add):**
