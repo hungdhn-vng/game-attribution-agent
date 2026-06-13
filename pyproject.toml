@@ -12,6 +12,7 @@ dependencies = [
     "ruptures==1.1.*",
     "plotly==5.*",
     "jinja2==3.*",
+    "tomli-w>=1.0",
     "httpx>=0.28.1,<1",
     "beautifulsoup4==4.*",
 ]
