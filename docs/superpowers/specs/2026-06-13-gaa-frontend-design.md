@@ -16,13 +16,14 @@ The backend can chat, analyze, and serve a byte-exact interactive dossier over H
 **Goals**
 - A two-pane Claude-style UI: conversation on the left, an **artifacts pane** (the dossier) on the right.
 - Stream the agent's work: the final narration streams in; `activity` events show as a live "steps" strip ("running analyze…").
+- **Render the agent's reasoning stream** when available: a `thinking` SSE event displayed in a collapsible "Thinking" panel per turn. The backend that *produces* `thinking` events is a **separate project** (§15); the frontend degrades gracefully to activity-steps-only until it ships.
 - Detect the `[[gaa:run_id=…]]` marker → render `report.html` in a **sandboxed iframe**.
 - **CSV upload → onboarding** (propose → confirm) available to normal (non-admin) users.
 - **Per-session admin unlock** (passphrase) for the dangerous toolset (`exec`/`browse`/`self_edit`/config/tools).
 - All backend secrets (`GAA_AGENT_TOKEN`, `GAA_ADMIN_KEY`) live only on the Next.js server; the browser never sees them.
 
 **Non-goals**
-- Real LLM token-streaming of synthesis *reasoning* (backend defers `show_thinking`; "thinking" here = the `activity` steps).
+- *Producing* the reasoning stream — that's the **backend reasoning-streaming project** (§15). This frontend only *renders* `thinking` events.
 - Multi-tenant data isolation (one backend, shared profiles/runs — matches the backend's stance).
 - A user database / accounts (history is browser-local; admin is a per-session passphrase unlock, not user accounts).
 - Re-rendering a dossier after a drilldown (see §11 known limitation).
@@ -51,6 +52,7 @@ gaa-frontend/                     (cloned + trimmed vercel/ai-chatbot)
 ├── components/
 │   ├── chat.tsx / message.tsx / composer.tsx   # adapted from the clone
 │   ├── activity-strip.tsx        # live "steps" indicator (activity events)
+│   ├── thinking-panel.tsx        # collapsible reasoning panel (thinking events, §15)
 │   ├── artifacts-pane.tsx        # dossier iframe + run switcher + trace tab
 │   ├── upload-mapping.tsx        # CSV mapping propose/confirm form
 │   └── admin-unlock.tsx          # lock affordance + passphrase dialog
@@ -80,6 +82,7 @@ All backend calls go through **server-only route handlers** (`app/api/*`). `lib/
 - **Send:** POST the **full** `messages[]` to `/api/chat` (stateless backend → resend history each turn; this is what makes **run_id reuse / drilldowns** work).
 - **Stream parse (`lib/sse.ts`):** read the response as a stream, split on `\n\n`, `JSON.parse` each `data:` line →
   - `activity` → push onto a transient **steps strip** for the in-flight turn ("running analyze…", "running segments…").
+  - `thinking` → append to a collapsible **Thinking** panel for the in-flight turn (the agent's per-step reasoning; produced by the backend reasoning feature, §15). Unknown/absent until that ships → the panel simply doesn't render. The parser must already tolerate this event type.
   - `token` → append to the in-flight assistant message (streamed text).
   - `done` → finalize; capture `run_id`.
 - **Render:** message list (user + assistant bubbles, markdown); while streaming, the activity strip shows the live steps; the assistant's `[[gaa:run_id=…]]` marker is **stripped from the visible text** (kept in the stored message so re-sent history carries it for reuse).
@@ -138,7 +141,7 @@ A `segments`/drilldown enriches the run's ledger + the chat answer but does **no
 
 ## 12. Testing
 
-- **Unit:** `lib/sse.ts` parser (feed a scripted byte stream of `data:` lines → assert activity/token/done sequencing + partial-chunk handling); the marker detector/stripper; the mapping-confirm form (proposal → editable → payload).
+- **Unit:** `lib/sse.ts` parser (feed a scripted byte stream of `data:` lines → assert activity/**thinking**/token/done sequencing + partial-chunk handling + tolerance of the `thinking` type before the backend produces it); the marker detector/stripper; the mapping-confirm form (proposal → editable → payload).
 - **Proxy routes:** integration tests against a **stub backend** (a local server returning canned SSE / JSON) — assert the agent token is attached, the admin key is attached **only** with a valid cookie, `/api/admin/unlock` sets/rejects cookies, and the artifact route proxies bytes.
 - **Backend additions:** pytest for `onboard_propose_upload` (base64 round-trip → profile created) and the non-admin gating change (onboarding succeeds without admin; `exec` still refused without admin).
 - **Manual E2E** (against the live agent): upload a CSV → confirm mapping → "why did revenue drop?" → dossier renders in the iframe; a follow-up drilldown reuses the run; "analyze again" opens a new dossier; admin unlock → an `exec`/`browse` request works; lock → it's refused again.
@@ -163,3 +166,21 @@ A `segments`/drilldown enriches the run's ledger + the chat answer but does **no
 3. **Large dossier in an iframe** — 4.58 MB inline Plotly loads fine; if dossiers grow, the backend can switch to CDN-Plotly (its concern, not the frontend's).
 4. **Admin cookie hygiene** — must be httpOnly+Secure+SameSite+expiring+HMAC-signed; `GAA_COOKIE_SECRET` is a real secret. Documented in §6.
 5. **Mapping-confirm complexity** — inferring + editing column mappings is the fiddliest UI; keep it a simple table; the LLM proposal does the heavy lifting.
+
+## 15. Forward dependency: backend reasoning-streaming (separate project)
+
+"Streaming the thinking process" is **mostly a backend change** and is scoped as its **own spec → plan → build**, sequenced before/with this frontend's implementation so the events exist to test against. This frontend only **renders** what that project emits.
+
+**Shared contract (the new SSE event the backend will add):**
+```
+data: {"type":"thinking","text":"<reasoning chunk>","scope":"orchestration"|"synthesis"}
+```
+- `text` — a chunk of the model's reasoning, streamed as it arrives.
+- `scope` (optional) — labels the panel section (the agent's per-turn tool reasoning vs. the analytical synthesis reasoning). The frontend treats it as a hint; absence is fine.
+
+**Backend project shape (for reference; specified separately):**
+- **Spike (~10 min):** confirm MaaS/vLLM surfaces `reasoning_content` as a separate streaming field (reasoning-parser enabled) vs. inlining `<think>…</think>` in `content`. The implementation differs.
+- **Phase 1 — orchestration reasoning (tractable):** a streaming LLM client path that captures `reasoning_content` + re-enables thinking on the agent loop's per-turn decision call; `agent.py` emits `thinking` (scope=orchestration) events before the `activity`/decision. Contained change to `gaa.core.llm` + `gaa.server.agent`.
+- **Phase 2 — synthesis reasoning (invasive):** thread an event-callback through `pipeline.advance` + `Synthesizer` so synth reasoning surfaces during `analyze`; make the agent loop drain those events into the SSE while analyze runs (threading/async); decide what to show across the 3 concurrent samples (e.g. stream only the first sample, labelled). `thinking` (scope=synthesis).
+
+**Frontend impact is bounded:** the SSE parser tolerates the `thinking` type now (no-op until present); the `thinking-panel.tsx` renders it when it arrives. No frontend rework when the backend feature lands — it just starts populating the panel.
