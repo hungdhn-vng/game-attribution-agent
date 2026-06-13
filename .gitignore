@@ -1,0 +1,33 @@
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Secrets / runtime / state
+.env
+.greennode.json
+docs/REBUILD-PRIVATE.md
+.agentbase/
+.agentbase-state.json
+*.credentials.json
+
+# Local data / db
+*.sqlite
+*.sqlite3
+data/cache/
