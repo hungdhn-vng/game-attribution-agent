@@ -1,8 +1,8 @@
 """Tests for SteamBenchmarkProvider — real SteamCharts chart-data.json shape."""
 import json
 import pytest
-from gaa.crawl.fetcher import CachedFetcher
-from gaa.sources.providers.steam import SteamBenchmarkProvider
+from gaa.core.crawl.fetcher import CachedFetcher
+from gaa.core.sources.providers.steam import SteamBenchmarkProvider
 
 
 # ---------------------------------------------------------------------------

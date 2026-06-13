@@ -1,4 +1,4 @@
-from gaa.llm.client import FakeLLM, LangChainMaaSLLM, _extract_json
+from gaa.core.llm.client import FakeLLM, LangChainMaaSLLM, _extract_json
 
 
 def test_fake_llm_returns_preset():

@@ -1,6 +1,6 @@
 import pytest
-from gaa.store.benchmark_store import BenchmarkStore
-from gaa.sources.crawling_benchmark import CrawlingBenchmarkSource
+from gaa.core.store.benchmark_store import BenchmarkStore
+from gaa.core.sources.crawling_benchmark import CrawlingBenchmarkSource
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-from gaa.schema.profile import ColumnMapping, GameProfile
+from gaa.core.schema.profile import ColumnMapping, GameProfile
 
 
 def test_column_mapping_roundtrip():

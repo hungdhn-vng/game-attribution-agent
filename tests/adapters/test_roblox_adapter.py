@@ -1,6 +1,6 @@
 from pathlib import Path
 import pandas as pd
-from gaa.adapters.roblox_adapter import RobloxAdapter, DEFAULT_ROBLOX_MAPPING
+from gaa.core.adapters.roblox_adapter import RobloxAdapter, DEFAULT_ROBLOX_MAPPING
 
 SAMPLE = Path("src/gaa/data/sample/roblox_export.csv")
 
@@ -19,7 +19,7 @@ def test_loads_with_default_mapping():
 
 
 def test_load_accepts_override_mapping():
-    from gaa.schema.profile import ColumnMapping
+    from gaa.core.schema.profile import ColumnMapping
     m = ColumnMapping(date_col="Date", metric_cols={"DAU": "dau"}, dim_cols={"Country": "region"})
     df = RobloxAdapter().load(str(SAMPLE), m)
     assert set(df["metric"].unique()) == {"dau"}

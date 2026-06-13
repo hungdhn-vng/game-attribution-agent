@@ -1,4 +1,4 @@
-from gaa.crawl.fetcher import CachedFetcher
+from gaa.core.crawl.fetcher import CachedFetcher
 
 
 def test_caches_after_first_fetch(tmp_path):

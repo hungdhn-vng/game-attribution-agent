@@ -1,6 +1,6 @@
 import pandas as pd
-from gaa.store.metrics_store import MetricsStore
-from gaa.schema.canonical import validate_canonical
+from gaa.core.store.metrics_store import MetricsStore
+from gaa.core.schema.canonical import validate_canonical
 
 
 def _canon():

@@ -1,5 +1,5 @@
 import pandas as pd
-from gaa.analytics.causal import causal_counterfactual
+from gaa.core.analytics.causal import causal_counterfactual
 
 
 def _series(vals, start="2026-04-01"):

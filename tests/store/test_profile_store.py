@@ -1,5 +1,5 @@
-from gaa.store.profile_store import ProfileStore
-from gaa.schema.profile import GameProfile, ColumnMapping
+from gaa.core.store.profile_store import ProfileStore
+from gaa.core.schema.profile import GameProfile, ColumnMapping
 
 
 def _profile(name="MyGame"):

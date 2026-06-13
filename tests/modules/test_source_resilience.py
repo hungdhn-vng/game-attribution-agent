@@ -1,11 +1,11 @@
 """External modules must degrade gracefully when a source RAISES (e.g. network/DNS failure),
 emitting a data-gap ledger entry instead of crashing the engine."""
 import pandas as pd
-from gaa.modules.market_benchmark import MarketBenchmark
-from gaa.modules.competitor_signals import CompetitorSignals
-from gaa.modules.base import AnalysisContext
-from gaa.schema.ledger import EvidenceLedger
-from gaa.schema.profile import GameProfile, ColumnMapping
+from gaa.core.modules.market_benchmark import MarketBenchmark
+from gaa.core.modules.competitor_signals import CompetitorSignals
+from gaa.core.modules.base import AnalysisContext
+from gaa.core.schema.ledger import EvidenceLedger
+from gaa.core.schema.profile import GameProfile, ColumnMapping
 
 
 class _RaisingBenchmark:

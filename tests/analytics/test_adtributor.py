@@ -1,4 +1,4 @@
-from gaa.analytics.adtributor import adtributor_dimension
+from gaa.core.analytics.adtributor import adtributor_dimension
 
 
 def test_isolates_the_dominant_element():

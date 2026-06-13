@@ -1,5 +1,5 @@
 import pandas as pd
-from gaa.analytics.changepoint import detect_changepoint, deviation_z
+from gaa.core.analytics.changepoint import detect_changepoint, deviation_z
 
 
 def _s(vals, start="2026-04-01"):

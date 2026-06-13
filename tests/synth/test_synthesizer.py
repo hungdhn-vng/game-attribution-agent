@@ -1,6 +1,6 @@
-from gaa.synth.synthesizer import Synthesizer
-from gaa.llm.client import FakeLLM
-from gaa.schema.ledger import EvidenceLedger
+from gaa.core.synth.synthesizer import Synthesizer
+from gaa.core.llm.client import FakeLLM
+from gaa.core.schema.ledger import EvidenceLedger
 
 
 def _ledger():

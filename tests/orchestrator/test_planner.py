@@ -1,7 +1,7 @@
-from gaa.orchestrator.planner import parse_query
-from gaa.render.markdown import to_markdown
-from gaa.schema.hypothesis import AttributionHypothesis, Causes
-from gaa.schema.confidence import Confidence
+from gaa.core.orchestrator.planner import parse_query
+from gaa.core.render.markdown import to_markdown
+from gaa.core.schema.hypothesis import AttributionHypothesis, Causes
+from gaa.core.schema.confidence import Confidence
 
 
 def test_parse_detects_metric_and_direction():

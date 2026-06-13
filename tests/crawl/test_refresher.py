@@ -1,8 +1,8 @@
 """Tests for BenchmarkRefresher — Task A6."""
 import time
 import pytest
-from gaa.store.benchmark_store import BenchmarkStore
-from gaa.crawl.refresher import BenchmarkRefresher
+from gaa.core.store.benchmark_store import BenchmarkStore
+from gaa.core.crawl.refresher import BenchmarkRefresher
 
 
 # ---------------------------------------------------------------------------

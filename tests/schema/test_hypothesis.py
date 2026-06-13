@@ -1,5 +1,5 @@
-from gaa.schema.confidence import Confidence, LIKELIHOODS, EVIDENCE_QUALITIES
-from gaa.schema.hypothesis import Cause, Scenario, Risk, AttributionHypothesis
+from gaa.core.schema.confidence import Confidence, LIKELIHOODS, EVIDENCE_QUALITIES
+from gaa.core.schema.hypothesis import Cause, Scenario, Risk, AttributionHypothesis
 
 
 def test_enums():

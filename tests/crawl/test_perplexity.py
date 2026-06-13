@@ -1,7 +1,7 @@
 import pytest
 import httpx
-from gaa.config import Settings
-from gaa.crawl.perplexity import perplexity_answer
+from gaa.core.settings import Settings
+from gaa.core.crawl.perplexity import perplexity_answer
 
 
 class _FakeResponse:

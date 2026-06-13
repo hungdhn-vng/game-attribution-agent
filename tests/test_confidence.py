@@ -1,5 +1,5 @@
-from gaa.schema.ledger import LedgerEntry
-from gaa.confidence import evidence_quality
+from gaa.core.schema.ledger import LedgerEntry
+from gaa.core.confidence import evidence_quality
 
 
 def _e(stype, strength):

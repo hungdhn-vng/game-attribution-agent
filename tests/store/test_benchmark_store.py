@@ -1,6 +1,6 @@
-"""Tests for gaa.store.benchmark_store.BenchmarkStore."""
+"""Tests for gaa.core.store.benchmark_store.BenchmarkStore."""
 import pytest
-from gaa.store.benchmark_store import BenchmarkStore
+from gaa.core.store.benchmark_store import BenchmarkStore
 
 
 @pytest.fixture

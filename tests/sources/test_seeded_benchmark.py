@@ -1,5 +1,5 @@
 import json
-from gaa.sources.seeded_benchmark import SeededBenchmarkSource
+from gaa.core.sources.seeded_benchmark import SeededBenchmarkSource
 
 
 def test_indexes_genre_series(tmp_path):

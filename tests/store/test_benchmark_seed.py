@@ -1,8 +1,8 @@
-"""Tests for gaa.store.benchmark_seed.seed_benchmark_store."""
+"""Tests for gaa.core.store.benchmark_seed.seed_benchmark_store."""
 import json
 import pytest
-from gaa.store.benchmark_store import BenchmarkStore
-from gaa.store.benchmark_seed import seed_benchmark_store
+from gaa.core.store.benchmark_store import BenchmarkStore
+from gaa.core.store.benchmark_seed import seed_benchmark_store
 
 
 @pytest.fixture

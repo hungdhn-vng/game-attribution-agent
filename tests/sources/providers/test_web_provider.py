@@ -1,4 +1,4 @@
-from gaa.sources.providers.web import WebSearchBenchmarkProvider
+from gaa.core.sources.providers.web import WebSearchBenchmarkProvider
 
 
 def _good_answer_fn(prompt: str) -> dict:

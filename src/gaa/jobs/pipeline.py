@@ -23,19 +23,19 @@ import time
 from typing import Any, Optional
 
 from gaa.jobs.models import Job
-from gaa.modules.anomaly import AnomalyDetection
-from gaa.modules.base import AnalysisContext
-from gaa.modules.competitor_signals import CompetitorSignals
-from gaa.modules.market_benchmark import MarketBenchmark
-from gaa.modules.segment import SegmentDecomposition
-from gaa.orchestrator.planner import parse_query
-from gaa.render.markdown import to_markdown
-from gaa.render.report import render_report
-from gaa.schema.hypothesis import AttributionHypothesis
-from gaa.schema.ledger import EvidenceLedger
-from gaa.synth.concurrent import sample_concurrently
-from gaa.synth.gate import apply_gate
-from gaa.synth.validator import validate_citations
+from gaa.core.modules.anomaly import AnomalyDetection
+from gaa.core.modules.base import AnalysisContext
+from gaa.core.modules.competitor_signals import CompetitorSignals
+from gaa.core.modules.market_benchmark import MarketBenchmark
+from gaa.core.modules.segment import SegmentDecomposition
+from gaa.core.orchestrator.planner import parse_query
+from gaa.core.render.markdown import to_markdown
+from gaa.core.render.report import render_report
+from gaa.core.schema.hypothesis import AttributionHypothesis
+from gaa.core.schema.ledger import EvidenceLedger
+from gaa.core.synth.concurrent import sample_concurrently
+from gaa.core.synth.gate import apply_gate
+from gaa.core.synth.validator import validate_citations
 
 
 class AnalysisPipeline:

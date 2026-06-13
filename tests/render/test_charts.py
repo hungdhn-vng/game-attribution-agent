@@ -1,8 +1,8 @@
 import pandas as pd
 import plotly.graph_objects as go
-from gaa.render.charts import timeseries_fig, overlay_fig, confidence_matrix_fig
-from gaa.schema.hypothesis import AttributionHypothesis, Cause, Causes
-from gaa.schema.confidence import Confidence
+from gaa.core.render.charts import timeseries_fig, overlay_fig, confidence_matrix_fig
+from gaa.core.schema.hypothesis import AttributionHypothesis, Cause, Causes
+from gaa.core.schema.confidence import Confidence
 
 
 def test_timeseries_fig_has_trace():

@@ -1,8 +1,8 @@
 import pytest
 
-import gaa.sources.dynamic as dyn
-from gaa.config import Settings
-from gaa.store.config_store import ConfigStore
+import gaa.core.sources.dynamic as dyn
+from gaa.core.settings import Settings
+from gaa.core.store.config_store import ConfigStore
 
 
 class StubRefresher:

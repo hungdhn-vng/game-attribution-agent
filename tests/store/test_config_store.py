@@ -1,6 +1,6 @@
 import pytest
 
-from gaa.store.config_store import ConfigStore, KEYS
+from gaa.core.store.config_store import ConfigStore, KEYS
 
 
 @pytest.fixture

@@ -1,7 +1,7 @@
 import pandas as pd
-from gaa.onboarding.profiler import Profiler
-from gaa.llm.client import FakeLLM
-from gaa.schema.profile import ColumnMapping
+from gaa.core.onboarding.profiler import Profiler
+from gaa.core.llm.client import FakeLLM
+from gaa.core.schema.profile import ColumnMapping
 
 
 def test_propose_mapping_from_sample():

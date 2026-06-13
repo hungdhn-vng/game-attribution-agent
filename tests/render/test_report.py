@@ -1,7 +1,7 @@
 import pandas as pd
-from gaa.render.report import render_report
-from gaa.schema.hypothesis import AttributionHypothesis, Cause, Causes
-from gaa.schema.confidence import Confidence
+from gaa.core.render.report import render_report
+from gaa.core.schema.hypothesis import AttributionHypothesis, Cause, Causes
+from gaa.core.schema.confidence import Confidence
 
 
 def _hyp():

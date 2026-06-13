@@ -1,6 +1,6 @@
-"""Tests for gaa.sources._index.index_to_100."""
+"""Tests for gaa.core.sources._index.index_to_100."""
 import pytest
-from gaa.sources._index import index_to_100
+from gaa.core.sources._index import index_to_100
 
 
 RAW = {

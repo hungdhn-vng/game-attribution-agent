@@ -1,5 +1,5 @@
-from gaa.schema.ledger import EvidenceLedger
-from gaa.synth.synthesizer import Synthesizer, SYSTEM
+from gaa.core.schema.ledger import EvidenceLedger
+from gaa.core.synth.synthesizer import Synthesizer, SYSTEM
 
 
 class CaptureLLM:

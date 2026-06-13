@@ -1,4 +1,4 @@
-from gaa.config import Settings
+from gaa.core.settings import Settings
 
 
 def test_llm_defaults(monkeypatch):

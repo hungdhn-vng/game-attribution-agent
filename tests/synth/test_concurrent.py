@@ -1,10 +1,10 @@
 """Tests for concurrent N-sample synthesis (Task A7)."""
 import pytest
-from gaa.synth.concurrent import sample_concurrently
-from gaa.synth.synthesizer import Synthesizer
-from gaa.llm.client import FakeLLM
-from gaa.schema.hypothesis import AttributionHypothesis
-from gaa.schema.ledger import EvidenceLedger
+from gaa.core.synth.concurrent import sample_concurrently
+from gaa.core.synth.synthesizer import Synthesizer
+from gaa.core.llm.client import FakeLLM
+from gaa.core.schema.hypothesis import AttributionHypothesis
+from gaa.core.schema.ledger import EvidenceLedger
 
 
 def _ledger():

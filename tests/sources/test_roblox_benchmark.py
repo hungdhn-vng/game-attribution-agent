@@ -1,5 +1,5 @@
 import json
-from gaa.sources.roblox_benchmark import RoMonitorBenchmark
+from gaa.core.sources.roblox_benchmark import RoMonitorBenchmark
 
 CANNED = json.dumps({"points": [
     {"date": "2026-05-01", "ccu": 5000},

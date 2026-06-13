@@ -1,7 +1,7 @@
-from gaa.synth.validator import validate_citations
-from gaa.schema.hypothesis import AttributionHypothesis, Cause, Scenario, Causes
-from gaa.schema.confidence import Confidence
-from gaa.schema.ledger import EvidenceLedger
+from gaa.core.synth.validator import validate_citations
+from gaa.core.schema.hypothesis import AttributionHypothesis, Cause, Scenario, Causes
+from gaa.core.schema.confidence import Confidence
+from gaa.core.schema.ledger import EvidenceLedger
 
 
 def _ledger():

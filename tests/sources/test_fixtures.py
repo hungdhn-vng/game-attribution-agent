@@ -1,4 +1,4 @@
-from gaa.sources.fixtures import FixtureBenchmarkSource, FixtureSignalsSource
+from gaa.core.sources.fixtures import FixtureBenchmarkSource, FixtureSignalsSource
 
 
 def test_benchmark_returns_genre_series():

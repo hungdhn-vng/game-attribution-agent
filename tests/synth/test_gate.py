@@ -1,6 +1,6 @@
-from gaa.synth.gate import consistency_score, apply_gate
-from gaa.schema.hypothesis import AttributionHypothesis, Cause, Causes
-from gaa.schema.confidence import Confidence
+from gaa.core.synth.gate import consistency_score, apply_gate
+from gaa.core.schema.hypothesis import AttributionHypothesis, Cause, Causes
+from gaa.core.schema.confidence import Confidence
 
 
 def _h(primary, eq="Strong"):

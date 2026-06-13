@@ -1,7 +1,7 @@
 import json
 import pytest
-from gaa.crawl.fetcher import CachedFetcher
-from gaa.sources.providers.roblox import RobloxBenchmarkProvider
+from gaa.core.crawl.fetcher import CachedFetcher
+from gaa.core.sources.providers.roblox import RobloxBenchmarkProvider
 
 DISCOVER_URL = "http://roblox-api/discover?genre=survival"
 SERIES_URL_1 = "http://roblox-api/series/111"

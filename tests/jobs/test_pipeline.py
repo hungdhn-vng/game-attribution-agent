@@ -10,15 +10,15 @@ import pytest
 
 from gaa.jobs.models import Job
 from gaa.jobs.pipeline import AnalysisPipeline
-from gaa.llm.client import FakeLLM
-from gaa.schema.profile import GameProfile, ColumnMapping
-from gaa.sources.crawling_benchmark import CrawlingBenchmarkSource
-from gaa.sources.fixtures import FixtureSignalsSource
-from gaa.store.benchmark_store import BenchmarkStore
-from gaa.store.metrics_store import MetricsStore
-from gaa.store.profile_store import ProfileStore
-from gaa.synth.synthesizer import Synthesizer
-from gaa.crawl.refresher import BenchmarkRefresher
+from gaa.core.llm.client import FakeLLM
+from gaa.core.schema.profile import GameProfile, ColumnMapping
+from gaa.core.sources.crawling_benchmark import CrawlingBenchmarkSource
+from gaa.core.sources.fixtures import FixtureSignalsSource
+from gaa.core.store.benchmark_store import BenchmarkStore
+from gaa.core.store.metrics_store import MetricsStore
+from gaa.core.store.profile_store import ProfileStore
+from gaa.core.synth.synthesizer import Synthesizer
+from gaa.core.crawl.refresher import BenchmarkRefresher
 
 
 # ---------------------------------------------------------------------------

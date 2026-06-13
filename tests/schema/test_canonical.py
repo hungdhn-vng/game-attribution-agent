@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from gaa.schema.canonical import (
+from gaa.core.schema.canonical import (
     CANONICAL_DIMS, REQUIRED_COLUMNS, validate_canonical, empty_canonical,
 )
 

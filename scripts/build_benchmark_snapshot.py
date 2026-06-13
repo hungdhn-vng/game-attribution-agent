@@ -29,14 +29,14 @@ _src = os.path.join(os.path.dirname(__file__), "..", "src")
 if _src not in sys.path:
     sys.path.insert(0, _src)
 
-from gaa.config import Settings
-from gaa.crawl.fetcher import CachedFetcher
-from gaa.crawl.perplexity import perplexity_answer
-from gaa.crawl.refresher import BenchmarkRefresher
-from gaa.sources.providers.roblox import RobloxBenchmarkProvider
-from gaa.sources.providers.steam import SteamBenchmarkProvider
-from gaa.sources.providers.web import WebSearchBenchmarkProvider
-from gaa.store.benchmark_store import BenchmarkStore
+from gaa.core.settings import Settings
+from gaa.core.crawl.fetcher import CachedFetcher
+from gaa.core.crawl.perplexity import perplexity_answer
+from gaa.core.crawl.refresher import BenchmarkRefresher
+from gaa.core.sources.providers.roblox import RobloxBenchmarkProvider
+from gaa.core.sources.providers.steam import SteamBenchmarkProvider
+from gaa.core.sources.providers.web import WebSearchBenchmarkProvider
+from gaa.core.store.benchmark_store import BenchmarkStore
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 

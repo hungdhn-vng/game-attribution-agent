@@ -1,4 +1,4 @@
-from gaa.schema.ledger import LedgerEntry, EvidenceLedger
+from gaa.core.schema.ledger import LedgerEntry, EvidenceLedger
 
 
 def test_add_assigns_sequential_ids():

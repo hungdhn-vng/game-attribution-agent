@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
-from gaa.adapters.csv_adapter import CSVAdapter
-from gaa.schema.profile import ColumnMapping
+from gaa.core.adapters.csv_adapter import CSVAdapter
+from gaa.core.schema.profile import ColumnMapping
 
 SAMPLE = Path("src/gaa/data/sample/generic_metrics.csv")
 

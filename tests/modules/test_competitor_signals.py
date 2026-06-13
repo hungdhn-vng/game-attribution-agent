@@ -1,9 +1,9 @@
 import pandas as pd
-from gaa.modules.competitor_signals import CompetitorSignals
-from gaa.modules.base import AnalysisContext
-from gaa.schema.ledger import EvidenceLedger
-from gaa.sources.fixtures import FixtureSignalsSource
-from gaa.schema.profile import GameProfile, ColumnMapping
+from gaa.core.modules.competitor_signals import CompetitorSignals
+from gaa.core.modules.base import AnalysisContext
+from gaa.core.schema.ledger import EvidenceLedger
+from gaa.core.sources.fixtures import FixtureSignalsSource
+from gaa.core.schema.profile import GameProfile, ColumnMapping
 
 
 def _ctx():

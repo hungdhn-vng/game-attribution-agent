@@ -1,5 +1,5 @@
 import json
-from gaa.sources.web_signals import WebSignalsSource
+from gaa.core.sources.web_signals import WebSignalsSource
 
 CANNED = json.dumps([
     {"date": "2026-05-04", "title": "v3.2 update", "kind": "patch",

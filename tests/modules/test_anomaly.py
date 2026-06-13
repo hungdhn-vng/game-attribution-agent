@@ -1,8 +1,8 @@
 import pandas as pd
-from gaa.modules.anomaly import AnomalyDetection
-from gaa.modules.base import AnalysisContext
-from gaa.schema.ledger import EvidenceLedger
-from gaa.schema.profile import GameProfile, ColumnMapping
+from gaa.core.modules.anomaly import AnomalyDetection
+from gaa.core.modules.base import AnalysisContext
+from gaa.core.schema.ledger import EvidenceLedger
+from gaa.core.schema.profile import GameProfile, ColumnMapping
 
 
 def _ctx(metric=None):
