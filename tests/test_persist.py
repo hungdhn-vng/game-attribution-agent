@@ -95,3 +95,18 @@ def test_roundtrip_persists_config_and_db_under_production_layout(tmp_path, monk
     ctx2 = build_context(llm=FakeLLM({}), today="2026-06-13")
     assert ctx2.config.resolve("benchmark_mode")[0] == "crawl"
     assert "ShooterX" in ctx2.profiles.list_names()
+
+
+def test_client_is_tuned_for_vstorage(monkeypatch):
+    # _client() builds a boto3 S3 client (no network) with path-style addressing +
+    # the vStorage endpoint, so put_object/get_object work against Ceph-based vStorage.
+    monkeypatch.setenv("VSTORAGE_ENDPOINT", "https://hcm04.vstorage.vngcloud.vn")
+    monkeypatch.setenv("VSTORAGE_BUCKET", "b")
+    monkeypatch.setenv("VSTORAGE_ACCESS_KEY", "ak")
+    monkeypatch.setenv("VSTORAGE_SECRET_KEY", "sk")
+    monkeypatch.setenv("VSTORAGE_REGION", "hcm04")
+    c = persist._client()
+    assert c.meta.endpoint_url == "https://hcm04.vstorage.vngcloud.vn"
+    assert c.meta.config.s3["addressing_style"] == "path"
+    assert c.meta.config.signature_version == "s3v4"
+    assert c.meta.region_name == "hcm04"
