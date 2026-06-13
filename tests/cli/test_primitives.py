@@ -66,3 +66,27 @@ def test_segments_unknown_run_is_error(tmp_path):
     resp = _run(["segments", "--run", "nope"], FakeLLM(_SYNTH), tmp_path)
     assert resp["status"] == "error"
     assert "unknown run" in resp["error"].lower()
+
+
+def test_detect_appends_anomaly_entry(tmp_path):
+    rid = _onboard_and_plan(tmp_path)
+    resp = _run(["detect", "--run", rid, "--metric", "dau"], FakeLLM(_SYNTH), tmp_path)
+    assert resp["status"] == "success"
+    assert resp["module"] == "anomaly"
+    assert any("dau" in e["claim"] for e in resp["new_entries"])
+
+
+def test_market_appends_entry(tmp_path):
+    rid = _onboard_and_plan(tmp_path)
+    resp = _run(["market", "--run", rid], FakeLLM(_SYNTH), tmp_path)
+    assert resp["status"] == "success"
+    assert resp["module"] == "market"
+    assert resp["new_entries"]  # either a counterfactual verdict or a graceful "no benchmark" gap
+
+
+def test_signals_appends_entry(tmp_path):
+    rid = _onboard_and_plan(tmp_path)
+    resp = _run(["signals", "--run", rid], FakeLLM(_SYNTH), tmp_path)
+    assert resp["status"] == "success"
+    assert resp["module"] == "competitor"
+    assert resp["new_entries"]  # with no configured signals source, a "no signals" gap entry
