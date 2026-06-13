@@ -793,3 +793,15 @@ No placeholders or undefined references.
 ## After Plan 2b → Plan 2c
 
 `gaa.lab` (Tier 3 read-only data API + `scratch/` + `adhoc:` evidence capped at Moderate) and tool promotion (Tier 2.5: `gaa tools promote|run|list|show|remove|sync-docs|export|import`, md5-frozen `data/tools/` registry). Then Plans 3 (OpenClaw install) and 4 (frontend + proxy).
+
+---
+
+## As-built notes (deviations recorded during execution)
+
+Plan 2b was executed via subagent-driven development with a final review (APPROVE_WITH_MINORS, all addressed). Deviations from the task text above:
+
+1. **Drilldown primitives persist context mutations, not just the ledger (review fix).** `run_module_primitive` now writes `metric/start/end/direction/changepoint` from the (possibly mutated) `AnalysisContext` back into `run.state` before saving — so `gaa detect --run R --metric revenue` re-points the run and a later `gaa synth`/`gaa report` renders the metric the new evidence is about. Without this, evidence and dossier could diverge (would have surfaced in Plans 3/4). No-op for the read-only modules (segments/market/signals).
+2. **`gaa report` clears a stale `run.error` when marking the run done (review fix)** — a run that errored mid-render but now has a complete re-rendered dossier ends in a coherent `done`/no-error state.
+3. **`gaa signals --query`** deferred (noted in scope) — 2b ships `gaa signals --run <id>` against the configured signals source.
+
+Final state: **225 tests passing**; `gaa` surface is the 14 subcommands `analyze/step/status/jobs/doctor/config/onboard/profile/segments/detect/market/signals/synth/report`; the follow-up loop (analyze→done → drill into a dimension → re-synthesize on the enriched ledger → re-render) is verified end-to-end. Trust chain intact: `synth` re-runs the citation validator; `report` builds only from a validated hypothesis.
