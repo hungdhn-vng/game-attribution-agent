@@ -69,3 +69,40 @@ def test_scratch_dir_created_under_run(tmp_path, monkeypatch):
     d = lab.scratch_dir(rid)
     assert d.exists() and d.name == "scratch"
     assert rid in str(d)
+
+
+def test_add_evidence_caps_strength_and_tags_adhoc(tmp_path, monkeypatch):
+    import gaa.lab as lab
+    from gaa.runs.store import RunStore
+    rid = _workspace(tmp_path, monkeypatch)
+    monkeypatch.delenv("GAA_TOOL_NAME", raising=False)
+
+    eid = lab.add_evidence(rid, claim="weekend ARPU 2x weekday", value="2.1x",
+                           source="scratch/01-arpu.py", strength="high")
+    assert eid.startswith("L")
+    run = RunStore(os.environ["GAA_CACHE_DIR"] + "/runs").get(rid)
+    entry = run.state["ledger"][-1]
+    assert entry["strength"] == "med"          # high → capped to Moderate
+    assert entry["module"] == "adhoc"          # no GAA_TOOL_NAME → adhoc provenance
+    assert entry["claim"] == "weekend ARPU 2x weekday"
+
+
+def test_add_evidence_tags_tool_when_named(tmp_path, monkeypatch):
+    import gaa.lab as lab
+    from gaa.runs.store import RunStore
+    rid = _workspace(tmp_path, monkeypatch)
+    monkeypatch.setenv("GAA_TOOL_NAME", "arpu-split")
+
+    lab.add_evidence(rid, claim="c", value="v", source="tool", strength="low")
+    run = RunStore(os.environ["GAA_CACHE_DIR"] + "/runs").get(rid)
+    entry = run.state["ledger"][-1]
+    assert entry["module"] == "tool:arpu-split"
+    assert entry["strength"] == "low"          # low stays low
+
+
+def test_add_evidence_unknown_run_raises(tmp_path, monkeypatch):
+    import gaa.lab as lab
+    _workspace(tmp_path, monkeypatch)
+    import pytest
+    with pytest.raises(ValueError):
+        lab.add_evidence("nope", claim="c", value="v", source="s")

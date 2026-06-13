@@ -67,3 +67,30 @@ def scratch_dir(rid: str) -> Path:
     d = _runs().path_for(rid) / "scratch"
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def add_evidence(rid: str, *, claim: str, value: str, source: str,
+                 strength: str = "med", source_type: str = "derived",
+                 timeframe: Optional[str] = None) -> str:
+    """Append one ledger entry to a run, under the run's lock.
+
+    Strength is capped at Moderate ("med"). The entry's `module` is tagged
+    "tool:<name>" when run via `gaa tools run` (GAA_TOOL_NAME set), else "adhoc".
+    Returns the new entry id.
+    """
+    runs = _runs()
+    tool = os.environ.get("GAA_TOOL_NAME", "").strip()
+    module = f"tool:{tool}" if tool else "adhoc"
+    capped = _STRENGTH_CAP.get(strength, "med")
+    with runs.locked(rid):
+        run = runs.get(rid)
+        if run is None:
+            raise ValueError(f"unknown run: {rid!r}")
+        ledger = EvidenceLedger()
+        ledger.load(run.state.get("ledger", []))
+        eid = ledger.add(module=module, claim=claim, value=value, source=source,
+                         source_type=source_type, strength=capped, timeframe=timeframe)
+        run.state["ledger"] = [e.model_dump() for e in ledger.all()]
+        run.add_activity(module, f"ad-hoc evidence: {claim[:60]}")
+        runs.save(run)
+    return eid
