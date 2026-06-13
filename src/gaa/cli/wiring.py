@@ -48,6 +48,8 @@ class GaaContext:
     metrics: MetricsStore
     config: GaaConfig
     benchmark: CrawlingBenchmarkSource
+    synth: Any
+    signals: Any
     profiler: Profiler
     pipeline: AnalysisPipeline
     runs: RunStore
@@ -101,6 +103,8 @@ def build_context(llm: Optional[Any] = None, today: Optional[str] = None) -> Gaa
         metrics=metrics,
         config=config,
         benchmark=benchmark,
+        synth=synth,
+        signals=signals,
         profiler=Profiler(llm),
         pipeline=pipeline,
         runs=runs,

@@ -10,6 +10,7 @@ from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
 from gaa.cli.commands.doctor import cmd_doctor
 from gaa.cli.commands.onboarding import (
     cmd_onboard_propose, cmd_onboard_confirm, cmd_profile_list, cmd_profile_use)
+from gaa.cli.commands.primitives import cmd_segments
 from gaa.cli.wiring import GaaContext, build_context
 from gaa.runs.store import RunBusy
 
@@ -153,6 +154,12 @@ def _build_parser() -> argparse.ArgumentParser:
     pfu = pf_sub.add_parser("use", help="set the active profile")
     pfu.add_argument("name")
     pfu.set_defaults(func=cmd_profile_use)
+
+    seg = sub.add_parser("segments", help="decompose a run's movement by segment (Adtributor)")
+    seg.add_argument("--run", required=True)
+    seg.add_argument("--dimension", default=None,
+                     help="focus one dimension (region/version/cohort/device/source/platform)")
+    seg.set_defaults(func=cmd_segments)
 
     return p
 
