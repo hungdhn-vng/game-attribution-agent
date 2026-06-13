@@ -17,6 +17,13 @@ dependencies = [
     "beautifulsoup4==4.*",
 ]
 
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "boto3>=1.34,<2",
+]
+
 [project.scripts]
 gaa = "gaa.cli.main:cli_entry"
 
@@ -28,7 +35,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-gaa = ["core/render/templates/*", "data/seed/*.json", "data/sample/*.csv"]
+gaa = ["core/render/templates/*", "data/seed/*.json", "data/seed/*.md", "data/sample/*.csv"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
