@@ -8,8 +8,8 @@ import os
 import pandas as pd
 import pytest
 
-from gaa.jobs.models import Job
-from gaa.jobs.pipeline import AnalysisPipeline
+from gaa.runs.models import Run
+from gaa.runs.pipeline import AnalysisPipeline
 from gaa.core.llm.client import FakeLLM
 from gaa.core.schema.profile import GameProfile, ColumnMapping
 from gaa.core.sources.crawling_benchmark import CrawlingBenchmarkSource
@@ -134,8 +134,8 @@ class _Fixtures:
             n_samples=n_samples,
         )
 
-    def make_job(self) -> Job:
-        return Job(job_id="test-job-001", session="sess1", query="why did dau drop?")
+    def make_job(self) -> Run:
+        return Run(run_id="test-job-001", session="sess1", query="why did dau drop?")
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +190,7 @@ def test_resume_across_polls_reaches_done(tmp_path):
 
     # Resume-style run: pass an already-expired deadline each time
     pipeline2 = fx.make_pipeline()
-    job = Job(job_id="test-job-002", session="sess2", query="why did dau drop?")
+    job = Run(run_id="test-job-002", session="sess2", query="why did dau drop?")
 
     call_count = 0
     prev_activity_len = 0
@@ -249,7 +249,7 @@ def test_no_active_profile_sets_error(tmp_path):
         synth=synth,
         signals=signals,
     )
-    job = Job(job_id="err-job", session="s", query="why dau drop?")
+    job = Run(run_id="err-job", session="s", query="why dau drop?")
     pipeline.advance(job, deadline=None)
 
     assert job.status == "error"

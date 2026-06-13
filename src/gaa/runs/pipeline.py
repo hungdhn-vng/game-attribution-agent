@@ -22,7 +22,7 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
-from gaa.jobs.models import Job
+from gaa.runs.models import Run
 from gaa.core.modules.anomaly import AnomalyDetection
 from gaa.core.modules.base import AnalysisContext
 from gaa.core.modules.competitor_signals import CompetitorSignals
@@ -85,7 +85,7 @@ class AnalysisPipeline:
     # Public entry-point
     # ------------------------------------------------------------------
 
-    def advance(self, job: Job, deadline: Optional[float] = None) -> Job:
+    def advance(self, job: Run, deadline: Optional[float] = None) -> Run:
         """Run consecutive stages starting at ``job.stage``.
 
         Stops when the job is done/errored OR when *deadline*
@@ -107,7 +107,7 @@ class AnalysisPipeline:
     # Internal stage runner
     # ------------------------------------------------------------------
 
-    def _run_stages(self, job: Job, deadline: Optional[float]) -> None:
+    def _run_stages(self, job: Run, deadline: Optional[float]) -> None:
         stages = self.STAGES
         # Find the index of the current stage
         try:
@@ -134,7 +134,7 @@ class AnalysisPipeline:
     # Stage implementations
     # ------------------------------------------------------------------
 
-    def _stage_plan(self, job: Job) -> None:
+    def _stage_plan(self, job: Run) -> None:
         profile = self._profiles.get_active()
         if profile is None:
             job.status = "error"
@@ -168,7 +168,7 @@ class AnalysisPipeline:
         job.add_activity("plan", f"Scanned metrics → {ctx.metric} over {ctx.start}..{ctx.end}")
         job.stage = "crawl"
 
-    def _stage_crawl(self, job: Job) -> None:
+    def _stage_crawl(self, job: Run) -> None:
         state = job.state
         self.benchmark.set_platform(state["platform"])
         info = self.refresher.refresh(
@@ -185,7 +185,7 @@ class AnalysisPipeline:
         )
         job.stage = "modules"
 
-    def _stage_modules(self, job: Job) -> None:
+    def _stage_modules(self, job: Run) -> None:
         state = job.state
         df = self._metrics_store.load(state["profile_name"])
 
@@ -222,7 +222,7 @@ class AnalysisPipeline:
         )
         job.stage = "synth"
 
-    def _stage_synth(self, job: Job) -> None:
+    def _stage_synth(self, job: Run) -> None:
         state = job.state
         ledger = EvidenceLedger()
         ledger.load(state["ledger"])
@@ -243,7 +243,7 @@ class AnalysisPipeline:
         )
         job.stage = "render"
 
-    def _stage_render(self, job: Job) -> None:
+    def _stage_render(self, job: Run) -> None:
         state = job.state
         hyp = AttributionHypothesis.model_validate(state["hypothesis"])
 
