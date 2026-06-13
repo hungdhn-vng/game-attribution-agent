@@ -26,7 +26,17 @@ def cmd_doctor(ctx, args) -> dict:
     except Exception as exc:  # noqa: BLE001
         checks.append({"name": "config", "ok": False, "level": "error", "detail": str(exc)})
 
-    checks.append({"name": "stores", "ok": True, "level": "error", "detail": "ok"})
+    try:
+        ctx.profiles.list_names()  # profile DB is queryable
+        runs_root = ctx.runs.path_for("__probe__").parent  # the runs/ root dir
+        runs_root.mkdir(parents=True, exist_ok=True)
+        probe = runs_root / ".doctor_probe"
+        probe.write_text("ok")
+        probe.unlink()
+        checks.append({"name": "stores", "ok": True, "level": "error",
+                       "detail": f"writable: {runs_root}"})
+    except Exception as exc:  # noqa: BLE001
+        checks.append({"name": "stores", "ok": False, "level": "error", "detail": str(exc)})
 
     active = ctx.profiles.get_active()
     checks.append({"name": "active_profile", "ok": active is not None, "level": "warn",

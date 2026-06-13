@@ -31,3 +31,7 @@ docs/REBUILD-PRIVATE.md
 *.sqlite
 *.sqlite3
 data/cache/
+
+# GAA runtime state (created when running the CLI from the repo root)
+gaa-config.toml
+gaa.sqlite

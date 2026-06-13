@@ -39,3 +39,11 @@ def test_doctor_hard_ok_independent_of_warnings(tmp_path, monkeypatch):
     assert llm["ok"] is False and llm["level"] == "warn"
     prof = next(c for c in resp["checks"] if c["name"] == "active_profile")
     assert prof["ok"] is False and prof["level"] == "warn"
+
+
+def test_doctor_stores_check_probes(tmp_path, monkeypatch):
+    resp = _run(tmp_path, monkeypatch, with_key=True)
+    stores = next(c for c in resp["checks"] if c["name"] == "stores")
+    assert stores["ok"] is True
+    # detail must reflect a real probe (writable path), not a hardcoded "ok"
+    assert "writable" in stores["detail"]
