@@ -54,6 +54,11 @@ class ChatAgent:
                 yield {"type": "done", "run_id": last_run_id}
                 return
 
+            if persona.reasoning_enabled() and isinstance(decision, dict):
+                thought = decision.get("thought")
+                if isinstance(thought, str) and thought.strip():
+                    yield {"type": "thinking", "text": thought.strip(), "scope": "orchestration"}
+
             if isinstance(decision, dict) and "final" in decision:
                 text = str(decision["final"])
                 if last_run_id:

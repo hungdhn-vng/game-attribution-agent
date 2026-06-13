@@ -100,3 +100,22 @@ def test_malformed_decision_is_corrected_then_continues(tmp_path, monkeypatch):
     tokens = "".join(e["text"] for e in events if e["type"] == "token")
     assert "ok now" in tokens
     assert events[-1]["type"] == "done"
+
+
+def test_orchestration_thinking_emitted(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAA_STREAM_REASONING", "1")
+    ctx = _ctx(tmp_path, monkeypatch, {})
+    llm = ScriptedLLM([{"thought": "I should greet the user.", "final": "Hello!"}])
+    events = _collect(ChatAgent(ctx, llm), [{"role": "user", "content": "hi"}])
+    thinks = [e for e in events if e["type"] == "thinking"]
+    assert thinks and thinks[0]["scope"] == "orchestration"
+    assert "greet the user" in thinks[0]["text"]
+    assert events.index(thinks[0]) < next(i for i, e in enumerate(events) if e["type"] == "done")
+
+
+def test_no_thinking_when_toggle_off(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAA_STREAM_REASONING", "0")
+    ctx = _ctx(tmp_path, monkeypatch, {})
+    llm = ScriptedLLM([{"thought": "secret reasoning", "final": "Hi."}])
+    events = _collect(ChatAgent(ctx, llm), [{"role": "user", "content": "hi"}])
+    assert not [e for e in events if e["type"] == "thinking"]
