@@ -1070,3 +1070,15 @@ No placeholders, TODOs, or undefined references.
 ## After Plan 2a → Plan 2b (the power tools)
 
 Written as its own plan once 2a merges. Scope: the six drilldown primitives (`gaa detect|segments|market|signals|synth|report --run <id>` reading a run's plan-state and appending provenance-tagged ledger entries), `gaa.lab` (Tier 3 read-only data API + `scratch/` convention + `adhoc:` evidence capped at Moderate), and tool promotion (Tier 2.5: `gaa tools promote|run|list|…`, the `data/tools/` md5-frozen registry). Plus the deferred `synthesis.show_thinking` → `thinking.md` once it can be live-verified.
+
+---
+
+## As-built notes (deviations recorded during execution)
+
+Plan 2a was executed via subagent-driven development with a final review (APPROVE_WITH_MINORS, all addressed). Deviations from the task text above:
+
+1. **`perplexity_api_key` is env-only (Task 2).** The old `ConfigStore` let admins `set` it; `GaaConfig` makes it a secret read only from `PERPLEXITY_API_KEY`. `tests/sources/test_dynamic.py` was updated to inject the key via `monkeypatch.setenv` (not `config.set`) — the correct path under the new design. `dynamic.py` reads it unchanged via `config.resolve(...)`.
+2. **`gaa doctor` `stores` check is a real probe (review fix).** Task 4's pseudocode used a hardcoded `detail:"ok"`; as-built it queries the profile DB (`list_names()`) and write-tests the runs root, so an unwritable cache dir / unqueryable DB fails the (error-level) check — important because Plan 3's installer gates on doctor's exit code.
+3. **Repo hygiene (review fix):** `.gitignore` now lists `gaa-config.toml` and `gaa.sqlite` (the CWD-relative defaults), so running the CLI from the repo root never leaves untracked state.
+
+Final state: **213 tests passing**; `gaa` surface is `analyze/step/status/jobs/doctor/config/onboard/profile`; `gaa-config.toml` is human-editable sectioned TOML (file→env→default); the operational loop (onboard→config→doctor→analyze→done) is verified end-to-end through the installed console command.
