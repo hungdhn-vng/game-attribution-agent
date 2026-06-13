@@ -1,8 +1,15 @@
-// @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { listConversations, saveConversation, loadConversation, type Msg } from "../../lib/gaa/store";
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  const mem: Record<string, string> = {};
+  vi.stubGlobal("localStorage", {
+    getItem: (k: string) => (k in mem ? mem[k] : null),
+    setItem: (k: string, v: string) => { mem[k] = String(v); },
+    removeItem: (k: string) => { delete mem[k]; },
+    clear: () => { for (const k of Object.keys(mem)) delete mem[k]; },
+  });
+});
 
 describe("conversation store", () => {
   it("saves, lists, and loads conversations", () => {

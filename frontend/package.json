@@ -15,7 +15,7 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
-    "test": "NODE_OPTIONS='--localstorage-file=/tmp/vitest-ls.json' vitest run"
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.3",
@@ -97,7 +97,6 @@
     "@types/react-dom": "^18",
     "babel-plugin-react-compiler": "^1.0.0",
     "drizzle-kit": "^0.25.0",
-    "jsdom": "^29.1.1",
     "postcss": "^8",
     "tailwindcss": "^4.1.13",
     "tsx": "^4.19.1",
