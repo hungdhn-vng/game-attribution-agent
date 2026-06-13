@@ -87,6 +87,49 @@ def cmd_signals(ctx, args) -> dict:
         lambda actx, ledger: CompetitorSignals(ctx.signals).run(actx, ledger))
 
 
+def cmd_report(ctx, args) -> dict:
+    from gaa.core.render.report import render_report
+    from gaa.core.render.markdown import to_markdown
+    from gaa.core.schema.hypothesis import AttributionHypothesis
+
+    run = ctx.runs.get(args.run)
+    if run is None:
+        return {"status": "error", "error": f"unknown run: {args.run!r}"}
+    try:
+        with ctx.runs.locked(args.run):
+            run = ctx.runs.get(args.run) or run
+            hyp_raw = run.state.get("hypothesis")
+            if not hyp_raw:
+                return {"status": "error", "error": "no hypothesis yet — run `gaa synth` first"}
+            hyp = AttributionHypothesis.model_validate(hyp_raw)
+            df = ctx.metrics.load(run.state["profile_name"])
+            metric = run.state.get("metric")
+            if metric:
+                series = df[df["metric"] == metric].groupby("date")["value"].sum().sort_index()
+            else:
+                series = df.groupby("date")["value"].sum().sort_index()
+            start = run.state.get("start") or ""
+            end = run.state.get("end") or ""
+            genre_trend: dict = {}
+            if run.state.get("start"):
+                genre_trend = ctx.benchmark.genre_trend(
+                    run.state["genre"], run.state["start"], run.state["end"])
+            html = render_report(hyp, metric=metric or "metric", start=start, end=end,
+                                 series=series, genre_trend=genre_trend)
+            md = to_markdown(hyp)
+            run.result = {"hypothesis": hyp.model_dump(), "markdown_summary": md, "html": html}
+            run.status = "done"  # a complete dossier now exists; save() writes the files
+            run.add_activity("render", "Report re-rendered.")
+            ctx.runs.save(run)
+    except RunBusy:
+        return {"status": "error", "error": f"run {args.run!r} is busy (another step in progress)"}
+    except Exception as exc:  # noqa: BLE001
+        return {"status": "error", "error": str(exc)}
+    d = ctx.runs.path_for(args.run)
+    return {"status": "success", "run_id": args.run,
+            "report_path": str(d / "report.html"), "summary_path": str(d / "summary.md")}
+
+
 def cmd_synth(ctx, args) -> dict:
     from gaa.core.synth.concurrent import sample_concurrently
     from gaa.core.synth.gate import apply_gate

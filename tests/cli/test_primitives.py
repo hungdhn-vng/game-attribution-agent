@@ -105,3 +105,24 @@ def test_synth_unknown_run_is_error(tmp_path):
     _env(tmp_path)
     resp = _run(["synth", "--run", "nope", "q"], FakeLLM(_SYNTH), tmp_path)
     assert resp["status"] == "error"
+
+
+def test_report_writes_dossier_files(tmp_path):
+    import os as _os
+    rid = _onboard_and_plan(tmp_path)
+    _run(["segments", "--run", rid, "--dimension", "region"], FakeLLM(_SYNTH), tmp_path)
+    _run(["synth", "--run", rid, "why?"], FakeLLM(_SYNTH), tmp_path)
+    resp = _run(["report", "--run", rid], FakeLLM(_SYNTH), tmp_path)
+    assert resp["status"] == "success"
+    assert resp["report_path"].endswith("report.html")
+    assert _os.path.exists(resp["report_path"])
+    assert _os.path.exists(resp["summary_path"])
+    html = open(resp["report_path"]).read().lower()
+    assert "<html" in html
+
+
+def test_report_without_hypothesis_is_error(tmp_path):
+    rid = _onboard_and_plan(tmp_path)  # plan only, no synth
+    resp = _run(["report", "--run", rid], FakeLLM(_SYNTH), tmp_path)
+    assert resp["status"] == "error"
+    assert "synth" in resp["error"].lower()
