@@ -10,7 +10,7 @@ from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
 from gaa.cli.commands.doctor import cmd_doctor
 from gaa.cli.commands.onboarding import (
     cmd_onboard_propose, cmd_onboard_confirm, cmd_profile_list, cmd_profile_use)
-from gaa.cli.commands.primitives import cmd_segments, cmd_detect, cmd_market, cmd_signals
+from gaa.cli.commands.primitives import cmd_segments, cmd_detect, cmd_market, cmd_signals, cmd_synth
 from gaa.cli.wiring import GaaContext, build_context
 from gaa.runs.store import RunBusy
 
@@ -173,6 +173,12 @@ def _build_parser() -> argparse.ArgumentParser:
     sig = sub.add_parser("signals", help="re-fetch competitor/event signals")
     sig.add_argument("--run", required=True)
     sig.set_defaults(func=cmd_signals)
+
+    syn = sub.add_parser("synth", help="re-synthesize a hypothesis from the run's current ledger")
+    syn.add_argument("--run", required=True)
+    syn.add_argument("question", nargs="?", default=None,
+                     help="optional follow-up question (defaults to the run's original query)")
+    syn.set_defaults(func=cmd_synth)
 
     return p
 

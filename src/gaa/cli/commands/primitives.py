@@ -85,3 +85,40 @@ def cmd_signals(ctx, args) -> dict:
     return run_module_primitive(
         ctx, args.run, "competitor",
         lambda actx, ledger: CompetitorSignals(ctx.signals).run(actx, ledger))
+
+
+def cmd_synth(ctx, args) -> dict:
+    from gaa.core.synth.concurrent import sample_concurrently
+    from gaa.core.synth.gate import apply_gate
+    from gaa.core.synth.validator import validate_citations
+
+    run = ctx.runs.get(args.run)
+    if run is None:
+        return {"status": "error", "error": f"unknown run: {args.run!r}"}
+    try:
+        with ctx.runs.locked(args.run):
+            run = ctx.runs.get(args.run) or run
+            ledger = EvidenceLedger()
+            ledger.load(run.state.get("ledger", []))
+            if not ledger.all():
+                return {"status": "error", "error": "run has no evidence yet — run `gaa analyze`/drilldowns first"}
+            query = args.question or run.query
+            samples = sample_concurrently(ctx.synth, ledger, query, ctx.pipeline.n_samples)
+            if not samples:
+                samples = [ctx.synth.synthesize(ledger, query)]
+            hyp = apply_gate(samples[0], samples)
+            hyp = validate_citations(hyp, ledger)
+            run.state["hypothesis"] = hyp.model_dump()
+            run.add_activity("synth", f"re-synthesized for: {query}")
+            ctx.runs.save(run)
+    except RunBusy:
+        return {"status": "error", "error": f"run {args.run!r} is busy (another step in progress)"}
+    except Exception as exc:  # noqa: BLE001
+        return {"status": "error", "error": str(exc)}
+    return {
+        "status": "success",
+        "run_id": args.run,
+        "main_story": hyp.main_story,
+        "confidence": {"likelihood": hyp.confidence.likelihood,
+                       "evidence_quality": hyp.confidence.evidence_quality},
+    }

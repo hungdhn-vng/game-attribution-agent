@@ -90,3 +90,18 @@ def test_signals_appends_entry(tmp_path):
     assert resp["status"] == "success"
     assert resp["module"] == "competitor"
     assert resp["new_entries"]  # with no configured signals source, a "no signals" gap entry
+
+
+def test_synth_produces_hypothesis_from_ledger(tmp_path):
+    rid = _onboard_and_plan(tmp_path)
+    _run(["segments", "--run", rid, "--dimension", "region"], FakeLLM(_SYNTH), tmp_path)
+    resp = _run(["synth", "--run", rid, "is it the SEA region?"], FakeLLM(_SYNTH), tmp_path)
+    assert resp["status"] == "success"
+    assert resp["main_story"] == "DAU dropped — internal."
+    assert resp["confidence"]["likelihood"] in ("Very likely", "Likely", "Possible", "Unlikely")
+
+
+def test_synth_unknown_run_is_error(tmp_path):
+    _env(tmp_path)
+    resp = _run(["synth", "--run", "nope", "q"], FakeLLM(_SYNTH), tmp_path)
+    assert resp["status"] == "error"
