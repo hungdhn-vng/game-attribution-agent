@@ -55,3 +55,21 @@ def test_base_set_classification():
     assert "analyze" not in actions.MUTATING_ACTIONS
     assert "config_set" in actions.ADMIN_ACTIONS
     assert "doctor" not in actions.ADMIN_ACTIONS
+
+
+def test_status_accepts_run_alias(tmp_path, monkeypatch):
+    # The agent passes `run` (per the tool guide) but _cmd_status reads `run_id`;
+    # dispatch must alias run -> run_id so status/step still resolve the run.
+    ctx = _ctx(tmp_path, monkeypatch, _SYNTH)
+    csv = tmp_path / "m.csv"
+    pd.DataFrame({"day": ["2026-05-01", "2026-05-03"], "region": ["SEA", "SEA"],
+                  "dau": [1000, 400]}).to_csv(csv, index=False)
+    actions.dispatch(ctx, "onboard_confirm",
+                     {"csv": str(csv), "mapping": json.dumps(_MAPPING), "name": "G",
+                      "platform": "roblox", "genre": "survival"}, is_admin=True)
+    started = actions.dispatch(ctx, "analyze",
+                               {"query": "why did dau drop?", "budget": "0"}, is_admin=False)
+    rid = started["run_id"]
+    r = actions.dispatch(ctx, "status", {"run": rid}, is_admin=False)
+    assert r.get("run_id") == rid
+    assert r["status"] in ("running", "done")

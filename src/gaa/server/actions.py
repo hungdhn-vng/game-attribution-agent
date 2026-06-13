@@ -5,7 +5,10 @@ gaa.server.capabilities at import time via register().
 """
 from __future__ import annotations
 
+import logging
 import types
+
+logger = logging.getLogger(__name__)
 
 from gaa.cli.main import _cmd_analyze, _cmd_step, _cmd_status, _cmd_jobs
 from gaa.cli.commands.primitives import (
@@ -95,7 +98,15 @@ def dispatch(ctx, action: str, args: dict, *, is_admin: bool) -> dict:
         return {"status": "error", "error": f"action {action!r} requires admin context"}
     merged = dict(_DEFAULTS.get(action, {}))
     merged.update(args or {})
+    # The agent's tool guide uses `run` for status/step/drilldowns, but the status/step
+    # handlers read `run_id` while drilldown handlers read `run`. Alias the two so the
+    # handler finds the id regardless of which key the model supplied.
+    if "run" in merged and "run_id" not in merged:
+        merged["run_id"] = merged["run"]
+    elif "run_id" in merged and "run" not in merged:
+        merged["run"] = merged["run_id"]
     try:
         return handler(ctx, _Args(**merged))
     except Exception as exc:  # never crash the loop on a bad action
+        logger.exception("action %r failed", action)
         return {"status": "error", "error": str(exc)}
