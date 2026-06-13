@@ -2,6 +2,26 @@
 name = "gaa"
 version = "0.1.0"
 requires-python = ">=3.11"
+dependencies = [
+    "langchain-openai>=1.1.0,<2.0.0",
+    "python-dotenv",
+    "pandas==2.*",
+    "duckdb==1.*",
+    "pyarrow==17.*",
+    "statsmodels==0.14.*",
+    "ruptures==1.1.*",
+    "plotly==5.*",
+    "jinja2==3.*",
+    "httpx>=0.28.1,<1",
+    "beautifulsoup4==4.*",
+]
+
+[project.scripts]
+gaa = "gaa.cli.main:cli_entry"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
