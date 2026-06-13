@@ -722,3 +722,20 @@ No placeholders; live functions are intentionally not unit-tested (documented).
 ## After Plan 3 → Plan 4
 
 **Plan 4 — frontend + proxy:** clone `vercel/ai-chatbot`, gut auth/Postgres to single-user, point chat at the enabled `/v1/chat/completions` (via a server-side proxy holding the gateway token), and build the analysis pane that polls the run dir (`gaa step` / artifact reads) through four allowlisted proxy routes. This consumes the chatCompletions endpoint Plan 3 enabled and the `[[gaa:run_id=…]]` marker the skill emits.
+
+---
+
+## Phase A as-built notes (deviations + review fixes)
+
+Phase A was built offline via subagent-driven development; the final review returned CHANGES_REQUIRED and all findings were fixed before merge. Key points for whoever runs Phase B:
+
+1. **The skill sources the env and pins cwd — there is NO dotenv autoload.** GAA reads `os.environ` directly; the OpenClaw exec shell is a fresh POSIX `sh` per call. So every `gaa`/`python` command in the workspace must be prefixed with:
+   ```
+   cd ~/.openclaw/workspace/gaa && set -a && . ./.env && set +a && <command>
+   ```
+   This both exports the `.env` credentials to the `gaa` child AND pins cwd to the repo dir, so the cwd-relative state (`gaa-config.toml`, `gaa.sqlite`, `data/cache/{runs,metrics,benchmark,tools}`) is consistent across turns. The SKILL.md + references encode this; deliberately NOT done via `load_dotenv()` in the CLI (the repo's own root `.env` would pollute the offline test suite).
+2. **Capability-gate token is computed, not literal.** The deps check prints `"DEPS"+"OK"` → `DEPSOK` at runtime; the STOP check requires `DEPSOK` in the agent's reply. The literal `DEPSOK` is absent from the command source, so an agent echoing the command can't fake a pass — a real import failure (or any garbled reply) conservatively halts the install.
+3. **Admin gate (AGENTS.md, authoritative):** admin-only = `config set`, `profile use`, `onboard propose`/`confirm`, `tools promote`/`run`/`remove`/`import`/`sync-docs` (anything that configures, onboards, executes code, or writes registry/workspace state). Regular users get analysis (`analyze`/`step`/`status`/`jobs` + drilldowns + `synth`/`report`) and read-only (`config get`, `doctor`, `profile list`, `tools list`/`show`).
+4. **Installer**: `--dry-run` prints the manifest offline (no `websockets` needed — the import is lazy); live functions are verified in Phase B. `_install_live` now also requires `LLM_API_KEY` up front (fails fast rather than at `gaa doctor`).
+
+Final Phase A state: **259 tests passing**; `workspace/` artifacts + `scripts/openclaw_install.py` ready; live execution (provision + capability gate + install + verify) is Phase B, to be run with the user.
