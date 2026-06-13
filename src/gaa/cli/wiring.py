@@ -20,6 +20,27 @@ from gaa.runs.pipeline import AnalysisPipeline
 from gaa.runs.store import RunStore
 
 
+class _LazyLLM:
+    """Defers real LLM-client construction until first use.
+
+    Lets file-only commands (jobs/status) and the LLM-free `plan` stage run
+    without credentials; the real client is built (once) only when the synth
+    stage or onboarding actually invokes a method.
+    """
+
+    def __init__(self, factory):
+        self._factory = factory
+        self._real = None
+
+    def _get(self):
+        if self._real is None:
+            self._real = self._factory()
+        return self._real
+
+    def __getattr__(self, name):
+        return getattr(self._get(), name)
+
+
 @dataclass
 class GaaContext:
     settings: Settings
@@ -58,7 +79,7 @@ def build_context(llm: Optional[Any] = None, today: Optional[str] = None) -> Gaa
     signals = DynamicSignals(config=config, settings=settings)
 
     if llm is None:
-        llm = LangChainMaaSLLM(settings)
+        llm = _LazyLLM(lambda: LangChainMaaSLLM(settings))
     synth = Synthesizer(llm, instructions_provider=lambda: config.resolve("behavior_instructions")[0])
 
     # AnalysisPipeline positional signature: profiles, metrics_store, benchmark,
