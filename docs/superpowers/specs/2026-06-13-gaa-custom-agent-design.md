@@ -181,3 +181,45 @@ Clone `vercel/ai-chatbot`, gut NextAuth/Postgres to single-user, point chat at `
 7. **Image weight from the browser stack** — Playwright+chromium adds hundreds of MB + a build step + more runtime memory. If it bloats the image or the build, fall back to a lightweight `requests`+readability fetch for `browse` (covers most "look something up" cases; loses JS-rendered pages). Decide in planning by measuring the image.
 8. **Gemma-4 synthesis regression** — switching synthesis off the verified Qwen path risks schema-invalid `AttributionHypothesis` output; gated by the §10 re-verification, with Qwen as a config fallback. Don't make Gemma the synthesis default until verified.
 9. **Self-editing memory drift** — a self-evolving MEMORY.md/SOUL.md could accumulate noise or be poisoned via a crafted conversation (it's writable by the agent on admin turns). Low stakes for a single-user demo; keep snapshots so a bad edit is recoverable by restoring a prior snapshot, and consider a size cap / human-review of MEMORY.md.
+
+---
+
+## 14. As-built notes & deploy runbook (backend implemented 2026-06-13)
+
+The backend was implemented on branch `feat/gaa-custom-agent-backend` via 9 TDD tasks (plan: `docs/superpowers/plans/2026-06-13-gaa-custom-agent-backend.md`). **294 tests pass.** New code: `src/gaa/server/{__init__,app,agent,actions,capabilities,persona}.py`, `src/gaa/persist.py`, `src/gaa/data/seed/{SOUL.md,MEMORY.md}`, `Dockerfile`, `.dockerignore`.
+
+### Implementation refinements (deltas from the spec, discovered during build/review)
+- **Dev env:** the repo uses `uv` + a `.venv` (run tests `.venv/bin/python -m pytest`). The Docker image installs via `pip` inside `python:3.11-slim`.
+- **`browse` needs no headless browser:** implemented with the already-present `httpx` + `beautifulsoup4` (fetch + text extraction). No Playwright/chromium → slim image (build + `/health` smoke verified). JS-rendered pages are not supported (accepted tradeoff; resolves spec §13 risk #7 toward the light path).
+- **`gaa.server.__init__`** exposes `create_app` lazily (PEP 562 `__getattr__`) so submodules import before `app.py` exists / without forcing app construction.
+- **Action dispatch** aliases `run` ⇄ `run_id`: the agent tool-guide uses `run`, but `status`/`step` handlers read `run_id` while drilldowns read `run` — dispatch fills in whichever is missing so all resolve. Handler tracebacks are logged.
+- **Chat loop robustness:** if the LLM returns unparseable JSON (a routine thinking-model failure) the loop still emits a terminal `done` SSE event (no hung stream); a decision that is neither `action` nor `final` is corrected and retried (bounded by `max_iters`) instead of aborting; the `[[gaa:run_id=…]]` marker is only set from a non-error result.
+- **Artifact route** is anchored to the runs ROOT (`run_dir.parent == runs_root`), not to a `run_dir` derived from the untrusted `run_id` — verified safe against encoded `..`, encoded slashes, absolute paths, and symlink vectors.
+- The open artifact route also serves `job.json` (full run state) for run-state inspection, beyond the spec §5 list — read-only, no secrets.
+- **Startup** uses a FastAPI `lifespan` handler (not the deprecated `on_event`): `persist.restore(ctx)` (best-effort) then `persona.ensure_seeded(ctx)`.
+- **`persist.restore`** treats only `NoSuchKey`/`NoSuchBucket`/`404` as "first boot" (returns False) and re-raises real errors; `snapshot` skips (and warns on stderr) any durable path that would resolve outside the snapshot root.
+
+### Runtime env contract (set at deploy via the `agentbase-deploy` skill — never committed)
+- `LLM_BASE_URL` (default MaaS), `LLM_API_KEY`, `LLM_MODEL=google/gemma-4-31b-it` (Gemma 4 for orchestration AND synthesis).
+- `PERPLEXITY_API_KEY` (competitor signals), `GAA_BENCHMARK_MODE` (`snapshot`|`crawl`).
+- `GAA_AGENT_TOKEN` — Bearer gate for `/chat` + `/invocations` (held server-side by the frontend proxy; leak = RCE, treat as high-sensitivity).
+- `GAA_ADMIN_KEY` — gates the dangerous tools (`exec`/`browse`/`self_edit`/mutations); `X-GAA-Admin-Key` header on `/chat`, `admin_key` body field on `/invocations`.
+- `VSTORAGE_ENDPOINT` / `VSTORAGE_BUCKET` / `VSTORAGE_ACCESS_KEY` / `VSTORAGE_SECRET_KEY` — persistence; if unset, persistence is a local-only no-op.
+- `GAA_STEP_BUDGET_S` — set high (e.g. `600`) so an in-process `analyze` advances to completion within a single `/chat` turn (the reused CLI handler clamps the per-call budget to this).
+
+### Deploy (via `agentbase-deploy`)
+Build `linux/amd64` → push to the managed Container Registry → create a Custom Agent runtime (`/agent-runtimes`, PUBLIC, flavor sized for the analytics deps). The platform only requires `:8080` + `GET /health`.
+
+### Live verification checklist (run after deploy)
+1. `GET /health` → 200; runtime ACTIVE.
+2. `POST /chat` (Bearer `GAA_AGENT_TOKEN`) with a real "why did <game> drop?" → SSE streams activity + a final ending in `[[gaa:run_id=…]]`.
+3. `GET /runs/<id>/report.html` → the full self-contained dossier, byte-exact.
+4. A follow-up drilldown reuses the run_id.
+5. `POST /invocations` `config_set` without `admin_key` → error; with the key → success.
+6. An `exec`/`browse` round-trip via an admin `/chat` session.
+7. **Gemma-4 synthesis re-verification:** run a full analysis and confirm the synth stage yields a schema-valid `AttributionHypothesis` (no validation error). If it regresses, set `LLM_MODEL` back to the verified Qwen model for synthesis while keeping Gemma for orchestration (documented fallback, §10/§13).
+8. `self_edit` MEMORY.md, redeploy, confirm the edit survived (vStorage restore on boot).
+
+### Operational prerequisites (human, one-time)
+- Create a vStorage bucket + S3 access/secret key pair in the VNG Cloud console; set the `VSTORAGE_*` env.
+- **Keep** the OpenClaw `gaa` instance for now (live reference for its agent design while building); it is still billed. **Tear it down later** via `/agentbase-teardown` once the Custom Agent is built + verified — do not delete proactively.

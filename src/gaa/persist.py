@@ -1,0 +1,106 @@
+"""Durable state persistence to VNG vStorage (S3-compatible object storage).
+
+A Custom Agent's filesystem is ephemeral and the runtime can't mount a volume, so the
+durable subset is tarred and PUT to a vStorage bucket on each mutation, and restored on
+boot. Each durable item is stored under a FIXED logical arcname (independent of its
+on-disk path), so the snapshot round-trips correctly regardless of how GAA_CACHE_DIR /
+GAA_DB_PATH / GAA_CONFIG_PATH are laid out. Runs are NOT persisted (regenerable). If the
+VSTORAGE_* env vars are unset, every function is a no-op (local-only) — tests and local
+dev need no S3.
+"""
+from __future__ import annotations
+
+import io
+import os
+import shutil
+import tarfile
+import tempfile
+from pathlib import Path
+
+from gaa.server import persona
+
+STATE_KEY = "gaa-state.tar.gz"
+
+
+def enabled() -> bool:
+    return all(os.environ.get(k) for k in
+               ("VSTORAGE_ENDPOINT", "VSTORAGE_BUCKET", "VSTORAGE_ACCESS_KEY", "VSTORAGE_SECRET_KEY"))
+
+
+def _client():
+    import boto3
+    return boto3.client(
+        "s3",
+        endpoint_url=os.environ["VSTORAGE_ENDPOINT"],
+        aws_access_key_id=os.environ["VSTORAGE_ACCESS_KEY"],
+        aws_secret_access_key=os.environ["VSTORAGE_SECRET_KEY"],
+    )
+
+
+def _durable_items(ctx):
+    """(arcname, absolute on-disk path, is_dir) for each durable item.
+
+    arcname is a FIXED logical name, so the snapshot is independent of the host layout
+    (cache dir, db path, and config path can live anywhere).
+    """
+    cache = Path(ctx.settings.cache_dir)
+    tools = Path(os.environ.get("GAA_TOOLS_DIR", str(cache / "tools")))
+    return [
+        ("config.toml", Path(ctx.config._path), False),
+        ("profiles.sqlite", Path(ctx.settings.db_path), False),
+        ("metrics", cache / "metrics", True),
+        ("tools", tools, True),
+        ("persona", persona.persona_dir(ctx), True),
+    ]
+
+
+def snapshot(ctx, *, client=None, bucket=None) -> bool:
+    """Tar the durable subset under fixed arcnames and PUT it. No-op (False) if disabled."""
+    if client is None:
+        if not enabled():
+            return False
+        client = _client()
+    bucket = bucket or os.environ.get("VSTORAGE_BUCKET")
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for arcname, path, _is_dir in _durable_items(ctx):
+            if path.exists():
+                tar.add(str(path), arcname=arcname)
+    client.put_object(Bucket=bucket, Key=STATE_KEY, Body=buf.getvalue())
+    return True
+
+
+def restore(ctx, *, client=None, bucket=None) -> bool:
+    """Pull the latest snapshot and place each item at its on-disk destination.
+
+    Returns False if disabled or no snapshot exists; re-raises real S3 errors.
+    """
+    if client is None:
+        if not enabled():
+            return False
+        client = _client()
+    bucket = bucket or os.environ.get("VSTORAGE_BUCKET")
+    from botocore.exceptions import ClientError
+    try:
+        obj = client.get_object(Bucket=bucket, Key=STATE_KEY)
+    except ClientError as exc:  # missing key/bucket = first boot; anything else is a real error
+        if exc.response.get("Error", {}).get("Code") in ("NoSuchKey", "NoSuchBucket", "404"):
+            return False
+        raise
+    data = obj["Body"].read()
+    with tempfile.TemporaryDirectory() as tmp:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+            tar.extractall(tmp, filter="data")
+        for arcname, dest, _is_dir in _durable_items(ctx):
+            src = Path(tmp) / arcname
+            if not src.exists():
+                continue
+            dest = Path(dest)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.exists():
+                if dest.is_dir():
+                    shutil.rmtree(dest)
+                else:
+                    dest.unlink()
+            shutil.move(str(src), str(dest))
+    return True
