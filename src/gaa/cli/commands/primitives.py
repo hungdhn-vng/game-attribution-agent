@@ -48,6 +48,14 @@ def run_module_primitive(ctx, run_id: str, module_label: str,
             before = len(ledger.all())
             body(actx, ledger)
             new_entries = [e.model_dump() for e in ledger.all()[before:]]
+            # Persist any context mutations the module made (e.g. AnomalyDetection
+            # re-points metric/window/changepoint) so a later synth/report stays
+            # consistent with the evidence just added — not only the ledger.
+            run.state["metric"] = actx.metric
+            run.state["start"] = actx.start
+            run.state["end"] = actx.end
+            run.state["direction"] = actx.direction
+            run.state["changepoint"] = actx.extras.get("changepoint")
             run.state["ledger"] = [e.model_dump() for e in ledger.all()]
             run.add_activity(module_label, f"drilldown added {len(new_entries)} ledger entr"
                              f"{'y' if len(new_entries) == 1 else 'ies'}")
@@ -119,6 +127,7 @@ def cmd_report(ctx, args) -> dict:
             md = to_markdown(hyp)
             run.result = {"hypothesis": hyp.model_dump(), "markdown_summary": md, "html": html}
             run.status = "done"  # a complete dossier now exists; save() writes the files
+            run.error = None
             run.add_activity("render", "Report re-rendered.")
             ctx.runs.save(run)
     except RunBusy:

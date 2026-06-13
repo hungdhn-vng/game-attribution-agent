@@ -59,6 +59,11 @@ def test_drilldown_then_resynth_then_report(tmp_path):
         done = _run(["step", rid], tmp_path)["done"]
     assert done
 
+    import os as _os
+    report_path = str(tmp_path / "cache" / "runs" / rid / "report.html")
+    if _os.path.exists(report_path):
+        _os.remove(report_path)
+
     count_before = _run(["status", rid], tmp_path)["ledger_count"]
 
     seg = _run(["segments", "--run", rid, "--dimension", "region"], tmp_path)

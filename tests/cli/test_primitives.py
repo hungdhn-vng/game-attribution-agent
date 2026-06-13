@@ -126,3 +126,35 @@ def test_report_without_hypothesis_is_error(tmp_path):
     resp = _run(["report", "--run", rid], FakeLLM(_SYNTH), tmp_path)
     assert resp["status"] == "error"
     assert "synth" in resp["error"].lower()
+
+
+def _onboard_two_metrics_and_plan(tmp_path):
+    """Onboard a game with dau AND revenue, create a planned run."""
+    _env(tmp_path)
+    import pandas as pd
+    csv = tmp_path / "m2.csv"
+    pd.DataFrame({
+        "day": ["2026-05-01", "2026-05-01", "2026-05-03", "2026-05-03"],
+        "region": ["SEA", "NA", "SEA", "NA"],
+        "dau": [1000, 800, 400, 770],
+        "revenue": [500, 400, 470, 380],
+    }).to_csv(csv, index=False)
+    mapping = {"date_col": "day",
+               "metric_cols": {"dau": "dau", "revenue": "revenue"},
+               "dim_cols": {"region": "region"}}
+    from gaa.core.store.benchmark_store import BenchmarkStore
+    _run(["onboard", "confirm", "--csv", str(csv), "--mapping", json.dumps(mapping),
+          "--name", "TwoMetric", "--platform", "roblox", "--genre", "survival"],
+         FakeLLM(mapping), tmp_path)
+    BenchmarkStore(os.environ["GAA_CACHE_DIR"] + "/benchmark.sqlite").put_quant(
+        "roblox", "survival", raw={"2026-05-01": 100.0, "2026-05-03": 97.0})
+    started = _run(["analyze", "what is going on?", "--budget", "0"], FakeLLM(_SYNTH), tmp_path)
+    return started["run_id"]
+
+
+def test_detect_with_metric_repoints_the_run(tmp_path):
+    from gaa.runs.store import RunStore
+    rid = _onboard_two_metrics_and_plan(tmp_path)
+    _run(["detect", "--run", rid, "--metric", "revenue"], FakeLLM(_SYNTH), tmp_path)
+    store = RunStore(os.environ["GAA_CACHE_DIR"] + "/runs")
+    assert store.get(rid).state["metric"] == "revenue"
