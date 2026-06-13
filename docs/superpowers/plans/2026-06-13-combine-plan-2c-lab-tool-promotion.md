@@ -1089,3 +1089,19 @@ No placeholders or undefined references.
 ## After Plan 2c → Plan 3
 
 The CLI toolbox is complete (analyze/step/status/jobs/doctor/config/onboard/profile + 6 primitives + tools). Next: **Plan 3 — OpenClaw workspace install** (`openclaw_install.py`: gateway handshake, `git clone` + `pip install -e .` capability gate, write `.env` + seed `gaa-config.toml`, install `AGENTS.md` + `skills/gaa/` with `sync-docs` wired to `references/tools.md`, verify via `gaa doctor` + a budgeted smoke `analyze`), then **Plan 4 — frontend + proxy**. The deferred `synthesis.show_thinking`→`thinking.md` pairs with Plan 3's live MaaS verification.
+
+---
+
+## As-built notes (deviations + documented limits)
+
+Plan 2c was executed via subagent-driven development with a final review (APPROVE_WITH_MINORS, all code findings addressed).
+
+1. **Command consolidation:** all tool operations live under `gaa tools …` (promote/run/list/show/remove/sync-docs/export/import) — the spec's `gaa tool run` (singular) became `gaa tools run`.
+2. **Review fixes (commit after Task 7):** `sync_docs` collapses whitespace/newlines in tool name+description to prevent markdown injection into the LLM-consumed catalog (load-bearing for Plan 3, which wires `GAA_TOOLS_DOC_PATH` → `references/tools.md`); `gaa tools run <unknown>` now returns a distinct "unknown tool" error (not a misleading md5 failure); a `RunBusy` during a tool's `lab.add_evidence` is re-raised as a clear "run is busy" `RuntimeError` instead of an opaque traceback.
+
+**Documented limits (by design — for Plan 3/4 threat-model docs, NOT bugs):**
+- **`gaa.lab` is a *sanctioned API*, not a sandbox.** The Moderate strength cap is enforced for code that goes *through* `lab.add_evidence`; a script could `import EvidenceLedger`/`RunStore` directly and write a `strength="high"` entry. This is acceptable while only the agent's own (trusted) code runs; if untrusted code is ever executed, the cap is not an enforcement boundary.
+- **md5 is drift/tamper-*detection*, not tamper-*resistance*.** Anyone who can rewrite `tool.py` can rewrite the recorded md5. It guarantees a *promoted* tool runs the bytes that were promoted (catches accidental edits / partial writes), which is the stated intent — not a security boundary. Don't overstate it in Plan 3/4 docs.
+- **Aggregate `evidence_quality` (Strong/Moderate/Weak) is a separate axis** computed by corroboration/volume; tool/adhoc entries still contribute to it, but the per-entry Strong bonus is structurally denied to them — which is exactly what the cap buys.
+
+Final state: **248 tests passing**; `gaa tools` = 8 subcommands; the scratch→promote→run→tamper-refuse lifecycle is verified end-to-end across a real process boundary (the subprocess writes `tool:<name>` evidence the parent reads back). Trust hierarchy enforced: shipped modules can be Strong; lab/tool evidence capped at Moderate.
