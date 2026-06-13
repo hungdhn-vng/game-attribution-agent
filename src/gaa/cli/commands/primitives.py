@@ -171,6 +171,7 @@ def cmd_synth(ctx, args) -> dict:
         "status": "success",
         "run_id": args.run,
         "main_story": hyp.main_story,
+        "rationale": hyp.rationale,
         "confidence": {"likelihood": hyp.confidence.likelihood,
                        "evidence_quality": hyp.confidence.evidence_quality},
     }

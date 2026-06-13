@@ -64,3 +64,28 @@ def test_write_persona_append_mode_joins_with_newline(tmp_path, monkeypatch):
     persona.write_persona(ctx, "MEMORY.md", "Second line.", mode="append")
     text = persona.load_memory(ctx)
     assert "First line.\nSecond line." in text
+
+
+def test_reasoning_enabled_default_on(monkeypatch):
+    monkeypatch.delenv("GAA_STREAM_REASONING", raising=False)
+    assert persona.reasoning_enabled() is True
+
+
+def test_reasoning_enabled_off_values(monkeypatch):
+    for v in ("0", "false", "False", "no", "off"):
+        monkeypatch.setenv("GAA_STREAM_REASONING", v)
+        assert persona.reasoning_enabled() is False
+    monkeypatch.setenv("GAA_STREAM_REASONING", "1")
+    assert persona.reasoning_enabled() is True
+
+
+def test_system_prompt_thought_hint_gated_by_toggle(tmp_path, monkeypatch):
+    ctx = _ctx(tmp_path, monkeypatch)
+    persona.ensure_seeded(ctx)
+    monkeypatch.setenv("GAA_STREAM_REASONING", "1")
+    on = persona.assemble_system_prompt(ctx, admin=False)
+    monkeypatch.setenv("GAA_STREAM_REASONING", "0")
+    off = persona.assemble_system_prompt(ctx, admin=False)
+    assert '"thought"' in on          # the thought hint is present when reasoning is on
+    assert '"thought"' not in off     # and absent when off
+    assert '"action"' in on and '"action"' in off  # base protocol always present

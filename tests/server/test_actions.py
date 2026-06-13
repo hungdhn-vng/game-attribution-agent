@@ -73,3 +73,20 @@ def test_status_accepts_run_alias(tmp_path, monkeypatch):
     r = actions.dispatch(ctx, "status", {"run": rid}, is_admin=False)
     assert r.get("run_id") == rid
     assert r["status"] in ("running", "done")
+
+
+def test_onboarding_is_non_admin_exec_still_admin(tmp_path, monkeypatch):
+    import base64
+    from gaa.server import capabilities  # noqa: F401 (registers exec)
+    ctx = _ctx(tmp_path, monkeypatch, _SYNTH)
+    csv_b64 = base64.b64encode(b"day,region,dau\n2026-05-01,SEA,1000\n2026-05-03,SEA,400\n").decode()
+    # onboarding works WITHOUT admin
+    r = actions.dispatch(ctx, "onboard_confirm",
+                         {"csv_b64": csv_b64, "mapping": json.dumps(_MAPPING), "name": "G",
+                          "platform": "roblox", "genre": "survival"}, is_admin=False)
+    assert r["status"] == "success"
+    assert "onboard_confirm" not in actions.ADMIN_ACTIONS
+    assert "onboard_confirm" in actions.MUTATING_ACTIONS   # still snapshots
+    # exec is STILL admin-gated
+    assert "exec" in actions.ADMIN_ACTIONS
+    assert actions.dispatch(ctx, "exec", {"command": "echo x"}, is_admin=False)["status"] == "error"

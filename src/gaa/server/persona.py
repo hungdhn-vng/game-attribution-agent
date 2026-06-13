@@ -59,6 +59,23 @@ ADMIN TOOLS (you have admin rights this session):
 - tools_remove {name} / tools_import {tarball}
 """
 
+_THOUGHT_HINT = """\
+THINKING: Include a "thought" field (1-2 sentences explaining your reasoning for this
+step) alongside your decision, e.g. {"thought": "…", "action": "…", "args": {…}} or
+{"thought": "…", "final": "…"}. The thought is shown to the user as your reasoning; it
+does not replace the action/final.
+"""
+
+
+def reasoning_enabled() -> bool:
+    """Whether /chat reveals the agent's reasoning as `thinking` SSE events.
+
+    Default ON. Set GAA_STREAM_REASONING to 0/false/no/off to disable (falls back to
+    exactly the prior behavior — no `thought` asked for, no thinking events emitted).
+    """
+    return os.environ.get("GAA_STREAM_REASONING", "1").strip().lower() not in (
+        "0", "false", "no", "off")
+
 
 def persona_dir(ctx) -> Path:
     return Path(ctx.settings.cache_dir) / "persona"
@@ -115,7 +132,10 @@ def assemble_system_prompt(ctx, *, admin: bool) -> str:
     parts = [soul]
     if memory:
         parts.append("## MEMORY\n" + memory)
-    parts += [_REDLINES, _PROTOCOL, _ANALYSIS_TOOLS]
+    parts += [_REDLINES, _PROTOCOL]
+    if reasoning_enabled():
+        parts.append(_THOUGHT_HINT)
+    parts.append(_ANALYSIS_TOOLS)
     if admin:
         parts.append(_ADMIN_TOOLS)
     return "\n\n".join(p for p in parts if p)

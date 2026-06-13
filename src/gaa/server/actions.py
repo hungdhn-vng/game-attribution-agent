@@ -67,10 +67,13 @@ _HANDLERS = {
     "tools_import": cmd_tools_import,
 }
 
-# Actions requiring an admin context (state-changing or dangerous). exec/browse/self_edit
-# are added by capabilities.register().
+# Actions requiring an admin context (state-changing or dangerous).
+# onboard_confirm is intentionally NOT admin-gated: the agent token alone authorizes
+# upload→onboard so normal (non-admin) frontend users can submit a CSV.
+# exec/browse/self_edit are added by capabilities.register() and stay admin-gated.
+# config/profile/tools actions also stay admin-gated.
 ADMIN_ACTIONS = {
-    "config_set", "onboard_confirm", "profile_use", "tools_promote", "tools_run",
+    "config_set", "profile_use", "tools_promote", "tools_run",
     "tools_remove", "tools_import",
 }
 
