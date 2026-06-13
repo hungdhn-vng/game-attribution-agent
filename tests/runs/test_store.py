@@ -90,3 +90,38 @@ def test_locked_raises_runbusy_when_already_held(tmp_path):
     finally:
         fcntl.flock(held, fcntl.LOCK_UN)
         held.close()
+
+
+def test_concurrent_reads_during_writes_never_corrupt(tmp_path):
+    import threading
+    store = RunStore(str(tmp_path), today="2026-06-13")
+    run = store.create(session="s", query="q", suffix="zzzz")
+    # Large ledger so the JSON is big enough to expose a truncate-write window.
+    run.state["ledger"] = [
+        {"id": f"L{i}", "module": "m", "claim": "c" * 200, "value": "v",
+         "source": "s", "source_type": "internal", "strength": "high"}
+        for i in range(200)
+    ]
+    errors = []
+    stop = threading.Event()
+
+    def reader():
+        while not stop.is_set():
+            try:
+                r = store.get(run.run_id)
+                if r is not None:
+                    _ = r.run_id
+            except Exception as e:  # corrupt/partial read
+                errors.append(repr(e))
+
+    t = threading.Thread(target=reader)
+    t.start()
+    try:
+        for i in range(300):
+            run.state["n"] = i
+            store.save(run)
+    finally:
+        stop.set()
+        t.join()
+
+    assert not errors, f"reader observed corrupt job.json under concurrent writes: {errors[:3]}"

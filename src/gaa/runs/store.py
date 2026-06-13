@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import os
 from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
@@ -31,6 +32,10 @@ class RunStore:
     def _dir(self, run_id: str) -> Path:
         return self._root / run_id
 
+    def path_for(self, run_id: str) -> Path:
+        """Public accessor for a run's directory (consumers: CLI, future proxy)."""
+        return self._dir(run_id)
+
     # ---- create / read / write ----
     def create(self, session: str, query: str, suffix: Optional[str] = None) -> Run:
         run_id = make_run_id(query, today=self._today, suffix=suffix)
@@ -49,7 +54,9 @@ class RunStore:
         run.updated_at = _now_iso()
         d = self._dir(run.run_id)
         d.mkdir(parents=True, exist_ok=True)
-        (d / "job.json").write_text(run.model_dump_json())
+        tmp = d / "job.json.tmp"
+        tmp.write_text(run.model_dump_json())
+        os.replace(tmp, d / "job.json")
         self._write_projections(d, run)
 
     def _write_projections(self, d: Path, run: Run) -> None:

@@ -12,7 +12,7 @@ from gaa.runs.store import RunBusy
 
 def _run_view(ctx: GaaContext, run) -> dict:
     """Compact status dict. Heavy artifacts stay on disk; only paths surface."""
-    d = ctx.runs._dir(run.run_id)
+    d = ctx.runs.path_for(run.run_id)
     view = {
         "status": run.status,
         "run_id": run.run_id,
