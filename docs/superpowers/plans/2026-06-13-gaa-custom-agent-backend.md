@@ -1445,7 +1445,7 @@ The runtime env (set via the `agentbase-deploy` skill at deploy time, NOT commit
 - [ ] **Step 3: Operational prerequisites (human, one-time)**
 
 - Create a vStorage bucket + S3 access/secret key pair in the VNG Cloud console.
-- Delete the retired OpenClaw `gaa` instance (ends its billing) via `/agentbase-teardown`.
+- **Keep** the OpenClaw `gaa` instance for now (live reference for its agent design while building); it is still billed. **Tear it down later** via `/agentbase-teardown` once the Custom Agent is built + verified — do not delete proactively.
 
 - [ ] **Step 4: Commit any as-built notes**
 

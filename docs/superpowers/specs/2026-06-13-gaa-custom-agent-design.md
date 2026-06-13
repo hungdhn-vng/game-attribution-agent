@@ -141,7 +141,7 @@ To avoid duplicating logic, the analysis/onboarding/admin actions are factored i
 - Build `linux/amd64`, push to the managed Container Registry (`vcr.vngcloud.vn/111480-abp111723/gaa`), deploy as a **Custom Agent runtime** (`/agent-runtimes`, PUBLIC, 1 replica, flavor ~`runtime-s2-general-2x4` — sized up if the browser stack needs more memory).
 - Runtime env: `LLM_*` (pointed at MaaS **`google/gemma-4-31b-it`** as the primary model — OpenClaw's default — for both orchestration and synthesis; Qwen as a configurable fallback), `PERPLEXITY_API_KEY`, `GAA_BENCHMARK_MODE`, `GAA_AGENT_TOKEN` (gates `/chat`+`/invocations`), `GAA_ADMIN_KEY` (gates dangerous tools), `VSTORAGE_*`.
 - `GET /health` → ACTIVE. Endpoint URL is public.
-- **OpenClaw `gaa` instance is deleted** (no longer part of the architecture — ends its billing). Plan 3's `openclaw_install.py` + `workspace/` skill files are retired (kept on history; the gaa skill content informs the chat loop's system prompt).
+- **OpenClaw `gaa` instance — kept temporarily, torn down later.** It is no longer part of the target architecture, but is kept ACTIVE for now as a live reference to learn from its agent design/behaviors while building the Custom Agent. It is **still billed** — delete it via `/agentbase-teardown` once the Custom Agent is built + verified (don't delete proactively). Plan 3's `openclaw_install.py` + `workspace/` skill files are retired (kept on history; the gaa skill content informs the chat loop's system prompt).
 
 ## 10. Testing
 
