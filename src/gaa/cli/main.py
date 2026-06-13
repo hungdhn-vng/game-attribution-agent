@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 from gaa.cli.commands.config_cmd import cmd_config_get, cmd_config_set
 from gaa.cli.commands.doctor import cmd_doctor
+from gaa.cli.commands.onboarding import cmd_onboard_propose, cmd_onboard_confirm
 from gaa.cli.wiring import GaaContext, build_context
 from gaa.runs.store import RunBusy
 
@@ -128,6 +129,21 @@ def _build_parser() -> argparse.ArgumentParser:
     cs.add_argument("key")
     cs.add_argument("value")
     cs.set_defaults(func=cmd_config_set)
+
+    ob = sub.add_parser("onboard", help="connect a game's data")
+    ob_sub = ob.add_subparsers(dest="onboard_command", required=True)
+    obp = ob_sub.add_parser("propose", help="LLM proposes a column mapping from the first rows")
+    obp.add_argument("--csv", required=True)
+    obp.add_argument("--adapter", choices=["csv", "roblox"], default="csv")
+    obp.set_defaults(func=cmd_onboard_propose)
+    obc = ob_sub.add_parser("confirm", help="ingest the file with a confirmed mapping")
+    obc.add_argument("--csv", required=True)
+    obc.add_argument("--mapping", required=True, help="ColumnMapping as a JSON string")
+    obc.add_argument("--name", required=True)
+    obc.add_argument("--platform", required=True)
+    obc.add_argument("--genre", required=True)
+    obc.add_argument("--adapter", choices=["csv", "roblox"], default="csv")
+    obc.set_defaults(func=cmd_onboard_confirm)
 
     return p
 
