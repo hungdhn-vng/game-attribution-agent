@@ -32,6 +32,9 @@ def _run_view(ctx: GaaContext, run) -> dict:
         view["summary_path"] = str(d / "summary.md")
     if run.status == "error":
         view["error"] = run.error
+    hyp = run.state.get("hypothesis")
+    if isinstance(hyp, dict) and hyp.get("rationale"):
+        view["rationale"] = hyp["rationale"]
     return view
 
 
