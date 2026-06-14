@@ -96,3 +96,14 @@ def test_is_fresh_works_for_qual_kind(store):
     store.put_qual("mobile", "casual", {"trend": "flat"})
     assert store.is_fresh("mobile", "casual", "qual", ttl_s=86400.0) is True
     assert store.is_fresh("mobile", "casual", "qual", ttl_s=0.0) is False
+
+
+def test_put_get_benchmark_per_metric(tmp_path):
+    from gaa.core.store.benchmark_store import BenchmarkStore
+    s = BenchmarkStore(str(tmp_path / "b.sqlite"))
+    s.put_benchmark("roblox", "rpg", "retention_d1", {"low": 0.12, "high": 0.19})
+    s.put_benchmark("roblox", "rpg", "retention_d7", {"low": 0.03, "high": 0.08})
+    assert s.get_benchmark("roblox", "rpg", "retention_d1")["high"] == 0.19
+    assert s.get_benchmark("roblox", "rpg", "retention_d7")["low"] == 0.03
+    assert s.get_benchmark("roblox", "rpg", "dau") is None
+    assert s.is_fresh("roblox", "rpg", "benchmark", 60.0) is True
