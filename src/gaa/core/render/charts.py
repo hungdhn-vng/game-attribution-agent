@@ -1,3 +1,5 @@
+import textwrap
+
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -38,6 +40,12 @@ def overlay_fig(game: pd.Series, genre: dict, metric: str) -> go.Figure:
 _CAT_COLOR = {"internal": "#3b82f6", "market": "#f59e0b", "scenario": "#9ca3af"}
 
 
+def _wrap_hover(text: str, width: int = 42) -> str:
+    """Plotly draws hovertext on a single line; insert <br> on word boundaries
+    so long claims wrap inside the chart instead of overflowing its width."""
+    return "<br>".join(textwrap.wrap(text, width=width)) or text
+
+
 def confidence_matrix_fig(h) -> go.Figure:
     items = ([("internal", c.claim, c) for c in h.causes.internal]
              + [("market", c.claim, c) for c in h.causes.market]
@@ -60,7 +68,7 @@ def confidence_matrix_fig(h) -> go.Figure:
             xs.append(x + (j - (n - 1) / 2) * 0.18)
             ys.append(y)
             texts.append(label if len(label) <= 22 else label[:21] + "…")
-            hovers.append(label)
+            hovers.append(_wrap_hover(label))
             colors.append(_CAT_COLOR[kind])
             positions.append("top center" if j % 2 == 0 else "bottom center")
 
