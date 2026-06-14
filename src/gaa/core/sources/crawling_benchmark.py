@@ -37,3 +37,7 @@ class CrawlingBenchmarkSource:
     def qualitative_context(self, genre: str) -> Optional[dict]:
         """Return the stored qualitative payload for *genre*, or ``None``."""
         return self._store.get_qual(self._platform, genre)
+
+    def metric_benchmark(self, metric: str, genre: str):
+        """Return the stored per-metric benchmark for the active platform, or None."""
+        return self._store.get_benchmark(self._platform, genre, metric)
