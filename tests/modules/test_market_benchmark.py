@@ -122,3 +122,40 @@ def test_fixture_source_without_qualitative_context_no_crash():
     assert any(e.source_type == "derived" and e.strength == "low" for e in led.all())
     # No external entry (source doesn't expose qualitative_context)
     assert not any(e.source_type == "external" for e in led.all())
+
+
+class _SourceWithBenchmark:
+    def __init__(self, low, high):
+        self._low, self._high = low, high
+    def genre_trend(self, genre, start, end):
+        return {}  # no quant trend → exercises only the benchmark path
+    def metric_benchmark(self, metric, genre):
+        return {"metric": metric, "low": self._low, "high": self._high,
+                "median": None, "unit": "fraction", "source": "GA 2025",
+                "confidence": "med", "citations": [{"url": "https://ga"}]}
+
+
+def test_benchmark_comparison_flags_underperformance():
+    from gaa.core.modules.market_benchmark import MarketBenchmark
+    from gaa.core.schema.ledger import EvidenceLedger
+    df = _df([0.03, 0.034], start="2026-06-01")           # game ~3.4%
+    df["metric"] = "retention_d1"
+    ctx = _ctx(df, "2026-06-01", "2026-06-02")
+    ctx.metric = "retention_d1"
+    led = EvidenceLedger()
+    MarketBenchmark(_SourceWithBenchmark(0.12, 0.19)).run(ctx, led)
+    e = [x for x in led.all() if x.module == "market" and x.source_type == "external"
+         and "benchmark" in x.claim.lower()][0]
+    assert "underperform" in e.claim.lower()
+    assert e.source == "https://ga"
+
+
+def test_benchmark_comparison_in_line():
+    from gaa.core.modules.market_benchmark import MarketBenchmark
+    from gaa.core.schema.ledger import EvidenceLedger
+    df = _df([0.14, 0.15], start="2026-06-01")
+    df["metric"] = "retention_d1"
+    ctx = _ctx(df, "2026-06-01", "2026-06-02"); ctx.metric = "retention_d1"
+    led = EvidenceLedger()
+    MarketBenchmark(_SourceWithBenchmark(0.12, 0.19)).run(ctx, led)
+    assert any("in line" in x.claim.lower() for x in led.all() if x.module == "market")
