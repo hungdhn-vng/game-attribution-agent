@@ -78,7 +78,7 @@ class ChatAgent:
                           'or {"final": "<message>"}.')
                 continue
 
-            yield {"type": "activity", "text": f"running {action}…"}
+            yield {"type": "activity", "text": f"Running {action}…"}
             result = actions.dispatch(ctx, action, action_args, is_admin=is_admin)
             # Only latch a run_id from a non-error result, so the dossier marker never points
             # at a run whose report.html doesn't exist.

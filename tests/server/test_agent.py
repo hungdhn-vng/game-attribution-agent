@@ -102,6 +102,20 @@ def test_malformed_decision_is_corrected_then_continues(tmp_path, monkeypatch):
     assert events[-1]["type"] == "done"
 
 
+def test_activity_text_is_capitalized(tmp_path, monkeypatch):
+    # Activity strings are rendered verbatim in the UI, so the first letter must be capitalized.
+    ctx = _ctx(tmp_path, monkeypatch, {})
+    llm = ScriptedLLM([
+        {"action": "status", "args": {"run_id": "nope"}},
+        {"final": "done"},
+    ])
+    events = _collect(ChatAgent(ctx, llm), [{"role": "user", "content": "x"}])
+    acts = [e for e in events if e["type"] == "activity"]
+    assert acts, "expected at least one activity event"
+    for e in acts:
+        assert e["text"].startswith("Running "), f"activity text not capitalized: {e['text']!r}"
+
+
 def test_orchestration_thinking_emitted(tmp_path, monkeypatch):
     monkeypatch.setenv("GAA_STREAM_REASONING", "1")
     ctx = _ctx(tmp_path, monkeypatch, {})

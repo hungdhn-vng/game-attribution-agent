@@ -118,9 +118,18 @@ export function ChatView({ onMessages }: ChatViewProps) {
           </div>
         ) : (
           <div className="mx-auto flex max-w-4xl flex-col gap-5 px-2 py-6">
-            {messages.map((msg, idx) => (
-              <GaaMessageRow key={idx} msg={msg} streaming={streaming} isLast={idx === messages.length - 1} />
-            ))}
+            {messages.map((msg, idx) => {
+              const isLast = idx === messages.length - 1;
+              // While the standalone ThinkingMessage is showing, skip the trailing
+              // empty assistant placeholder so we don't render two assistant
+              // avatars (one bare, one with "Thinking…") at the same time.
+              if (isLast && isThinkingPhase && msg.role === "assistant") {
+                return null;
+              }
+              return (
+                <GaaMessageRow key={idx} msg={msg} streaming={streaming} isLast={isLast} />
+              );
+            })}
 
             {/* ThinkingMessage shimmer when streaming hasn't produced anything yet */}
             {isThinkingPhase && <ThinkingMessage />}
