@@ -105,6 +105,108 @@
   <p style="font-size:.58em;max-width:40ch">The LLM only <b>routes intent</b>, <b>maps columns</b>, and <b>writes the narrative</b>. Every number traces to a ledger entry. An uncited claim never ships.</p>
   <aside class="notes"></aside>
 </section>
+      <section>
+  <p class="microlabel">Layer 1 · Anomaly</p>
+  <h2>What moved — and exactly when.</h2>
+  <div class="cols">
+    <div style="font-size:.62em">
+      <p><b>Change-point detection</b> (ruptures / PELT) finds the break: <span class="mono">Jun 8</span>.</p>
+      <p class="fragment"><b>STL decomposition</b> quantifies how anomalous it is vs seasonality.</p>
+      <p class="fragment"><span class="cite">→ E1, E2</span> written to the ledger.</p>
+    </div>
+    <div>
+      <svg viewBox="0 0 480 200" width="100%" font-family="Geist">
+        <rect x="300" y="15" width="160" height="150" fill="#ef4444" opacity="0.06"/>
+        <line x1="40" y1="165" x2="460" y2="165" stroke="var(--border)"/>
+        <polyline fill="none" stroke="var(--blue)" stroke-width="3"
+          points="50,60 110,56 170,62 230,58 300,64 360,120 420,140 455,138"/>
+        <line x1="300" y1="15" x2="300" y2="165" stroke="var(--muted)" stroke-dasharray="4 4"/>
+        <text x="306" y="28" font-size="10" fill="var(--muted)">change-point · Jun 8</text>
+      </svg>
+    </div>
+  </div>
+  <aside class="notes"></aside>
+</section>
+      <section data-state="differentiator">
+  <p class="microlabel">Layer 2 · Internal vs market</p>
+  <h2>Is it us — or the market?</h2>
+  <div class="cols">
+    <div>
+      <svg viewBox="0 0 480 220" width="100%" font-family="Geist">
+        <rect x="300" y="20" width="160" height="160" fill="#ef4444" opacity="0.06"/>
+        <line x1="40" y1="180" x2="460" y2="180" stroke="var(--border)"/>
+        <line x1="40" y1="20" x2="40" y2="180" stroke="var(--border)"/>
+        <text x="44" y="34" font-size="11" fill="var(--muted)">100</text>
+        <polyline fill="none" stroke="var(--amber-ln)" stroke-width="3" points="50,60 150,56 250,66 320,108 400,120 455,118"/>
+        <polyline fill="none" stroke="var(--blue)" stroke-width="3.4" points="50,52 150,48 250,60 320,128 400,150 455,146"/>
+        <g class="fragment">
+          <line x1="455" y1="118" x2="455" y2="146" stroke="var(--blue)" stroke-dasharray="3 3"/>
+          <circle cx="455" cy="146" r="4" fill="var(--blue)"/><circle cx="455" cy="118" r="3.5" fill="var(--amber-ln)"/>
+        </g>
+        <text x="58" y="200" font-size="11" fill="var(--muted)">Jun 1</text>
+        <text x="420" y="200" font-size="11" fill="var(--muted)">Jun 14</text>
+      </svg>
+      <div class="row" style="font-size:.42em;color:var(--muted);gap:1.2em;margin-top:.2em">
+        <span><b style="color:var(--blue)">—</b> Your DAU (indexed)</span>
+        <span><b style="color:var(--amber-ln)">—</b> Genre (indexed)</span></div>
+    </div>
+    <div style="font-size:.6em">
+      <p><b>CausalImpact-style counterfactual</b> (BSTS) vs a genre benchmark.</p>
+      <p class="fragment">"What <em>would</em> DAU have been without the event?" The gap is the <b>true internal effect</b>.</p>
+      <p class="fragment">Most of the −22% = <span class="tag m">Market</span>. A slice = <span class="tag i">Internal</span>.</p>
+      <p class="fragment muted" style="font-size:.85em">Benchmark tiers: snapshot → Roblox/Steam crawl → Perplexity.</p>
+    </div>
+  </div>
+  <aside class="notes"></aside>
+</section>
+      <section>
+  <p class="microlabel">Layer 3 · Segment root-cause</p>
+  <h2>Of the part that <em>was</em> us — which slice?</h2>
+  <div style="font-size:.64em;max-width:34ch">
+    <p><b>Adtributor</b> attributes the internal residual to a dimension as a citable %.</p>
+    <div class="card fragment"><p style="margin:0">~70% of the internal drop came from the <b>v2.3 update</b> on <b>mobile · SEA</b>.</p>
+      <span class="tag i">Internal</span> <span class="tag n">Possible</span> <span class="cite">E7, E9</span></div>
+  </div>
+  <aside class="notes"></aside>
+</section>
+      <section>
+  <p class="microlabel">Layer 4 · Confidence</p>
+  <h2>Most tools give one number. We give two.</h2>
+  <div class="cols">
+    <div style="font-size:.62em"><p>How <b>likely</b> is this cause — and how <b>good</b> is the evidence for it?</p>
+      <p class="fragment muted">Plotted on a likelihood × evidence-quality grid, per claim.</p></div>
+    <div>
+      <svg viewBox="0 0 480 260" width="100%" font-family="Geist">
+        <line x1="70" y1="220" x2="460" y2="220" stroke="var(--border)"/>
+        <line x1="70" y1="20" x2="70" y2="220" stroke="var(--border)"/>
+        <text x="140" y="240" font-size="11" fill="var(--muted)" text-anchor="middle">Weak</text>
+        <text x="265" y="240" font-size="11" fill="var(--muted)" text-anchor="middle">Moderate</text>
+        <text x="390" y="240" font-size="11" fill="var(--muted)" text-anchor="middle">Strong</text>
+        <text x="62" y="200" font-size="10" fill="var(--muted)" text-anchor="end">Unlikely</text>
+        <text x="62" y="150" font-size="10" fill="var(--muted)" text-anchor="end">Possible</text>
+        <text x="62" y="95" font-size="10" fill="var(--muted)" text-anchor="end">Likely</text>
+        <text x="62" y="45" font-size="10" fill="var(--muted)" text-anchor="end">Very likely</text>
+        <circle cx="390" cy="95" r="9" fill="var(--amber-ln)"/><text x="390" y="80" font-size="10" fill="var(--fg)" text-anchor="middle">Genre dip</text>
+        <circle cx="265" cy="150" r="9" fill="var(--blue)"/><text x="265" y="135" font-size="10" fill="var(--fg)" text-anchor="middle">v2.3 update</text>
+        <circle cx="140" cy="150" r="9" fill="var(--scenario)"/><text x="140" y="135" font-size="10" fill="var(--fg)" text-anchor="middle">Seasonality</text>
+      </svg>
+    </div>
+  </div>
+  <aside class="notes"></aside>
+</section>
+      <section>
+  <p class="microlabel">Layer 5 · Honesty</p>
+  <h2>When the evidence is thin, it says so.</h2>
+  <div class="cols">
+    <div class="gaps" style="font-size:.58em"><p class="microlabel">Assumptions &amp; gaps</p>
+      <ul style="margin:0;padding-left:1.1em"><li>Pre-period &lt; 14 days → confidence lowered.</li><li>No cohort-level export → segment is indicative.</li></ul></div>
+    <div style="font-size:.6em">
+      <p class="fragment">The <b>self-consistency gate</b> (N samples must agree) + <b>citation validator</b> reject shaky claims.</p>
+      <p class="fragment big" style="font-size:1em">Scenarios, not decisions — the human decides.</p>
+    </div>
+  </div>
+  <aside class="notes"></aside>
+</section>
     </div>
   </div>
   <script src="vendor/reveal/dist/reveal.js"></script>
