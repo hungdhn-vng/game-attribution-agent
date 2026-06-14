@@ -1,6 +1,9 @@
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
 
+# Superpowers brainstorming companion (local mockups)
+.superpowers/
+
 # macOS
 .DS_Store
 
