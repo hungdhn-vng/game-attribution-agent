@@ -14,7 +14,10 @@ def validate_canonical(df: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"canonical frame missing required columns: {missing}")
     out = df.copy()
-    out["date"] = pd.to_datetime(out["date"], errors="raise")
+    # Parse to UTC then drop the tz: Roblox exports carry a 'Z' suffix (tz-aware),
+    # but every downstream comparison builds tz-naive Timestamps from date strings.
+    # A tz-aware column silently matches zero rows, so normalize to tz-naive here.
+    out["date"] = pd.to_datetime(out["date"], errors="raise", utc=True).dt.tz_localize(None)
     out["value"] = out["value"].astype(float)
     out["metric"] = out["metric"].astype(str)
     for dim in CANONICAL_DIMS:

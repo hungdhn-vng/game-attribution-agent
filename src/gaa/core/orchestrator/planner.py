@@ -1,10 +1,12 @@
 import re
 
+# Order matters: specific D1/D7 aliases are checked before the bare word
+# "retention" (which falls through to D7) so "day 1 retention" maps to D1.
 _METRICS = {
     "revenue": ["revenue", "rev", "earnings", "robux"],
     "dau": ["dau", "active users", "active player", "players"],
-    "retention_d7": ["d7 retention", "retention", "retain"],
-    "retention_d1": ["d1 retention"],
+    "retention_d1": ["d1 retention", "day 1 retention", "day-1 retention", "1-day retention"],
+    "retention_d7": ["d7 retention", "day 7 retention", "day-7 retention", "retention", "retain"],
 }
 
 

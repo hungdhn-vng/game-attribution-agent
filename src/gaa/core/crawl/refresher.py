@@ -50,6 +50,7 @@ class BenchmarkRefresher:
         start: str | None = None,
         end: str | None = None,
         deadline: float | None = None,
+        metric: str | None = None,
     ) -> dict:
         """Run or short-circuit a benchmark crawl for *(platform, genre)*.
 
@@ -61,6 +62,17 @@ class BenchmarkRefresher:
             ``comparators`` – (ok quant only) number of comparators fetched
             ``qual``        – (ok web only) True
         """
+        # ── metric benchmark (independent side-store; best-effort) ────────────
+        bench_fn = getattr(self._web_provider, "metric_benchmark", None)
+        if (metric and bench_fn is not None
+                and not self._store.is_fresh(platform, genre, "benchmark", self._ttl_s)):
+            try:
+                b = bench_fn(metric, genre, platform, start or "", end or "")
+            except Exception:
+                b = None
+            if b:
+                self._store.put_benchmark(platform, genre, metric, b)
+
         # ── cheap short-circuit ───────────────────────────────────────────────
         if self._store.is_fresh(platform, genre, "quant", self._ttl_s):
             return {"status": "fresh", "tier": "cache", "points": 0, "partial": False}

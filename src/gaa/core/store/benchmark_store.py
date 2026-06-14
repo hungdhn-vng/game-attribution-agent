@@ -91,6 +91,20 @@ class BenchmarkStore:
         """Return the stored qual payload with ``fetched_at`` merged in, or None."""
         return self._get(platform, genre, "qual")
 
+    def put_benchmark(self, platform: str, genre: str, metric: str, payload: dict) -> None:
+        """Upsert a per-metric benchmark; multiple metrics coexist under one row."""
+        existing = self._get(platform, genre, "benchmark") or {}
+        existing.pop("fetched_at", None)
+        existing[metric] = payload
+        self._put(platform, genre, "benchmark", existing)
+
+    def get_benchmark(self, platform: str, genre: str, metric: str) -> Optional[dict]:
+        """Return the stored benchmark payload for one metric, or None."""
+        payload = self._get(platform, genre, "benchmark")
+        if payload is None:
+            return None
+        return payload.get(metric)
+
     def is_fresh(
         self, platform: str, genre: str, kind: str, ttl_s: float
     ) -> bool:

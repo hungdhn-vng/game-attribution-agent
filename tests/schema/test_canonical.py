@@ -38,3 +38,18 @@ def test_validate_coerces_types():
     out = validate_canonical(df)
     assert pd.api.types.is_datetime64_any_dtype(out["date"])
     assert out["value"].dtype == float
+
+
+def test_validate_normalizes_tz_aware_dates_to_naive():
+    # Roblox exports carry a trailing 'Z' -> pandas parses tz-aware UTC. Downstream
+    # comparisons build tz-naive Timestamps, so a tz-aware column silently matches
+    # zero rows. The canonical boundary must normalize to tz-naive.
+    df = pd.DataFrame({
+        "date": ["2026-06-03T00:00:00.000Z", "2026-06-04T00:00:00.000Z"],
+        "metric": ["retention_d1", "retention_d1"],
+        "value": [0.02, 0.03],
+    })
+    out = validate_canonical(df)
+    assert out["date"].dt.tz is None, "canonical 'date' must be tz-naive"
+    # a naive Timestamp built from a date string must match a stored row
+    assert (out["date"] == pd.Timestamp("2026-06-03")).sum() == 1

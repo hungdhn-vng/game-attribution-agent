@@ -159,23 +159,24 @@ def _build_parser() -> argparse.ArgumentParser:
     pfu.add_argument("name")
     pfu.set_defaults(func=cmd_profile_use)
 
+    # --run is optional on drilldowns: handlers default to the most recent run.
     seg = sub.add_parser("segments", help="decompose a run's movement by segment (Adtributor)")
-    seg.add_argument("--run", required=True)
+    seg.add_argument("--run", default=None, help="run id (defaults to the latest run)")
     seg.add_argument("--dimension", default=None,
                      help="focus one dimension (region/version/cohort/device/source/platform)")
     seg.set_defaults(func=cmd_segments)
 
     det = sub.add_parser("detect", help="re-run change-point / anomaly detection")
-    det.add_argument("--run", required=True)
+    det.add_argument("--run", default=None, help="run id (defaults to the latest run)")
     det.add_argument("--metric", default=None, help="target a specific metric")
     det.set_defaults(func=cmd_detect)
 
     mkt = sub.add_parser("market", help="re-run the market counterfactual")
-    mkt.add_argument("--run", required=True)
+    mkt.add_argument("--run", default=None, help="run id (defaults to the latest run)")
     mkt.set_defaults(func=cmd_market)
 
     sig = sub.add_parser("signals", help="re-fetch competitor/event signals")
-    sig.add_argument("--run", required=True)
+    sig.add_argument("--run", default=None, help="run id (defaults to the latest run)")
     sig.set_defaults(func=cmd_signals)
 
     syn = sub.add_parser("synth", help="re-synthesize a hypothesis from the run's current ledger")

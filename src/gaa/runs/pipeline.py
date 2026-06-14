@@ -27,6 +27,7 @@ from gaa.core.modules.anomaly import AnomalyDetection
 from gaa.core.modules.base import AnalysisContext
 from gaa.core.modules.competitor_signals import CompetitorSignals
 from gaa.core.modules.market_benchmark import MarketBenchmark
+from gaa.core.modules.migration import MigrationPattern
 from gaa.core.modules.segment import SegmentDecomposition
 from gaa.core.orchestrator.planner import parse_query
 from gaa.core.render.markdown import to_markdown
@@ -177,6 +178,7 @@ class AnalysisPipeline:
             state.get("start"),
             state.get("end"),
             deadline=None,  # refresher handles its own deadline internally
+            metric=state.get("metric"),
         )
         qual_note = " (qualitative)" if info.get("qual") else ""
         job.add_activity(
@@ -187,6 +189,10 @@ class AnalysisPipeline:
 
     def _stage_modules(self, job: Run) -> None:
         state = job.state
+        # Re-assert the benchmark platform from persisted state: on a mid-pipeline
+        # resume in a fresh process, _stage_crawl (which sets it) may not have run
+        # this call, leaving genre_trend / metric_benchmark reads platform-blind.
+        self.benchmark.set_platform(state["platform"])
         df = self._metrics_store.load(state["profile_name"])
 
         # Reconstruct profile using the name persisted in plan, NOT get_active(),
@@ -214,6 +220,7 @@ class AnalysisPipeline:
         SegmentDecomposition().run(ctx, ledger)
         MarketBenchmark(self.benchmark).run(ctx, ledger)
         CompetitorSignals(self.signals).run(ctx, ledger)
+        MigrationPattern().run(ctx, ledger)
 
         state["ledger"] = [e.model_dump() for e in ledger.all()]
         job.add_activity(
@@ -250,7 +257,8 @@ class AnalysisPipeline:
         df = self._metrics_store.load(state["profile_name"])
         metric = state.get("metric")
         if metric:
-            series = df[df["metric"] == metric].groupby("date")["value"].sum().sort_index()
+            from gaa.core.analytics.aggregate import metric_series
+            series = metric_series(df, metric)
         else:
             series = df.groupby("date")["value"].sum().sort_index()
 

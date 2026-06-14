@@ -3,6 +3,7 @@ from gaa.core.modules.base import AnalysisContext
 from gaa.core.schema.ledger import EvidenceLedger
 from gaa.core.sources.base import BenchmarkSource
 from gaa.core.analytics.causal import causal_counterfactual
+from gaa.core.analytics.aggregate import metric_series, RATE_METRICS
 
 
 class MarketBenchmark:
@@ -38,6 +39,7 @@ class MarketBenchmark:
                     value=ctx_q.get("direction","?"),
                     source=src,
                     source_type="external", strength="low", timeframe=f"{ctx.start}..{ctx.end}")
+            self._emit_benchmark_comparison(ctx, ledger)
             return
 
         control = pd.Series({pd.Timestamp(d): v for d, v in trend.items()}).sort_index()
@@ -59,6 +61,7 @@ class MarketBenchmark:
                        value=f"genre {genre_change:+.2%}; game {gchange:+.2%}",
                        source="benchmark:genre_index", source_type="external", strength="med",
                        timeframe=f"{ctx.start}..{ctx.end}")
+            self._emit_benchmark_comparison(ctx, ledger)
             return
 
         rel = result["rel"]
@@ -72,3 +75,40 @@ class MarketBenchmark:
             strength="high" if result["significant"] else "med",
             timeframe=f"{ctx.start}..{ctx.end}",
         )
+        self._emit_benchmark_comparison(ctx, ledger)
+
+    def _emit_benchmark_comparison(self, ctx, ledger):
+        fn = getattr(self._source, "metric_benchmark", None)
+        if fn is None:
+            return
+        try:
+            b = fn(ctx.metric, ctx.profile.genre)
+            if not b:
+                return
+            s = metric_series(ctx.metrics, ctx.metric)
+            if s.empty:
+                return
+            g, low, high = float(s.iloc[-1]), float(b["low"]), float(b["high"])
+            if g < low:
+                verdict = "underperforming the market"
+            elif g > high:
+                verdict = "outperforming the market"
+            else:
+                verdict = "in line with the market"
+            rate = ctx.metric in RATE_METRICS
+            fmt = (lambda x: f"{x:.1%}") if rate else (lambda x: f"{x:,.0f}")
+            cites = b.get("citations") or []
+            first = cites[0] if cites else None
+            src = ((first.get("url") if isinstance(first, dict) else first)
+                   or b.get("source") or "benchmark")
+            strength = "low" if (b.get("confidence") == "low" or not cites) else "med"
+            ledger.add(
+                module=self.name,
+                claim=(f"{ctx.metric} ≈ {fmt(g)} vs {ctx.profile.genre} benchmark "
+                       f"{fmt(low)}–{fmt(high)} → {verdict}"),
+                value=f"game {fmt(g)}; benchmark {fmt(low)}–{fmt(high)} ({b.get('confidence','low')})",
+                source=src, source_type="external", strength=strength,
+                timeframe=f"{ctx.start}..{ctx.end}",
+            )
+        except Exception:
+            return

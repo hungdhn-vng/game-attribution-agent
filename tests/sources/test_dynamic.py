@@ -15,7 +15,7 @@ class StubRefresher:
             "web_provider": web_provider,
         }
 
-    def refresh(self, platform, genre, start=None, end=None, deadline=None):
+    def refresh(self, platform, genre, start=None, end=None, deadline=None, metric=None):
         return {"status": "ok", "platform": platform}
 
 

@@ -55,18 +55,27 @@ class DynamicRefresher:
         return BenchmarkRefresher(store=self._store,
                                   providers_by_platform=providers, web_provider=web)
 
-    def refresh(self, platform, genre, start=None, end=None, deadline=None) -> dict:
-        return self._build().refresh(platform, genre, start, end, deadline=deadline)
+    def refresh(self, platform, genre, start=None, end=None, deadline=None, metric=None) -> dict:
+        return self._build().refresh(platform, genre, start, end, deadline=deadline, metric=metric)
 
 
 class DynamicSignals:
     """SignalsSource facade that honors the live config on each call."""
 
-    def __init__(self, config, settings: Settings) -> None:
+    def __init__(self, config, settings: Settings, answer_fn=None) -> None:
         self._config = config
         self._settings = settings
+        self._answer_fn = answer_fn  # injectable for tests; prod builds perplexity_answer
 
     def events(self, game: str, genre: str, start: str, end: str) -> list:
+        if (self._config.resolve("benchmark_mode")[0] == "crawl"
+                and (self._answer_fn or self._settings.perplexity_api_key)):
+            from gaa.core.sources.social_signals import SocialSignalProvider
+            answer_fn = self._answer_fn
+            if answer_fn is None:
+                from gaa.core.crawl.perplexity import perplexity_answer
+                answer_fn = lambda p: perplexity_answer(p, self._settings)
+            return SocialSignalProvider(answer_fn).events(game, genre, start, end)
         tmpl = self._config.resolve("signals_url_tmpl")[0]
         src = (WebSignalsSource(cache_dir=self._settings.cache_dir + "/signals",
                                 query_url_tmpl=tmpl)

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -25,5 +26,6 @@ class GameProfile(BaseModel):
     platform: str
     genre: str
     mapping: ColumnMapping
+    title: Optional[str] = None  # real game title for web/social research (name is a CSV key)
     external_source_config: dict = {}
     created_at: str = Field(default_factory=_now_iso)

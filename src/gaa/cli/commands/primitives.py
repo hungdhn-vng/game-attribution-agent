@@ -34,11 +34,21 @@ def load_run_context(ctx, run):
     return actx, ledger
 
 
+def _resolve_run_id(ctx, run_id):
+    """A drilldown with no run_id defaults to the most recent run, so follow-ups
+    right after `analyze` don't fail with 'didn't provide a valid run_id'."""
+    if run_id:
+        return run_id
+    runs = ctx.runs.list()  # newest first
+    return runs[0]["run_id"] if runs else None
+
+
 def run_module_primitive(ctx, run_id: str, module_label: str,
                          body: Callable[[AnalysisContext, EvidenceLedger], None]) -> dict:
     """Lock the run, reconstruct context+ledger, invoke body (which appends to the
     ledger), persist the enriched ledger, and report only the newly-added entries."""
-    run = ctx.runs.get(run_id)
+    run_id = _resolve_run_id(ctx, run_id)
+    run = ctx.runs.get(run_id) if run_id else None
     if run is None:
         return {"status": "error", "error": f"unknown run: {run_id!r}"}
     try:
@@ -113,7 +123,8 @@ def cmd_report(ctx, args) -> dict:
             df = ctx.metrics.load(run.state["profile_name"])
             metric = run.state.get("metric")
             if metric:
-                series = df[df["metric"] == metric].groupby("date")["value"].sum().sort_index()
+                from gaa.core.analytics.aggregate import metric_series
+                series = metric_series(df, metric)
             else:
                 series = df.groupby("date")["value"].sum().sort_index()
             start = run.state.get("start") or ""
