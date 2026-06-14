@@ -15,7 +15,7 @@
         <h1 class="deck-title">Game Attribution Agent</h1>
         <p class="lead" style="max-width:30ch;text-align:center">The AI analyst that explains <em>why</em> your game's metrics moved — and shows its evidence.</p>
         <p class="microlabel" style="margin-top:1.4em">internal vs market · every claim cited · scenarios, not decisions</p>
-        <aside class="notes"></aside>
+        <aside class="notes">Good morning. This is the Game Attribution Agent. Every games team has lived this: a metric moves and nobody can say why with any confidence. We built an AI analyst that answers why — and shows its evidence for every claim.</aside>
       </section>
       <section class="stack-center">
         <p class="eyebrow">The problem</p>
@@ -26,7 +26,7 @@
           <div class="card"><p class="microlabel">LLM copilots</p><p style="margin:0">Will <b>say</b> why — and hallucinate the numbers.</p></div>
         </div>
         <p class="muted" style="font-size:.55em;margin-top:.7em">Nothing answers <b>why</b>, honestly.</p>
-        <aside class="notes"></aside>
+        <aside class="notes">When a number drops, the fire drill starts: was it our update, or the whole genre? People pull dashboards by hand, argue for days, no audit trail. Dashboards tell you WHAT moved; LLM copilots will happily tell you WHY and make the numbers up. Nothing answers why, honestly.</aside>
       </section>
       <section class="stack-center">
   <p class="eyebrow">Demo</p>
@@ -39,7 +39,7 @@
     <span class="mono">plan</span><span>→</span><span class="mono">crawl</span><span>→</span>
     <span class="mono">modules</span><span>→</span><span class="mono">synth</span><span>→</span><span class="mono">render</span>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">So we just ask it, in plain language: what is going on with my Roblox game's DAU this week? Behind that one sentence it runs a five-stage pipeline — plan, crawl the market, run the analysis modules, synthesize, render.</aside>
 </section>
       <section data-state="dossier">
   <div class="card" style="max-width:none">
@@ -78,13 +78,13 @@
     </div>
   </div>
   <p class="muted center" style="font-size:.5em;margin-top:.5em">It read the data, crawled the market, ran four analyses, and wrote this — every line cited.</p>
-  <aside class="notes"></aside>
+  <aside class="notes">And this is what comes back. It read the export, crawled the genre's player counts, ran four analyses, and wrote a cited dossier — headline, confidence, the you-versus-market chart, and causes that each point to evidence. Do not read it all yet — just notice it took one sentence from me.</aside>
 </section>
       <section class="stack-center center" data-state="hinge">
   <p class="eyebrow">The catch</p>
   <h2 class="big" style="max-width:24ch">But would you trust an LLM with your numbers?</h2>
   <p class="muted" style="font-size:.62em;max-width:34ch;text-align:center">LLMs invent confident percentages. If an AI says revenue dropped because of one region — can you bet a roadmap on it?</p>
-  <aside class="notes"></aside>
+  <aside class="notes">Now the obvious objection. This is an LLM, and LLMs invent confident numbers. Would you bet a roadmap on an AI telling you revenue dropped because of one region? That question is the whole design.</aside>
 </section>
       <section class="stack-center">
   <p class="eyebrow">The answer</p>
@@ -103,7 +103,7 @@
     <div class="node">Dossier</div>
   </div>
   <p style="font-size:.58em;max-width:40ch">The LLM only <b>routes intent</b>, <b>maps columns</b>, and <b>writes the narrative</b>. Every number traces to a ledger entry. An uncited claim never ships.</p>
-  <aside class="notes"></aside>
+  <aside class="notes">Here is the answer: the LLM never invents a finding. Deterministic tools produce the facts and write them to an append-only evidence ledger. The model only narrates — and the citation validator is a hard gate: any claim without a ledger citation never ships. It routes, maps columns, and writes prose. It does not do the math.</aside>
 </section>
       <section>
   <p class="microlabel">Layer 1 · Anomaly</p>
@@ -125,7 +125,7 @@
       </svg>
     </div>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">Let's peel the dossier apart, one layer per slide. Layer one: what moved and when. Change-point detection — ruptures, PELT — finds the exact break. STL decomposition says how anomalous it is versus normal seasonality. Two evidence entries, written down.</aside>
 </section>
       <section data-state="differentiator">
   <p class="microlabel">Layer 2 · Internal vs market</p>
@@ -157,7 +157,7 @@
       <p class="fragment muted" style="font-size:.85em">Benchmark tiers: snapshot → Roblox/Steam crawl → Perplexity.</p>
     </div>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">Layer two, the heart of it: is it us or the market? We build a CausalImpact-style counterfactual against a genre benchmark — what would DAU have been with no event? The gap between that and reality is the true internal effect. Here most of the drop is the market; only a slice is us. The benchmark comes from a live tier: snapshot, then Roblox and Steam crawl, then Perplexity.</aside>
 </section>
       <section>
   <p class="microlabel">Layer 3 · Segment root-cause</p>
@@ -167,7 +167,7 @@
     <div class="card fragment"><p style="margin:0">~70% of the internal drop came from the <b>v2.3 update</b> on <b>mobile · SEA</b>.</p>
       <span class="tag i">Internal</span> <span class="tag n">Possible</span> <span class="cite">E7, E9</span></div>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">Layer three: of the part that was us, which slice? Adtributor attributes the internal residual to a dimension as a citable percentage — here, mostly the v2.3 update on mobile in SEA. Cited, of course.</aside>
 </section>
       <section>
   <p class="microlabel">Layer 4 · Confidence</p>
@@ -192,7 +192,7 @@
       </svg>
     </div>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">Layer four. Most tools give you one number. We give two: how likely is this cause, and how good is the evidence behind it. Every claim sits on this likelihood-by-evidence grid, so a confident guess and a well-supported finding never look the same.</aside>
 </section>
       <section>
   <p class="microlabel">Layer 5 · Honesty</p>
@@ -205,7 +205,7 @@
       <p class="fragment big" style="font-size:1em">Scenarios, not decisions — the human decides.</p>
     </div>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">Layer five, the one I'm proudest of: when the evidence is thin, it says so. It lists its assumptions and gaps and lowers its own confidence. A self-consistency gate and the citation validator reject shaky claims. It gives you scenarios, not decisions — the human still decides.</aside>
 </section>
       <section>
   <p class="eyebrow">How it's built</p>
@@ -221,7 +221,7 @@
     </div>
     <div class="ext">External: MaaS LLM · SteamCharts / Roblox trackers · Perplexity sonar (opt-in)</div>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">Quickly, how it's built. One FastAPI custom agent on GreenNode AgentBase: a chat loop driving a resumable pipeline, serving the dossier. Next.js frontend on Vercel. The deterministic engine runs in-process; the LLM — Qwen 3.5 27B via the platform's MaaS — only routes, maps, and narrates.</aside>
 </section>
 
 <section>
@@ -244,7 +244,7 @@
       <img src="assets/screenshots/dossier.png" alt="A real GAA dossier from the live app" style="width:100%;border-radius:10px;border:1px solid var(--border);box-shadow:var(--shadow)" />
     </div>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">This is not a mockup. 177 tests, TDD throughout, the engine verified end to end, deployed live on AgentBase and Vercel, with a real Roblox and Steam benchmark crawl. The screenshot on the right is an actual live run — scan the code and try it yourself right now.</aside>
 </section>
 
 <section class="stack-center center" data-state="title">
@@ -255,7 +255,7 @@
     <div><p class="microlabel" style="margin:0">Game Attribution Agent</p>
       <p class="mono" style="font-size:.46em;margin:.2em 0 0">game-attribution-agent.vercel.app</p></div>
   </div>
-  <aside class="notes"></aside>
+  <aside class="notes">So: attribution done honestly — every claim cited, every gap admitted. Next we're adding multi-game portfolio views and a toolbox that grows. Thank you — the link and the code are right here.</aside>
 </section>
     </div>
   </div>
