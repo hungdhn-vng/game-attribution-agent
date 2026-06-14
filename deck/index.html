@@ -207,6 +207,22 @@
   </div>
   <aside class="notes"></aside>
 </section>
+      <section>
+  <p class="eyebrow">How it's built</p>
+  <h2>One agent. Deterministic core. LLM at the edges.</h2>
+  <div class="arch" style="margin-top:.4em">
+    <div class="tier"><div class="box">Browser — Next.js on <b>Vercel</b> · chat · live trace · dossier iframe</div></div>
+    <div class="ext">↕ /invocations · /chat (SSE)</div>
+    <div class="tier"><div class="box agent"><b>FastAPI Custom Agent</b> on GreenNode AgentBase<br>
+      <span class="mono">/chat</span> loop · resumable pipeline <span class="mono">plan→crawl→modules→synth→render</span> · <span class="mono">/runs/&lt;id&gt;</span> dossier</div></div>
+    <div class="tier">
+      <div class="box">Deterministic engine<br><span class="muted">PELT · STL · Adtributor · BSTS · ledger · citation validator</span></div>
+      <div class="box">LLM (Qwen 3.5 27B via MaaS)<br><span class="muted">route · map columns · narrate</span></div>
+    </div>
+    <div class="ext">External: MaaS LLM · SteamCharts / Roblox trackers · Perplexity sonar (opt-in)</div>
+  </div>
+  <aside class="notes"></aside>
+</section>
     </div>
   </div>
   <script src="vendor/reveal/dist/reveal.js"></script>

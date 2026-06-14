@@ -88,3 +88,11 @@
 .chain .node.llm{ border-color:var(--blue); background:var(--blue-bg); color:var(--blue); }
 .chain .arrow{ align-self:center; color:var(--muted); }
 .chain .node .role{ display:block; font-size:.7em; color:var(--muted); margin-top:.15em; }
+
+/* architecture (slide 12) */
+.arch{ display:flex; flex-direction:column; gap:.5em; font-size:.46em; align-items:center; }
+.arch .tier{ display:flex; gap:.5em; align-items:stretch; justify-content:center; }
+.arch .box{ background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:.5em .7em; box-shadow:var(--shadow); text-align:center; }
+.arch .box.agent{ border-color:var(--blue); }
+.arch .ext{ color:var(--muted); font-size:.85em; text-align:center; }
