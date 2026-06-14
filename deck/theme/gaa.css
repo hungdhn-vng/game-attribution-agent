@@ -80,3 +80,11 @@
 
 /* reveal fragment easing on brand */
 .reveal .slides section .fragment{ transition:all .35s var(--ease-spring); }
+
+/* trust chain (slide 6) */
+.chain{ display:flex; align-items:stretch; gap:.5em; flex-wrap:wrap; font-size:.5em; }
+.chain .node{ background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:.5em .7em; box-shadow:var(--shadow); position:relative; }
+.chain .node.llm{ border-color:var(--blue); background:var(--blue-bg); color:var(--blue); }
+.chain .arrow{ align-self:center; color:var(--muted); }
+.chain .node .role{ display:block; font-size:.7em; color:var(--muted); margin-top:.15em; }
