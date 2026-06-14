@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { TracePanel } from "@/components/gaa/trace-panel";
 import {
   Select,
   SelectContent,
@@ -60,7 +61,7 @@ export function ArtifactsPane({
   return (
     <div className="flex h-full flex-col bg-sidebar">
       {/* ── Header bar — mirrors artifact.tsx header ───────────────────────── */}
-      <div className="flex h-[calc(3.5rem+1px)] shrink-0 items-center justify-between border-b border-border/50 px-4">
+      <div className="flex h-[calc(3.5rem+1px)] shrink-0 items-center justify-between gap-2 border-b border-border/50 px-4">
         {/* Left: title + run selector */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex flex-col gap-0.5">
@@ -82,7 +83,7 @@ export function ArtifactsPane({
             >
               <SelectTrigger
                 size="sm"
-                className="h-7 text-xs rounded-lg border-border/50 bg-background/60 px-2"
+                className="h-7 min-w-0 max-w-[180px] text-xs rounded-lg border-border/50 bg-background/60 px-2 [&>span]:block! [&>span]:min-w-0 [&>span]:truncate"
               >
                 <SelectValue placeholder="Switch run…" />
               </SelectTrigger>
@@ -99,7 +100,7 @@ export function ArtifactsPane({
 
         {/* Right: Dossier / Trace tab buttons */}
         {runId && (
-          <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/40 p-0.5">
+          <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border/50 bg-muted/40 p-0.5">
             {(["dossier", "trace"] as const).map((t) => (
               <button
                 key={t}
@@ -137,13 +138,7 @@ export function ArtifactsPane({
           className="flex-1 w-full border-0 bg-background"
         />
       ) : (
-        <iframe
-          key={`${runId}-trace`}
-          title="trace"
-          sandbox=""
-          src={`/api/runs/${encodeURIComponent(runId)}/summary.md`}
-          className="flex-1 w-full border-0 bg-background"
-        />
+        <TracePanel key={`${runId}-trace`} runId={runId} />
       )}
     </div>
   );
