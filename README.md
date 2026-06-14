@@ -21,10 +21,14 @@ confidence honestly when evidence is thin.
   confidence matrix**.
 
 ## Architecture
-LangGraph agent on the GreenNode AgentBase SDK. Graph nodes wrap a deterministic engine
-(`adapters → canonical schema → modules → Evidence Ledger → synthesizer → citation validator →
-self-consistency gate → HTML report`). The LLM is used only to route intent, map columns, and write
-the narrative — it never invents findings. See `docs/superpowers/specs/` and `docs/superpowers/plans/`.
+A self-contained FastAPI **Custom Agent** deployed on GreenNode AgentBase (its own image:
+`/chat` agent loop, `/invocations`, `/runs/<id>/<artifact>` dossier, `/health`). `/chat` is a
+hand-rolled JSON tool-calling loop (one decision per turn) that drives a resumable analysis
+pipeline (`plan → crawl → modules → synth → render`) wrapping a deterministic engine:
+`adapters → canonical schema → modules → Evidence Ledger → synthesizer → self-consistency gate →
+citation validator → HTML report`. The LLM (an OpenAI-compatible MaaS model via `langchain-openai`)
+is used only to route intent, map columns, and write the narrative — it never invents findings.
+See `docs/superpowers/specs/` and `docs/superpowers/plans/`.
 
 ## Run locally
 ```bash
