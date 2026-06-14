@@ -55,8 +55,8 @@ class DynamicRefresher:
         return BenchmarkRefresher(store=self._store,
                                   providers_by_platform=providers, web_provider=web)
 
-    def refresh(self, platform, genre, start=None, end=None, deadline=None) -> dict:
-        return self._build().refresh(platform, genre, start, end, deadline=deadline)
+    def refresh(self, platform, genre, start=None, end=None, deadline=None, metric=None) -> dict:
+        return self._build().refresh(platform, genre, start, end, deadline=deadline, metric=metric)
 
 
 class DynamicSignals:

@@ -177,6 +177,7 @@ class AnalysisPipeline:
             state.get("start"),
             state.get("end"),
             deadline=None,  # refresher handles its own deadline internally
+            metric=state.get("metric"),
         )
         qual_note = " (qualitative)" if info.get("qual") else ""
         job.add_activity(
