@@ -1,1 +1,81 @@
-/* theme stub — filled in Task 2 */
+/* ---- Fonts (vendored) ---- */
+@font-face { font-family:"Geist"; src:url("../vendor/fonts/Geist-Variable.woff2") format("woff2");
+  font-weight:100 900; font-display:swap; }
+@font-face { font-family:"Geist Mono"; src:url("../vendor/fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight:100 900; font-display:swap; }
+
+/* ---- Tokens (from frontend/app/globals.css + report.html.j2) ---- */
+:root{
+  --bg:oklch(0.985 0 0); --fg:oklch(0.12 0 0); --card:#ffffff;
+  --muted:oklch(0.58 0 0); --border:oklch(0.9 0 0); --secondary:oklch(0.965 0 0);
+  --blue:#2563eb; --blue-bg:#eff6ff; --blue-bd:#dbeafe;
+  --amber:#b45309; --amber-ln:#d97706; --amber-bg:#fffbeb; --amber-bd:#fde68a;
+  --warn-bg:#fffbeb; --warn-bd:#fde68a; --warn-fg:#92400e;
+  --scenario:#9ca3af;
+  --shadow:0 1px 3px rgba(0,0,0,.05),0 1px 1px rgba(0,0,0,.03);
+  --ease-spring:cubic-bezier(0.22,1,0.36,1);
+}
+[data-theme="dark"]{
+  --bg:oklch(0.195 0 0); --fg:oklch(0.94 0 0); --card:oklch(0.225 0 0);
+  --muted:oklch(0.6 0 0); --border:oklch(0.27 0 0); --secondary:oklch(0.26 0 0);
+  --blue:#60a5fa; --blue-bg:rgba(96,165,250,.13); --blue-bd:rgba(96,165,250,.32);
+  --amber:#fbbf24; --amber-ln:#f59e0b; --amber-bg:rgba(251,191,36,.12); --amber-bd:rgba(251,191,36,.3);
+}
+
+/* ---- Reveal base ---- */
+.reveal{ font-family:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:30px; color:var(--fg); -webkit-font-smoothing:antialiased; }
+.reveal-viewport{ background:var(--bg); }
+.reveal .slides{ text-align:left; }
+.reveal .slides section{ height:100%; }
+.reveal h1,.reveal h2,.reveal h3{ color:var(--fg); letter-spacing:-0.025em; line-height:1.15;
+  margin:0 0 .3em; text-transform:none; font-weight:600; }
+.reveal h1{ font-size:1.9em; } .reveal h2{ font-size:1.35em; } .reveal h3{ font-size:1.05em; }
+.reveal p{ line-height:1.55; }
+.reveal a{ color:var(--blue); }
+.reveal ::selection{ background:rgba(37,99,235,.18); }
+
+/* ---- Brand components ---- */
+.kicker{ font-size:.46em; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
+  font-weight:600; margin:0 0 .6em; }
+.deck-title{ font-size:2.5em; letter-spacing:-0.03em; }
+.lead{ font-size:.72em; color:var(--muted); max-width:24ch; }
+.microlabel{ font-size:.34em; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+  font-weight:600; margin:0 0 .5em; }
+.eyebrow{ font-size:.4em; letter-spacing:.12em; text-transform:uppercase; color:var(--blue);
+  font-weight:600; margin:0 0 .4em; }
+
+.card{ background:var(--card); border:1px solid var(--border); border-radius:14px;
+  padding:.7em .8em; box-shadow:var(--shadow); }
+
+.pill{ display:inline-flex; align-items:center; gap:.4em; font-size:.42em; font-weight:500;
+  padding:.25em .7em; background:var(--secondary); border:1px solid var(--border); border-radius:9px; }
+.pill .dot{ width:.5em; height:.5em; border-radius:50%; background:var(--blue); }
+
+.tag{ display:inline-block; font-size:.36em; font-weight:600; padding:.15em .6em; border-radius:6px;
+  letter-spacing:.02em; }
+.tag.i{ background:var(--blue-bg); color:var(--blue); border:1px solid var(--blue-bd); }
+.tag.m{ background:var(--amber-bg); color:var(--amber); border:1px solid var(--amber-bd); }
+.tag.n{ background:var(--secondary); color:var(--muted); border:1px solid var(--border); }
+.cite{ font-family:"Geist Mono",ui-monospace,monospace; font-size:.34em; color:var(--muted);
+  background:var(--secondary); border:1px solid var(--border); padding:.1em .5em; border-radius:5px; }
+
+.cause{ border-left:3px solid; padding:.3em 0 .3em .55em; margin:.45em 0; }
+.cause.i{ border-color:var(--blue); } .cause.m{ border-color:var(--amber-ln); }
+.cause p{ margin:0 0 .25em; font-size:.6em; }
+
+.gaps{ background:var(--warn-bg); border:1px solid var(--warn-bd); border-radius:14px; padding:.7em .9em; }
+.gaps .microlabel{ color:var(--warn-fg); }
+
+.mono{ font-family:"Geist Mono",ui-monospace,monospace; }
+.muted{ color:var(--muted); }
+
+/* layout helpers */
+.row{ display:flex; gap:1em; align-items:center; }
+.cols{ display:grid; grid-template-columns:1fr 1fr; gap:1em; align-items:center; }
+.stack-center{ display:flex; flex-direction:column; justify-content:center; height:100%; }
+.center{ text-align:center; align-items:center; }
+.big{ font-size:1.5em; font-weight:600; letter-spacing:-0.02em; }
+
+/* reveal fragment easing on brand */
+.reveal .slides section .fragment{ transition:all .35s var(--ease-spring); }
