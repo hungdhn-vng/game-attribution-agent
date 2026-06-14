@@ -30,3 +30,16 @@ export function saveConversation(id: string, title: string, messages: Msg[]): vo
   index.push({ id, title: title.slice(0, 60), updated: Date.now() });
   localStorage.setItem(INDEX, JSON.stringify(index));
 }
+
+export function deleteConversation(id: string): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(key(id));
+  const index = listConversations().filter((c) => c.id !== id);
+  localStorage.setItem(INDEX, JSON.stringify(index));
+}
+
+export function clearAllConversations(): void {
+  if (typeof localStorage === "undefined") return;
+  for (const c of listConversations()) localStorage.removeItem(key(c.id));
+  localStorage.removeItem(INDEX);
+}

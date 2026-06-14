@@ -2,6 +2,7 @@
 
 import { ChevronUp } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useState, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { LOCAL_USER } from "@/lib/auth";
 
 type LocalUser = {
@@ -33,6 +44,39 @@ function emailToHue(email: string): number {
 export function SidebarUserNav({ user }: { user: LocalUser }) {
   const { setTheme, resolvedTheme } = useTheme();
   const email = user?.email ?? LOCAL_USER.email;
+
+  const [admin, setAdmin] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/status")
+      .then((r) => r.json())
+      .then((d) => setAdmin(Boolean(d.admin)))
+      .catch(() => {});
+  }, []);
+
+  async function unlock() {
+    const r = await fetch("/api/admin/unlock", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ passphrase: pass }),
+    });
+    if (r.ok) {
+      setAdmin(true);
+      setOpen(false);
+      setPass("");
+      setErr(null);
+    } else {
+      setErr("Incorrect passphrase");
+    }
+  }
+
+  async function lock() {
+    await fetch("/api/admin/unlock", { method: "DELETE" });
+    setAdmin(false);
+  }
 
   return (
     <SidebarMenu>
@@ -70,14 +114,58 @@ export function SidebarUserNav({ user }: { user: LocalUser }) {
               {`Toggle ${resolvedTheme === "light" ? "dark" : "light"} mode`}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="cursor-pointer text-[13px] text-muted-foreground"
-              data-testid="user-nav-item-auth"
-            >
-              Single-user mode
-            </DropdownMenuItem>
+            {admin ? (
+              <DropdownMenuItem
+                className="cursor-pointer text-[13px]"
+                data-testid="user-nav-item-admin"
+                onSelect={() => lock()}
+              >
+                🔓 Lock admin tools
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                className="cursor-pointer text-[13px]"
+                data-testid="user-nav-item-admin"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setOpen(true);
+                }}
+              >
+                🔒 Unlock admin tools…
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Unlock admin tools</DialogTitle>
+              <DialogDescription>
+                Enter the admin passphrase to enable exec / browse / self-edit
+                and config changes for this session.
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                unlock();
+              }}
+              className="flex flex-col gap-2"
+            >
+              <Input
+                type="password"
+                autoFocus
+                placeholder="Admin passphrase"
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+              />
+              {err && <p className="text-sm text-red-500">{err}</p>}
+              <DialogFooter>
+                <Button type="submit">Unlock</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </SidebarMenuItem>
     </SidebarMenu>
   );

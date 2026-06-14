@@ -1,57 +1,45 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useGaaChat, type Turn } from "@/components/gaa/use-gaa-chat";
-import { ActivityStrip } from "@/components/gaa/activity-strip";
-import { ThinkingPanel } from "@/components/gaa/thinking-panel";
+import { useState } from "react";
+import { ChatView } from "@/components/gaa/chat-view";
 import { ArtifactsPane } from "@/components/gaa/artifacts-pane";
-import { AdminUnlock } from "@/components/gaa/admin-unlock";
-import { UploadMapping } from "@/components/gaa/upload-mapping";
-import { saveConversation, loadConversation } from "@/lib/gaa/store";
-
-const CONV = "default";
+import type { Turn } from "@/components/gaa/use-gaa-chat";
+import { cn } from "@/lib/utils";
 
 export default function ChatPage() {
-  const { messages, streaming, latestRunId, send, setMessages } = useGaaChat();
-  const [input, setInput] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [runIds, setRunIds] = useState<string[]>([]);
+  const [current, setCurrent] = useState<string | null>(null);
 
-  useEffect(() => {
-    const m = loadConversation(CONV);
-    if (m.length) setMessages(m as Turn[]);
-  }, [setMessages]);
-  useEffect(() => {
-    if (messages.length) saveConversation(CONV, messages[0]?.content ?? "chat", messages);
-  }, [messages]);
+  const onMessages = (msgs: Turn[]) => {
+    const ids = msgs
+      .map((m) => m.runId)
+      .filter((x): x is string => Boolean(x));
+    setRunIds(ids);
+    setCurrent(ids.at(-1) ?? null);
+  };
 
-  const runIds = messages.map((m) => m.runId).filter((x): x is string => Boolean(x));
+  const open = Boolean(current);
 
   return (
-    <div className="flex h-screen">
-      <div className="flex flex-col w-1/2 border-r">
-        <div className="flex justify-between items-center p-2 border-b"><span className="font-medium">GAA</span><AdminUnlock /></div>
-        <div className="flex-1 overflow-auto p-3 space-y-3">
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === "user" ? "text-right" : ""}>
-              {m.role === "assistant" && (<><ThinkingPanel thinking={m.thinking} /><ActivityStrip activity={m.activity} /></>)}
-              <div className="whitespace-pre-wrap">{m.content}</div>
-            </div>
-          ))}
-          {file && (
-            <UploadMapping file={file} onDone={(msg) => {
-              setFile(null);
-              setMessages((c) => [...c, { role: "assistant", content: msg }]);
-            }} />
-          )}
-        </div>
-        <form className="p-2 border-t flex gap-2"
-              onSubmit={(e) => { e.preventDefault(); if (input.trim()) { send(input); setInput(""); } }}>
-          <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-xs" />
-          <input className="flex-1 border rounded px-2" value={input} onChange={(e) => setInput(e.target.value)}
-                 placeholder="Ask: why did revenue drop?" disabled={streaming} />
-          <button type="submit" className="border rounded px-3" disabled={streaming}>Send</button>
-        </form>
+    <div className="flex h-dvh w-full flex-row overflow-hidden">
+      {/* ── Chat pane ──────────────────────────────────────────────────────── */}
+      <div
+        className={cn(
+          "flex min-w-0 flex-col transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          open ? "w-[55%]" : "w-full"
+        )}
+      >
+        <ChatView onMessages={onMessages} />
       </div>
-      <div className="w-1/2"><ArtifactsPane runIds={runIds} current={latestRunId} /></div>
+
+      {/* ── Dossier pane — slides in when a run exists ─────────────────────── */}
+      <div
+        className={cn(
+          "h-dvh shrink-0 overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          open ? "w-[45%] border-l border-border/50" : "w-0"
+        )}
+      >
+        {open && <ArtifactsPane runIds={runIds} current={current} />}
+      </div>
     </div>
   );
 }
