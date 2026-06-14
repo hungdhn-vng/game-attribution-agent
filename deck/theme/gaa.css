@@ -75,6 +75,7 @@
 .cols{ display:grid; grid-template-columns:1fr 1fr; gap:1em; align-items:center; }
 .stack-center{ display:flex; flex-direction:column; justify-content:center; height:100%; }
 .center{ text-align:center; align-items:center; }
+.reveal .center > *{ margin-left:auto; margin-right:auto; }  /* center max-width children regardless of flex */
 .big{ font-size:1.5em; font-weight:600; letter-spacing:-0.02em; }
 
 /* reveal fragment easing on brand */
