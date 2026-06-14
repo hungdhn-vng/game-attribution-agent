@@ -31,7 +31,7 @@ the narrative — it never invents findings. See `docs/superpowers/specs/` and `
 uv venv --python 3.11 .venv && . .venv/bin/activate
 uv pip install -r requirements.txt && pip install -e .
 cp .env.example .env   # fill LLM_API_KEY / LLM_MODEL (see Models)
-python main.py         # serves on :8080
+uvicorn gaa.server.app:app --port 8080   # serves on :8080 (same entrypoint as the Dockerfile)
 curl localhost:8080/health
 ```
 
