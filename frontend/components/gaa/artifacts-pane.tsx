@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -18,6 +19,36 @@ export function ArtifactsPane({
 }) {
   const [sel, setSel] = useState<string | null>(null);
   const [tab, setTab] = useState<"dossier" | "trace">("dossier");
+
+  const { resolvedTheme } = useTheme();
+  const dossierRef = useRef<HTMLIFrameElement>(null);
+
+  // Push the app's current theme into the sandboxed dossier iframe.
+  const postTheme = useCallback(() => {
+    dossierRef.current?.contentWindow?.postMessage(
+      { type: "gaa-theme", theme: resolvedTheme === "dark" ? "dark" : "light" },
+      "*"
+    );
+  }, [resolvedTheme]);
+
+  // Re-post on theme change (and on mount).
+  useEffect(() => {
+    postTheme();
+  }, [postTheme]);
+
+  // Reply to the dossier's ready handshake (covers iframe-loads-first races).
+  useEffect(() => {
+    function onMsg(e: MessageEvent) {
+      if (
+        e.source === dossierRef.current?.contentWindow &&
+        e.data?.type === "gaa-theme-ready"
+      ) {
+        postTheme();
+      }
+    }
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [postTheme]);
 
   const runId = sel ?? current;
 
@@ -98,9 +129,11 @@ export function ArtifactsPane({
       ) : tab === "dossier" ? (
         <iframe
           key={runId}
+          ref={dossierRef}
           title="dossier"
           sandbox="allow-scripts"
           src={`/api/runs/${encodeURIComponent(runId)}/report.html`}
+          onLoad={() => postTheme()}
           className="flex-1 w-full border-0 bg-background"
         />
       ) : (
