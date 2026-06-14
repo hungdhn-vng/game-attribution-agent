@@ -250,7 +250,8 @@ class AnalysisPipeline:
         df = self._metrics_store.load(state["profile_name"])
         metric = state.get("metric")
         if metric:
-            series = df[df["metric"] == metric].groupby("date")["value"].sum().sort_index()
+            from gaa.core.analytics.aggregate import metric_series
+            series = metric_series(df, metric)
         else:
             series = df.groupby("date")["value"].sum().sort_index()
 

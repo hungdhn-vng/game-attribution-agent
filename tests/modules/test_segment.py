@@ -60,3 +60,43 @@ def test_dims_filter_restricts_to_one_dimension():
     assert claims, "expected at least one segment entry"
     assert all("region=" in c or "no segment" in c for c in claims)
     assert not any("version=" in c for c in claims)
+
+
+def _source_ctx_via_canonical(include_total: bool):
+    """A retention-by-source frame ingested through the canonical boundary
+    (tz-aware 'Z' dates), exactly like a Roblox 'Top Sources' export."""
+    from gaa.core.schema.canonical import validate_canonical
+    rows = []
+    series = {"Search": (0.014, 0.022), "Friends": (0.012, 0.020),
+              "Home Recommendation": (0.028, 0.055)}
+    if include_total:
+        series["Total"] = (0.022, 0.034)
+    for src, (a, b) in series.items():
+        rows += [{"date": "2026-06-03T00:00:00.000Z", "metric": "retention_d1", "value": a, "source": src},
+                 {"date": "2026-06-08T00:00:00.000Z", "metric": "retention_d1", "value": b, "source": src}]
+    df = validate_canonical(pd.DataFrame(rows))
+    prof = GameProfile(name="G", platform="Custom", genre="shopping",
+                       mapping=ColumnMapping(date_col="Date",
+                                             metric_cols={"x": "retention_d1"},
+                                             dim_cols={"Top Sources": "source"}))
+    return AnalysisContext(profile=prof, metrics=df, query="q", metric="retention_d1",
+                           start="2026-06-03", end="2026-06-08", direction="up")
+
+
+def test_finds_source_dimension_on_tz_aware_dates():
+    # The reported bug: a populated 'source' dim was reported as "no dimensions"
+    # because tz-aware dates never matched the tz-naive start/end timestamps.
+    led = EvidenceLedger()
+    SegmentDecomposition().run(_source_ctx_via_canonical(include_total=True), led)
+    claims = [e.claim for e in led.all() if e.module == "segment"]
+    assert any("source=" in c for c in claims), f"expected a source decomposition, got {claims}"
+    assert not any("no segment dimensions" in c for c in claims)
+
+
+def test_excludes_aggregate_total_row_from_decomposition():
+    led = EvidenceLedger()
+    SegmentDecomposition(dims=["source"]).run(_source_ctx_via_canonical(include_total=True), led)
+    claims = [e.claim for e in led.all() if e.module == "segment"]
+    assert any("source=" in c for c in claims)
+    assert not any("source=Total" in c for c in claims), \
+        "the pre-aggregated 'Total' row must not be decomposed as a peer channel"

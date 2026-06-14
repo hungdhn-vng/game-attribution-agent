@@ -2,6 +2,7 @@ import pandas as pd
 from gaa.core.modules.base import AnalysisContext
 from gaa.core.schema.ledger import EvidenceLedger
 from gaa.core.analytics.adtributor import adtributor_dimension
+from gaa.core.analytics.aggregate import is_aggregate_label
 
 DIMS = ["version", "region", "platform", "cohort", "device", "source"]
 
@@ -22,8 +23,11 @@ class SegmentDecomposition:
         for dim in self._dims:
             if dim not in df.columns or df[dim].isna().all():
                 continue
-            forecast = df[df["date"] == start].groupby(dim)["value"].sum().to_dict()
-            actual = df[df["date"] == end].groupby(dim)["value"].sum().to_dict()
+            # Drop any pre-aggregated row (e.g. source="Total"); decomposing it as a
+            # peer channel double-counts and distorts every element's explanatory power.
+            sub = df[~is_aggregate_label(df[dim])]
+            forecast = sub[sub["date"] == start].groupby(dim)["value"].sum().to_dict()
+            actual = sub[sub["date"] == end].groupby(dim)["value"].sum().to_dict()
             if not forecast or not actual:
                 continue
             res = adtributor_dimension(forecast, actual)

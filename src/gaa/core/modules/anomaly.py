@@ -1,11 +1,8 @@
 import pandas as pd
 from gaa.core.modules.base import AnalysisContext
 from gaa.core.schema.ledger import EvidenceLedger
+from gaa.core.analytics.aggregate import metric_series as _series
 from gaa.core.analytics.changepoint import detect_changepoint, deviation_z
-
-
-def _series(df: pd.DataFrame, metric: str) -> pd.Series:
-    return df[df["metric"] == metric].groupby("date")["value"].sum().sort_index()
 
 
 def _pct(s: pd.Series) -> float:
@@ -31,8 +28,12 @@ class AnomalyDetection:
                        source="internal", source_type="derived", strength="low")
             return
 
+        # A requested metric that isn't actually in the data (e.g. a query that
+        # mis-routed "retention" -> retention_d7 on a D1-only dataset) would yield
+        # an empty series, a +0% claim and a NaT window. Fall back to scan mode.
+        requested = ctx.metric if ctx.metric in metrics else None
         # scan mode: surface the most STATISTICALLY ANOMALOUS metric, not the largest % swing
-        target = ctx.metric or max(metrics, key=lambda m: _salience(_series(ctx.metrics, m)))
+        target = requested or max(metrics, key=lambda m: _salience(_series(ctx.metrics, m)))
         ctx.metric = target
         s = _series(ctx.metrics, target)
         change = _pct(s)

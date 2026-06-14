@@ -68,6 +68,15 @@ def test_segments_unknown_run_is_error(tmp_path):
     assert "unknown run" in resp["error"].lower()
 
 
+def test_segments_without_run_uses_latest_run(tmp_path):
+    # The agent kept failing with "didn't provide a valid run_id" right after
+    # analyze. A drilldown with no run_id must default to the most recent run.
+    rid = _onboard_and_plan(tmp_path)
+    resp = _run(["segments", "--dimension", "region"], FakeLLM(_SYNTH), tmp_path)
+    assert resp["status"] == "success", resp
+    assert resp["run_id"] == rid
+
+
 def test_detect_appends_anomaly_entry(tmp_path):
     rid = _onboard_and_plan(tmp_path)
     resp = _run(["detect", "--run", rid, "--metric", "dau"], FakeLLM(_SYNTH), tmp_path)
