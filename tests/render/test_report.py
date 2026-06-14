@@ -22,3 +22,12 @@ def test_report_is_self_contained_html():
     assert "Plotly" in html          # inline plotly.js present
     assert "no UA data" in html      # gaps shown
     assert "Confidence matrix" in html
+
+
+def test_report_charts_have_stable_ids():
+    series = pd.Series([100.0, 60.0], index=pd.to_datetime(["2026-05-01", "2026-05-03"]))
+    html = render_report(_hyp(), metric="dau", start="2026-05-01", end="2026-05-03",
+                         series=series, genre_trend={"2026-05-01": 100.0, "2026-05-03": 98.0})
+    assert "gaa-chart-timeseries" in html
+    assert "gaa-chart-overlay" in html
+    assert "gaa-chart-matrix" in html
