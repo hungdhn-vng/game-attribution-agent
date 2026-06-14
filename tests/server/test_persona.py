@@ -47,6 +47,20 @@ def test_assemble_system_prompt_admin_flag_exposes_dangerous_tools(tmp_path, mon
     assert "exec" in admin
 
 
+def test_non_admin_prompt_states_session_is_non_admin(tmp_path, monkeypatch):
+    """A non-admin session must state its own privilege level. Without it the agent has
+    no grounding for "Am I admin?" — it probes config_get and punts. The admin prompt
+    already states "admin rights this session"; the non-admin prompt must be symmetric so
+    the agent can answer plainly from the prompt instead of calling tools to find out."""
+    ctx = _ctx(tmp_path, monkeypatch)
+    persona.ensure_seeded(ctx)
+    admin = persona.assemble_system_prompt(ctx, admin=True).lower()
+    non_admin = persona.assemble_system_prompt(ctx, admin=False).lower()
+    assert "admin rights this session" in admin       # existing grounding (admin)
+    assert "non-admin" in non_admin                   # symmetric grounding (non-admin)
+    assert "do not have admin rights" in non_admin
+
+
 def test_write_persona_rejects_unknown_target(tmp_path, monkeypatch):
     ctx = _ctx(tmp_path, monkeypatch)
     persona.ensure_seeded(ctx)

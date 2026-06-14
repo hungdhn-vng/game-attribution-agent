@@ -59,6 +59,14 @@ ADMIN TOOLS (you have admin rights this session):
 - tools_remove {name} / tools_import {tarball}
 """
 
+_STANDARD_SESSION = """\
+SESSION PRIVILEGES: This is a standard (non-admin) session. You do NOT have admin rights
+right now, so admin-only capabilities (running shell commands, browsing the web, editing
+your own files, changing config or profiles) are unavailable to you. If the user asks
+whether they're an admin or what they're allowed to do, answer plainly from this fact —
+do not call tools to find out.
+"""
+
 _THOUGHT_HINT = """\
 THINKING: Include a "thought" field (1-2 sentences explaining your reasoning for this
 step) alongside your decision, e.g. {"thought": "…", "action": "…", "args": {…}} or
@@ -138,4 +146,6 @@ def assemble_system_prompt(ctx, *, admin: bool) -> str:
     parts.append(_ANALYSIS_TOOLS)
     if admin:
         parts.append(_ADMIN_TOOLS)
+    else:
+        parts.append(_STANDARD_SESSION)
     return "\n\n".join(p for p in parts if p)
