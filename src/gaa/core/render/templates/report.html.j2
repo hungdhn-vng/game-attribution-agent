@@ -1,6 +1,7 @@
 <!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ h.main_story }}</title>
+<script>(function(){try{var d=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.setAttribute("data-theme",d?"dark":"light");}catch(e){}})();</script>
 <script>{{ plotlyjs|safe }}</script>
 <style>
  :root{
@@ -154,7 +155,9 @@
    var d = e.data;
    if (d && d.type === "gaa-theme") { applyTheme(d.theme); }
  });
- applyTheme("light");
+ // Theme charts to match the pre-paint guess (prefers-color-scheme); the
+ // parent's postMessage corrects this if the app's theme differs.
+ applyTheme(document.documentElement.getAttribute("data-theme") || "light");
  try { parent.postMessage({ type: "gaa-theme-ready" }, "*"); } catch (e) {}
 </script>
 </body></html>
