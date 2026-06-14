@@ -42,8 +42,14 @@ def cmd_onboard_confirm(ctx, args) -> dict:
         raw = _read_csv(args)
         df = _adapter(args.adapter).load(raw, mapping)
         ctx.metrics.save(args.name, df)
-        ctx.profiles.save(GameProfile(
-            name=args.name, platform=args.platform, genre=args.genre, mapping=mapping))
+        profile = GameProfile(
+            name=args.name, platform=args.platform, genre=args.genre, mapping=mapping)
+        from gaa.core.crawl.roblox_title import universe_id_from, lookup_universe_title
+        if getattr(profile, "title", None) is None and profile.platform == "roblox":
+            uid = universe_id_from(profile.name)
+            if uid:
+                profile.title = lookup_universe_title(uid)  # None on failure → genre-scoped fallback
+        ctx.profiles.save(profile)
         ctx.profiles.set_active(args.name)
     except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}
