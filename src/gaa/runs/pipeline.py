@@ -27,6 +27,7 @@ from gaa.core.modules.anomaly import AnomalyDetection
 from gaa.core.modules.base import AnalysisContext
 from gaa.core.modules.competitor_signals import CompetitorSignals
 from gaa.core.modules.market_benchmark import MarketBenchmark
+from gaa.core.modules.migration import MigrationPattern
 from gaa.core.modules.segment import SegmentDecomposition
 from gaa.core.orchestrator.planner import parse_query
 from gaa.core.render.markdown import to_markdown
@@ -215,6 +216,7 @@ class AnalysisPipeline:
         SegmentDecomposition().run(ctx, ledger)
         MarketBenchmark(self.benchmark).run(ctx, ledger)
         CompetitorSignals(self.signals).run(ctx, ledger)
+        MigrationPattern().run(ctx, ledger)
 
         state["ledger"] = [e.model_dump() for e in ledger.all()]
         job.add_activity(
