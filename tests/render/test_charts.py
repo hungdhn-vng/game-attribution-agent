@@ -28,6 +28,19 @@ def test_confidence_matrix_plots_each_claim():
     assert isinstance(fig, go.Figure) and len(fig.data) >= 1
 
 
+def test_confidence_matrix_fans_out_collocated_points():
+    # Two causes that share the same likelihood + evidence cell must not stack.
+    h = AttributionHypothesis(
+        main_story="x", confidence=Confidence(likelihood="Likely", evidence_quality="Moderate"),
+        causes=Causes(internal=[
+            Cause(claim="cause one", evidence_ids=["L1"], likelihood="Likely", evidence_quality="Strong"),
+            Cause(claim="cause two", evidence_ids=["L2"], likelihood="Likely", evidence_quality="Strong")]))
+    fig = confidence_matrix_fig(h)
+    xs = list(fig.data[0].x)
+    assert len(xs) == 2
+    assert xs[0] != xs[1]  # fanned apart, not stacked on the same point
+
+
 def test_charts_have_transparent_backgrounds():
     s = pd.Series([100.0, 90.0, 60.0],
                   index=pd.to_datetime(["2026-05-01", "2026-05-02", "2026-05-03"]))

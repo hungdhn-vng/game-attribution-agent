@@ -35,23 +35,46 @@ def overlay_fig(game: pd.Series, genre: dict, metric: str) -> go.Figure:
     return fig
 
 
+_CAT_COLOR = {"internal": "#3b82f6", "market": "#f59e0b", "scenario": "#9ca3af"}
+
+
 def confidence_matrix_fig(h) -> go.Figure:
-    xs, ys, labels = [], [], []
-    items = ([(c.claim, c) for c in h.causes.internal]
-             + [(c.claim, c) for c in h.causes.market]
-             + [(s.description, s) for s in h.scenarios])
-    for label, it in items:
-        xs.append(_EQ.get(it.evidence_quality, 1))
-        ys.append(_LK.get(it.likelihood, 2))
-        labels.append(label[:40])
-    fig = go.Figure(go.Scatter(x=xs, y=ys, mode="markers+text", text=labels,
-                               textposition="top center", marker={"size": 14}))
+    items = ([("internal", c.claim, c) for c in h.causes.internal]
+             + [("market", c.claim, c) for c in h.causes.market]
+             + [("scenario", s.description, s) for s in h.scenarios])
+    # The grid is discrete (3 evidence levels x 4 likelihood levels), so several
+    # items routinely land on the same cell. Bucket by cell, then fan co-located
+    # points out horizontally and stagger their labels so nothing overlaps.
+    coords, cells = [], {}
+    for kind, label, it in items:
+        x = _EQ.get(it.evidence_quality, 1)
+        y = _LK.get(it.likelihood, 2)
+        coords.append((kind, label, x, y))
+        cells.setdefault((x, y), []).append(len(coords) - 1)
+
+    xs, ys, texts, hovers, colors, positions = [], [], [], [], [], []
+    for idxs in cells.values():
+        n = len(idxs)
+        for j, i in enumerate(idxs):
+            kind, label, x, y = coords[i]
+            xs.append(x + (j - (n - 1) / 2) * 0.18)
+            ys.append(y)
+            texts.append(label if len(label) <= 22 else label[:21] + "…")
+            hovers.append(label)
+            colors.append(_CAT_COLOR[kind])
+            positions.append("top center" if j % 2 == 0 else "bottom center")
+
+    fig = go.Figure(go.Scatter(
+        x=xs, y=ys, mode="markers+text", text=texts, textposition=positions,
+        hovertext=hovers, hoverinfo="text", cliponaxis=False,
+        textfont={"size": 10}, marker={"size": 13, "color": colors}))
     fig.update_layout(title="Confidence matrix (likelihood × evidence)",
+                      showlegend=False,
                       xaxis={"tickvals": [1, 2, 3], "ticktext": ["Weak", "Moderate", "Strong"],
-                             "title": "Evidence quality", "range": [0.5, 3.5]},
+                             "title": "Evidence quality", "range": [0.4, 3.6]},
                       yaxis={"tickvals": [1, 2, 3, 4],
                              "ticktext": ["Unlikely", "Possible", "Likely", "Very likely"],
-                             "title": "Likelihood", "range": [0.5, 4.5]},
+                             "title": "Likelihood", "range": [0.4, 4.6]},
                       template="plotly_white", font=_FONT,
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
