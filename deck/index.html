@@ -268,6 +268,8 @@
       width: 1280, height: 720, margin: 0.06,
       controls: true, progress: true,
       transition: "fade",
+      pdfMaxPagesPerSlide: 1,      // each slide = exactly one PDF page
+      pdfSeparateFragments: false, // show all fragments on that one page
       plugins: [RevealNotes],
     });
   </script>
