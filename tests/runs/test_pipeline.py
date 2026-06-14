@@ -230,6 +230,35 @@ def test_resume_across_polls_reaches_done(tmp_path):
     assert job.result["markdown_summary"]
 
 
+def test_modules_stage_sets_benchmark_platform_on_resume(tmp_path):
+    """A job resumed at the modules stage in a fresh process (benchmark platform
+    never set by crawl) must still read genre benchmarks — _stage_modules must
+    set the platform from persisted state, else genre_trend is platform-blind."""
+    fx = _Fixtures(str(tmp_path))
+    p1 = fx.make_pipeline()
+    job = fx.make_job()
+    job.stage = "plan"
+    p1._stage_plan(job)
+    p1._stage_crawl(job)
+    assert job.stage == "modules"
+
+    # Fresh benchmark + pipeline: platform has never been set this "process".
+    fresh_benchmark = CrawlingBenchmarkSource(fx.bstore)
+    assert fresh_benchmark._platform == ""
+    p2 = AnalysisPipeline(
+        profiles=fx.profile_store, metrics_store=fx.metrics_store,
+        benchmark=fresh_benchmark, refresher=fx.refresher,
+        synth=fx.synth, signals=fx.signals, n_samples=1,
+    )
+    p2._stage_modules(job)
+
+    # The genre benchmark read worked → no "no genre benchmark available" gap.
+    market_claims = [e["claim"] for e in job.state["ledger"] if e["module"] == "market"]
+    assert market_claims, "expected a market ledger entry"
+    assert not any("no genre benchmark available" in c for c in market_claims), \
+        "platform was not set on resume → genre_trend returned nothing"
+
+
 def test_no_active_profile_sets_error(tmp_path):
     """advance() sets status=error with a descriptive message when no profile is active."""
     # ProfileStore with no active profile set

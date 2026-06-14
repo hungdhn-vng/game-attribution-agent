@@ -189,6 +189,10 @@ class AnalysisPipeline:
 
     def _stage_modules(self, job: Run) -> None:
         state = job.state
+        # Re-assert the benchmark platform from persisted state: on a mid-pipeline
+        # resume in a fresh process, _stage_crawl (which sets it) may not have run
+        # this call, leaving genre_trend / metric_benchmark reads platform-blind.
+        self.benchmark.set_platform(state["platform"])
         df = self._metrics_store.load(state["profile_name"])
 
         # Reconstruct profile using the name persisted in plan, NOT get_active(),
