@@ -61,6 +61,19 @@ def test_non_admin_prompt_states_session_is_non_admin(tmp_path, monkeypatch):
     assert "do not have admin rights" in non_admin
 
 
+def test_soul_ties_shell_browse_capability_to_admin(tmp_path, monkeypatch):
+    """SOUL.md is included in EVERY prompt (admin and non-admin alike). It must not promise
+    admin-only capabilities — running shell commands, browsing the web — as if any session
+    could use them, since exec/browse are admin-gated. If SOUL mentions those capabilities
+    it must frame them as requiring admin rights, so non-admin sessions aren't told they can
+    do something they cannot."""
+    ctx = _ctx(tmp_path, monkeypatch)
+    persona.ensure_seeded(ctx)
+    soul = persona.load_soul(ctx).lower()
+    if "shell command" in soul or "browse the web" in soul:
+        assert "admin" in soul, "SOUL promises shell/browse without tying them to admin rights"
+
+
 def test_write_persona_rejects_unknown_target(tmp_path, monkeypatch):
     ctx = _ctx(tmp_path, monkeypatch)
     persona.ensure_seeded(ctx)
