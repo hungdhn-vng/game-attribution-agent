@@ -2,6 +2,7 @@
 import { useCallback, useRef, useState } from "react";
 import { readSSE } from "@/lib/gaa/sse";
 import { extractRunId, stripMarker } from "@/lib/gaa/marker";
+import { buildChatBody } from "@/lib/gaa/request";
 import type { Msg } from "@/lib/gaa/store";
 
 export type Think = { scope?: string; text: string };
@@ -19,7 +20,7 @@ export function useGaaChat(initial: Turn[] = []) {
     const assistant: Turn = { role: "assistant", content: "", thinking: [], activity: [] };
     setMessages([...history, assistant]);
     setStreaming(true);
-    const wire = history.map((m) => ({ role: m.role, content: m.content }));
+    const body = buildChatBody(history);
     let acc = "";
     const patch = (fn: (a: Turn) => void) =>
       setMessages((cur) => {
@@ -33,7 +34,7 @@ export function useGaaChat(initial: Turn[] = []) {
       const resp = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: wire }),
+        body: JSON.stringify(body),
       });
       await readSSE(resp, (e) => {
         if (e.type === "activity") {

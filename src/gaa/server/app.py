@@ -84,11 +84,16 @@ def create_app(ctx=None, chat_llm=None) -> FastAPI:
         is_admin = _const_eq(request.headers.get("x-gaa-admin-key"),
                              os.environ.get("GAA_ADMIN_KEY"))
         messages = body.get("messages", [])
+        # The run the user is currently looking at. The frontend strips the run_id
+        # marker from assistant content, so it sends the active run_id out-of-band here
+        # to let follow-up turns reuse the run instead of starting a fresh analysis.
+        active_run_id = body.get("active_run_id") or None
         agent = ChatAgent(get_ctx(), get_chat_llm())
 
         def sse():
             try:
-                for event in agent.run(messages, is_admin=is_admin):
+                for event in agent.run(messages, is_admin=is_admin,
+                                       active_run_id=active_run_id):
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception:
                 # Belt-and-suspenders: never end the stream without a terminal event.

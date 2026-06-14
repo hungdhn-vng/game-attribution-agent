@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { BACKEND_URL, authHeaders } from "@/lib/gaa/backend";
+import { forwardChatBody } from "@/lib/gaa/request";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({ messages: [] }));
@@ -7,7 +8,7 @@ export async function POST(req: Request) {
   const upstream = await fetch(`${BACKEND_URL()}/chat`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders(adminCookie) },
-    body: JSON.stringify({ messages: body.messages ?? [] }),
+    body: JSON.stringify(forwardChatBody(body)),
   });
   if (!upstream.ok || !upstream.body) {
     return new Response(

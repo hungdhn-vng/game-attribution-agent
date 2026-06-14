@@ -15,6 +15,23 @@ class ScriptedLLM:
         return self._script.pop(0)
 
 
+class CapturingLLM(ScriptedLLM):
+    """Like ScriptedLLM, but records every (system, user) prompt the loop sends.
+
+    Used to assert what the model is actually shown — e.g. that an explicitly
+    provided active run_id reaches the conversation the model reasons over.
+    """
+    def __init__(self, script):
+        super().__init__(script)
+        self.seen_system = []
+        self.seen_user = []
+
+    def complete_json(self, system, user):
+        self.seen_system.append(system)
+        self.seen_user.append(user)
+        return super().complete_json(system, user)
+
+
 def _ctx(tmp_path, monkeypatch, preset):
     monkeypatch.setenv("GAA_DB_PATH", str(tmp_path / "gaa.sqlite"))
     monkeypatch.setenv("GAA_CACHE_DIR", str(tmp_path / "cache"))
@@ -133,6 +150,26 @@ def test_no_thinking_when_toggle_off(tmp_path, monkeypatch):
     llm = ScriptedLLM([{"thought": "secret reasoning", "final": "Hi."}])
     events = _collect(ChatAgent(ctx, llm), [{"role": "user", "content": "hi"}])
     assert not [e for e in events if e["type"] == "thinking"]
+
+
+def test_active_run_id_is_surfaced_to_model(tmp_path, monkeypatch):
+    # Reproduces the cross-turn run_id loss. The frontend strips the
+    # [[gaa:run_id=...]] marker from assistant content before re-sending the
+    # history, so a follow-up turn's conversation carries NO run_id and the model
+    # has nothing to reuse (it ends up starting a brand-new analysis). When the
+    # caller passes the active run_id explicitly, the agent must surface it to the
+    # model so drilldowns/follow-ups reuse the existing run.
+    ctx = _ctx(tmp_path, monkeypatch, {})
+    llm = CapturingLLM([{"final": "Here are the market trends."}])
+    messages = [
+        {"role": "user", "content": "why did dau drop?"},
+        {"role": "assistant", "content": "DAU fell in SEA."},  # marker already stripped
+        {"role": "user", "content": "analyze the market trends"},
+    ]
+    list(ChatAgent(ctx, llm).run(messages, active_run_id="run-2026-abc"))
+    assert any("run-2026-abc" in u for u in llm.seen_user), (
+        "the active run_id must appear in the conversation the model reasons over, "
+        f"but it was absent from all {len(llm.seen_user)} prompt(s)")
 
 
 def test_synthesis_thinking_after_analyze(tmp_path, monkeypatch):

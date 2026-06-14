@@ -34,11 +34,24 @@ class ChatAgent:
         self._llm = llm
         self._max_iters = max_iters
 
-    def run(self, messages: list[dict], *, is_admin: bool = False) -> Iterator[dict]:
-        """Yield SSE event dicts: {"type":"activity"|"token"|"done", ...}."""
+    def run(self, messages: list[dict], *, is_admin: bool = False,
+            active_run_id: str | None = None) -> Iterator[dict]:
+        """Yield SSE event dicts: {"type":"activity"|"token"|"done", ...}.
+
+        active_run_id carries the run the user is currently looking at. The frontend
+        strips the [[gaa:run_id=...]] marker from assistant content before re-sending
+        the history, so the run_id is otherwise absent from the conversation on a
+        follow-up turn — surface it here so drilldowns/follow-ups reuse the run instead
+        of starting a fresh analysis.
+        """
         ctx = self._ctx
         system = persona.assemble_system_prompt(ctx, admin=is_admin)
         convo = _format_messages(messages)
+        if active_run_id:
+            convo = (f"SYSTEM: The active run_id for this session is {active_run_id}. "
+                     "Reuse it as the `run` for drilldowns and follow-ups "
+                     "(segments/detect/market/signals/synth/report/status) unless the "
+                     "user asks about a different game.\n" + convo)
         last_run_id = None
 
         for _ in range(self._max_iters):

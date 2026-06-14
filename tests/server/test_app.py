@@ -16,6 +16,16 @@ class ScriptedLLM:
     def complete_json(self, system, user): return self._s.pop(0)
 
 
+class CapturingLLM(ScriptedLLM):
+    """ScriptedLLM that records the (system, user) prompts the loop sends."""
+    def __init__(self, script):
+        super().__init__(script)
+        self.seen_user = []
+    def complete_json(self, system, user):
+        self.seen_user.append(user)
+        return super().complete_json(system, user)
+
+
 def _client(tmp_path, monkeypatch, *, chat_llm=None, preset=_SYNTH, token="t0k", admin="adm"):
     monkeypatch.setenv("GAA_DB_PATH", str(tmp_path / "gaa.sqlite"))
     monkeypatch.setenv("GAA_CACHE_DIR", str(tmp_path / "cache"))
@@ -45,6 +55,21 @@ def test_chat_streams_with_token(tmp_path, monkeypatch):
                     headers={"Authorization": "Bearer t0k"})
     assert r.status_code == 200
     assert "hello there" in r.text  # SSE body contains the streamed tokens
+
+
+def test_chat_threads_active_run_id_to_model(tmp_path, monkeypatch):
+    # The body's active_run_id must reach the conversation the model reasons over,
+    # so a follow-up turn reuses the existing run instead of starting a new analysis.
+    llm = CapturingLLM([{"final": "ok"}])
+    client, _ = _client(tmp_path, monkeypatch, chat_llm=llm)
+    r = client.post(
+        "/chat",
+        json={"messages": [{"role": "user", "content": "market trends?"}],
+              "active_run_id": "run-xyz-123"},
+        headers={"Authorization": "Bearer t0k"})
+    assert r.status_code == 200
+    assert any("run-xyz-123" in u for u in llm.seen_user), (
+        "active_run_id from the request body must be surfaced to the model")
 
 
 def test_invocations_dispatch(tmp_path, monkeypatch):
