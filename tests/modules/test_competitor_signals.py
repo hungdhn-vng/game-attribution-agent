@@ -47,3 +47,22 @@ def test_legacy_event_without_scope_keeps_old_format():
     led = EvidenceLedger()
     CompetitorSignals(_Src(ev)).run(_ctx(), led)
     assert any(x.claim == "patch: v2 released" for x in led.all())
+
+
+def test_no_events_records_gap():
+    # graceful "no signals" path (the common production case) — preserved from
+    # the prior test file that this one replaced.
+    led = EvidenceLedger()
+    CompetitorSignals(_Src([])).run(_ctx(), led)
+    assert any(e.source_type == "derived" and e.strength == "low" for e in led.all())
+
+
+def test_legacy_events_logged_as_external_entries():
+    ev = [{"date": "2026-06-04", "title": "Competitor Y soft-launch", "kind": "competitor",
+           "url": "http://x", "sentiment": -0.3},
+          {"date": "2026-06-05", "title": "v3.2 update notes", "kind": "patch",
+           "url": "http://p", "sentiment": 0.0}]
+    led = EvidenceLedger()
+    CompetitorSignals(_Src(ev)).run(_ctx(), led)
+    ext = [e for e in led.all() if e.module == "competitor" and e.source_type == "external"]
+    assert len(ext) == 2 and any("Competitor Y" in e.claim for e in ext)
