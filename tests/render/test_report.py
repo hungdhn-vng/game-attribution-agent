@@ -31,3 +31,13 @@ def test_report_charts_have_stable_ids():
     assert "gaa-chart-timeseries" in html
     assert "gaa-chart-overlay" in html
     assert "gaa-chart-matrix" in html
+
+
+def test_report_supports_light_dark_theme():
+    series = pd.Series([100.0, 60.0], index=pd.to_datetime(["2026-05-01", "2026-05-03"]))
+    html = render_report(_hyp(), metric="dau", start="2026-05-01", end="2026-05-03",
+                         series=series, genre_trend={"2026-05-01": 100.0, "2026-05-03": 98.0})
+    assert "data-theme" in html                 # themed document root
+    assert '[data-theme="dark"]' in html        # dark-mode token block
+    assert "gaa-theme" in html                  # parent -> iframe message type
+    assert "gaa-theme-ready" in html            # iframe -> parent handshake
