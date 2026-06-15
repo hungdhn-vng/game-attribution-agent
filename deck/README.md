@@ -29,12 +29,11 @@ node tools/capture.mjs        # writes assets/screenshots/{chat,dossier}.png fro
 
 ## What's where
 - `index.html` — all 14 slides, inline (so `file://` double-click works — no fetch/CORS)
-- `theme/gaa.css` — brand theme from the GAA dossier tokens (Geist; blue = internal / amber = market)
-- `assets/charts/_preview.html` — the three signature SVGs in isolation (reference)
+- `theme/gaa.css` — "Bold Keynote" theme: Bricolage Grotesque display + IBM Plex Mono/Sans, full-bleed blue/amber color panels (blue = internal / amber = market)
 - `assets/screenshots/` — real captures from the live app
 - `assets/img/qr.png` — QR to the live app
 - `tools/` — `capture.mjs` (screenshots), `pdf.mjs` (PDF export)
-- `vendor/` — reveal.js + Geist fonts (frozen, offline)
+- `vendor/` — reveal.js + the vendored fonts (frozen, offline)
 
 ## The story (14 slides)
 Demo-first: title → problem → ask → **dossier (wow)** → "would you trust an LLM?" → trust chain →
