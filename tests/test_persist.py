@@ -123,6 +123,32 @@ def test_roundtrip_persists_config_and_db_under_production_layout(tmp_path, monk
     assert "ShooterX" in ctx2.profiles.list_names()
 
 
+def test_restore_works_without_filter_kwarg(tmp_path, monkeypatch):
+    """Python <3.11.4 (e.g. Debian bookworm's 3.11.2, used in the container) lacks the
+    PEP 706 `TarFile.extractall(filter=...)` kwarg. restore() must fall back and still
+    work — regression for the live bug where restore crashed and lost the active profile."""
+    monkeypatch.setenv("OPENCLAW_HOME", str(tmp_path / ".openclaw"))
+    ctx = _ctx(tmp_path, monkeypatch)
+    ws = tmp_path / ".openclaw" / "workspace"
+    ws.mkdir(parents=True, exist_ok=True)
+    (ws / "MEMORY.md").write_text("# MEMORY\n\nLearned: ShooterX is hot.\n")
+    s3 = FakeS3()
+    assert persist.snapshot(ctx, client=s3, bucket="b") is True
+
+    import shutil
+    shutil.rmtree(ws)
+    # Simulate old Python: an extractall that does NOT accept `filter` (raises TypeError).
+    orig = tarfile.TarFile.extractall
+
+    def no_filter_extractall(self, path=".", members=None, *, numeric_owner=False):
+        return orig(self, path, members, numeric_owner=numeric_owner)
+
+    monkeypatch.setattr(tarfile.TarFile, "extractall", no_filter_extractall)
+
+    assert persist.restore(ctx, client=s3, bucket="b") is True
+    assert "ShooterX" in (ws / "MEMORY.md").read_text()
+
+
 def test_client_is_tuned_for_vstorage(monkeypatch):
     # _client() builds a boto3 S3 client (no network) with path-style addressing +
     # the vStorage endpoint, so put_object/get_object work against Ceph-based vStorage.

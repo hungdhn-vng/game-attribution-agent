@@ -109,7 +109,13 @@ def restore(ctx, *, client=None, bucket=None) -> bool:
     data = obj["Body"].read()
     with tempfile.TemporaryDirectory() as tmp:
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
-            tar.extractall(tmp, filter="data")
+            try:
+                tar.extractall(tmp, filter="data")
+            except TypeError:
+                # Python < 3.11.4 (e.g. Debian bookworm's 3.11.2) lacks the PEP 706
+                # `filter` kwarg. The snapshot tarball is self-produced and trusted,
+                # so extracting without the data filter is safe here.
+                tar.extractall(tmp)
         for arcname, dest, _is_dir in _durable_items(ctx):
             src = Path(tmp) / arcname
             if not src.exists():
