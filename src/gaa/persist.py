@@ -17,7 +17,6 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from gaa.server import persona
 
 STATE_KEY = "gaa-state.tar.gz"
 
@@ -64,12 +63,15 @@ def _durable_items(ctx):
     """
     cache = Path(ctx.settings.cache_dir)
     tools = Path(os.environ.get("GAA_TOOLS_DIR", str(cache / "tools")))
+    openclaw_home = Path(os.environ.get("OPENCLAW_CONFIG_DIR")
+                         or os.environ.get("OPENCLAW_HOME")
+                         or str(Path.home() / ".openclaw"))
     return [
         ("config.toml", Path(ctx.config._path), False),
         ("profiles.sqlite", Path(ctx.settings.db_path), False),
         ("metrics", cache / "metrics", True),
         ("tools", tools, True),
-        ("persona", persona.persona_dir(ctx), True),
+        ("openclaw_workspace", openclaw_home / "workspace", True),
     ]
 
 
@@ -109,7 +111,13 @@ def restore(ctx, *, client=None, bucket=None) -> bool:
     data = obj["Body"].read()
     with tempfile.TemporaryDirectory() as tmp:
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
-            tar.extractall(tmp, filter="data")
+            try:
+                tar.extractall(tmp, filter="data")
+            except TypeError:
+                # Python < 3.11.4 (e.g. Debian bookworm's 3.11.2) lacks the PEP 706
+                # `filter` kwarg. The snapshot tarball is self-produced and trusted,
+                # so extracting without the data filter is safe here.
+                tar.extractall(tmp)
         for arcname, dest, _is_dir in _durable_items(ctx):
             src = Path(tmp) / arcname
             if not src.exists():
@@ -123,3 +131,26 @@ def restore(ctx, *, client=None, bucket=None) -> bool:
                     dest.unlink()
             shutil.move(str(src), str(dest))
     return True
+
+
+def _main(argv=None) -> int:
+    import sys
+    from gaa.cli.wiring import build_context
+    args = argv if argv is not None else sys.argv[1:]
+    cmd = args[0] if args else "restore"
+    try:
+        ctx = build_context()
+        if cmd == "restore":
+            print(f"persist.restore: {restore(ctx)}")
+        elif cmd == "snapshot":
+            print(f"persist.snapshot: {snapshot(ctx)}")
+        else:
+            print(f"unknown persist command: {cmd!r}", file=sys.stderr)
+            return 2
+    except Exception as exc:  # never block container boot on a restore error
+        print(f"persist {cmd} error (continuing): {exc}", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

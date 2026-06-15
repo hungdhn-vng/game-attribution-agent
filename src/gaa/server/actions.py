@@ -1,7 +1,8 @@
 """Shared action dispatch: maps an action name + JSON args dict to the existing
-CLI handler functions (each `(ctx, args) -> dict`). Both /chat and /invocations
-call dispatch(). Capability handlers (exec/browse/self_edit) are registered by
-gaa.server.capabilities at import time via register().
+CLI handler functions (each `(ctx, args) -> dict`). The GAA MCP server
+(`gaa.mcp.tools.run_tool`) and the front door's `/upload` onboarding call dispatch().
+`register()` remains for optional external capability modules; exec/browse/self_edit
+are no longer registered here — OpenClaw owns those general capabilities now.
 """
 from __future__ import annotations
 
@@ -79,13 +80,13 @@ ADMIN_ACTIONS = {
 
 # Actions whose success should trigger a vStorage snapshot. self_edit is added by register().
 MUTATING_ACTIONS = {
-    "onboard_confirm", "config_set", "profile_use", "tools_promote", "tools_remove",
-    "tools_import",
+    "onboard_confirm", "config_set", "profile_use", "tools_promote", "tools_run",
+    "tools_remove", "tools_import",
 }
 
 
 def register(name: str, handler, *, admin: bool = False, mutating: bool = False) -> None:
-    """Register a capability handler (called by gaa.server.capabilities)."""
+    """Register an external capability handler (optional; no in-repo caller after the OpenClaw move)."""
     _HANDLERS[name] = handler
     if admin:
         ADMIN_ACTIONS.add(name)

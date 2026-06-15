@@ -4,7 +4,6 @@ import os
 from gaa.cli.wiring import build_context
 from gaa.core.llm.client import FakeLLM
 from gaa import persist
-from gaa.server import persona
 
 
 class FakeS3:
@@ -44,21 +43,48 @@ def test_snapshot_noop_when_disabled(tmp_path, monkeypatch):
 
 
 def test_snapshot_then_restore_roundtrip(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENCLAW_HOME", str(tmp_path / ".openclaw"))
     ctx = _ctx(tmp_path, monkeypatch)
-    persona.ensure_seeded(ctx)
-    persona.write_persona(ctx, "MEMORY.md", "# MEMORY\n\nLearned: ShooterX is hot.\n")
+    # seed the openclaw workspace (only the workspace subdir is snapshotted now)
+    openclaw_dir = tmp_path / ".openclaw"
+    workspace_dir = openclaw_dir / "workspace"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    (workspace_dir / "MEMORY.md").write_text("# MEMORY\n\nLearned: ShooterX is hot.\n")
     ctx.config.set("benchmark_mode", "crawl")  # writes gaa-config.toml
 
     s3 = FakeS3()
     assert persist.snapshot(ctx, client=s3, bucket="b") is True
     assert ("b", persist.STATE_KEY) in s3.objects
 
-    # wipe local persona + config, then restore from the snapshot
-    (persona.persona_dir(ctx) / "MEMORY.md").unlink()
+    # wipe local openclaw workspace + config, then restore from the snapshot
+    import shutil
+    shutil.rmtree(workspace_dir)
     os.remove(ctx.config._path) if os.path.exists(ctx.config._path) else None
 
     assert persist.restore(ctx, client=s3, bucket="b") is True
-    assert "ShooterX" in persona.load_memory(ctx)
+    # restore places the workspace dir at <OPENCLAW_HOME>/workspace
+    assert "ShooterX" in (workspace_dir / "MEMORY.md").read_text()
+
+
+def test_snapshot_uses_workspace_arcname_not_openclaw_root(tmp_path, monkeypatch):
+    """Snapshot must use 'openclaw_workspace' arcname (not 'openclaw') so openclaw.json
+    is NOT captured and the workspace lands at <OPENCLAW_HOME>/workspace on restore."""
+    monkeypatch.setenv("OPENCLAW_HOME", str(tmp_path / ".openclaw"))
+    ctx = _ctx(tmp_path, monkeypatch)
+    workspace_dir = tmp_path / ".openclaw" / "workspace"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    (workspace_dir / "SOUL.md").write_text("# SOUL\n")
+    # also place openclaw.json in the root (should NOT be snapshotted)
+    (tmp_path / ".openclaw" / "openclaw.json").write_text("{}")
+
+    s3 = FakeS3()
+    persist.snapshot(ctx, client=s3, bucket="b")
+    names = tarfile.open(fileobj=io.BytesIO(s3.objects[("b", persist.STATE_KEY)]), mode="r:gz").getnames()
+    # workspace is included
+    assert any(n == "openclaw_workspace" or n.startswith("openclaw_workspace/") for n in names)
+    # root dir and openclaw.json are NOT included
+    assert "openclaw" not in names
+    assert not any(n == "openclaw/openclaw.json" for n in names)
 
 
 def test_restore_noop_when_no_snapshot(tmp_path, monkeypatch):
@@ -95,6 +121,32 @@ def test_roundtrip_persists_config_and_db_under_production_layout(tmp_path, monk
     ctx2 = build_context(llm=FakeLLM({}), today="2026-06-13")
     assert ctx2.config.resolve("benchmark_mode")[0] == "crawl"
     assert "ShooterX" in ctx2.profiles.list_names()
+
+
+def test_restore_works_without_filter_kwarg(tmp_path, monkeypatch):
+    """Python <3.11.4 (e.g. Debian bookworm's 3.11.2, used in the container) lacks the
+    PEP 706 `TarFile.extractall(filter=...)` kwarg. restore() must fall back and still
+    work — regression for the live bug where restore crashed and lost the active profile."""
+    monkeypatch.setenv("OPENCLAW_HOME", str(tmp_path / ".openclaw"))
+    ctx = _ctx(tmp_path, monkeypatch)
+    ws = tmp_path / ".openclaw" / "workspace"
+    ws.mkdir(parents=True, exist_ok=True)
+    (ws / "MEMORY.md").write_text("# MEMORY\n\nLearned: ShooterX is hot.\n")
+    s3 = FakeS3()
+    assert persist.snapshot(ctx, client=s3, bucket="b") is True
+
+    import shutil
+    shutil.rmtree(ws)
+    # Simulate old Python: an extractall that does NOT accept `filter` (raises TypeError).
+    orig = tarfile.TarFile.extractall
+
+    def no_filter_extractall(self, path=".", members=None, *, numeric_owner=False):
+        return orig(self, path, members, numeric_owner=numeric_owner)
+
+    monkeypatch.setattr(tarfile.TarFile, "extractall", no_filter_extractall)
+
+    assert persist.restore(ctx, client=s3, bucket="b") is True
+    assert "ShooterX" in (ws / "MEMORY.md").read_text()
 
 
 def test_client_is_tuned_for_vstorage(monkeypatch):
