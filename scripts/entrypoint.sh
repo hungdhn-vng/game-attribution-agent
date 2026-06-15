@@ -16,7 +16,7 @@ python3 -c "import os; from gaa.server.openclaw_config import render_config; pri
 [ -f "$OPENCLAW_WORKSPACE/AGENTS.md" ] || cp "/opt/gaa/openclaw/AGENTS.md" "$OPENCLAW_WORKSPACE/AGENTS.md" 2>/dev/null || true
 [ -f "$OPENCLAW_WORKSPACE/MEMORY.md" ] || cp "/opt/gaa/openclaw/MEMORY.md" "$OPENCLAW_WORKSPACE/MEMORY.md" 2>/dev/null || true
 # 5. The front door client uses the same gateway token
-export OPENCLAW_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-}"
+export OPENCLAW_TOKEN="${OPENCLAW_GATEWAY_TOKEN}"
 # 6. Front door (background) + OpenClaw gateway (foreground)
 python3 -m uvicorn gaa.server.app:app --host 0.0.0.0 --port 8080 &
 exec openclaw gateway run --bind lan

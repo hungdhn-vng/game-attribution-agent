@@ -45,6 +45,12 @@ class RealOpenClawClient:
         self._sidecar = sidecar or os.environ.get("GAA_RUN_SIDECAR", "")
 
     def stream_chat(self, *, messages, is_admin, active_run_id) -> Iterator[dict]:
+        # NOTE: is_admin is a forward-looking seam — it is NOT forwarded to the MCP server.
+        # OpenClaw's chat/completions endpoint carries no per-call context that the MCP
+        # subprocess can read, so admin gating is coarse: governed by the deployment-level
+        # GAA_MCP_ADMIN env var rather than per-session. is_admin is intentionally kept as
+        # a parameter for future wiring (e.g. a per-session X-GAA-Admin-Key forwarded via
+        # the MCP client if OpenClaw ever exposes that channel).
         start = time.time()
         body = {"model": "openclaw", "messages": messages, "stream": True,
                 "user": active_run_id or "default"}
@@ -72,6 +78,11 @@ class RealOpenClawClient:
         yield {"type": "done", "run_id": None}
 
     def _run_since(self, start: float):
+        # NOTE: _sidecar is a single global file written by the MCP tool (tools.py).
+        # This is safe for the single-user demo because only one analyze run is active at
+        # a time. In a multi-session deployment, concurrent analyze requests could swap
+        # run_ids: the MCP writer can't see the HTTP session, so it can't namespace the
+        # sidecar per-session. Accepted known limitation for the demo scope.
         if not self._sidecar:
             return None
         try:

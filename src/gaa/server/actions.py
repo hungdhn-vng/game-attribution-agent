@@ -80,8 +80,8 @@ ADMIN_ACTIONS = {
 
 # Actions whose success should trigger a vStorage snapshot. self_edit is added by register().
 MUTATING_ACTIONS = {
-    "onboard_confirm", "config_set", "profile_use", "tools_promote", "tools_remove",
-    "tools_import",
+    "onboard_confirm", "config_set", "profile_use", "tools_promote", "tools_run",
+    "tools_remove", "tools_import",
 }
 
 

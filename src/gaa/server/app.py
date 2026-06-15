@@ -8,10 +8,12 @@ Routes:
 On startup: nothing (restore is done by the container entrypoint before the gateway boots)."""
 from __future__ import annotations
 
+import asyncio
 import hmac
 import logging
 import os
 import tempfile
+from collections.abc import Iterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
@@ -41,7 +43,7 @@ def _bearer(request: Request) -> str | None:
     return h[7:] if h.lower().startswith("bearer ") else None
 
 
-def _safe(events) -> None:
+def _safe(events) -> Iterator[dict]:
     try:
         yield from events
     except Exception:
@@ -138,7 +140,7 @@ def create_app(ctx=None) -> FastAPI:
                                        genre=genre, adapter=adapter)
             if isinstance(result, dict) and result.get("status") == "success":
                 try:
-                    persist.snapshot(get_ctx())
+                    await asyncio.to_thread(persist.snapshot, get_ctx())
                 except Exception:
                     _log.exception("vStorage snapshot after /upload failed")
         finally:
