@@ -10,6 +10,11 @@ MCP surface is an intentional focused subset: rarer maintenance/admin actions
 NOT exposed as agent tools — they remain reachable via the CLI/ops."""
 from __future__ import annotations
 
+import json
+import os
+import time
+from pathlib import Path
+
 import jsonschema
 
 from gaa.server import actions
@@ -59,6 +64,25 @@ _SPECS: dict[str, tuple[str, dict]] = {
 }
 
 
+def _sidecar_path(ctx) -> str:
+    p = os.environ.get("GAA_RUN_SIDECAR")
+    if p:
+        return p
+    return str(Path(ctx.settings.cache_dir) / "last_run.json")
+
+
+def _record_analyze_run(ctx, result: dict) -> None:
+    rid = result.get("run_id")
+    if not rid:
+        return
+    path = _sidecar_path(ctx)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump({"run_id": rid, "ts": time.time()}, f)
+    os.replace(tmp, path)  # atomic
+
+
 def tool_specs(*, is_admin: bool) -> list[dict]:
     """OpenAI/MCP-style specs, filtered by admin. Each: {name, description, input_schema, admin, mutating}."""
     out = []
@@ -84,4 +108,7 @@ def run_tool(ctx, name: str, arguments: dict, *, is_admin: bool) -> dict:
         jsonschema.validate(arguments or {}, schema)
     except jsonschema.ValidationError as exc:
         return {"status": "error", "error": f"invalid args for {name!r}: {exc.message}"}
-    return actions.dispatch(ctx, name, arguments or {}, is_admin=is_admin)
+    result = actions.dispatch(ctx, name, arguments or {}, is_admin=is_admin)
+    if name == "analyze" and isinstance(result, dict) and result.get("status") == "success":
+        _record_analyze_run(ctx, result)
+    return result
