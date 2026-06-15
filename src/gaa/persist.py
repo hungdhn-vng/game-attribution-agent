@@ -69,7 +69,7 @@ def _durable_items(ctx):
         ("profiles.sqlite", Path(ctx.settings.db_path), False),
         ("metrics", cache / "metrics", True),
         ("tools", tools, True),
-        ("openclaw", openclaw_home, True),
+        ("openclaw_workspace", openclaw_home / "workspace", True),
     ]
 
 
@@ -123,3 +123,26 @@ def restore(ctx, *, client=None, bucket=None) -> bool:
                     dest.unlink()
             shutil.move(str(src), str(dest))
     return True
+
+
+def _main(argv=None) -> int:
+    import sys
+    from gaa.cli.wiring import build_context
+    args = argv if argv is not None else sys.argv[1:]
+    cmd = args[0] if args else "restore"
+    try:
+        ctx = build_context()
+        if cmd == "restore":
+            print(f"persist.restore: {restore(ctx)}")
+        elif cmd == "snapshot":
+            print(f"persist.snapshot: {snapshot(ctx)}")
+        else:
+            print(f"unknown persist command: {cmd!r}", file=sys.stderr)
+            return 2
+    except Exception as exc:  # never block container boot on a restore error
+        print(f"persist {cmd} error (continuing): {exc}", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
