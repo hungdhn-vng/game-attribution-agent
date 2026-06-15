@@ -24,6 +24,7 @@ build/
 
 # Secrets / runtime / state
 .env
+.env.deploy
 .greennode.json
 docs/REBUILD-PRIVATE.md
 .agentbase/
