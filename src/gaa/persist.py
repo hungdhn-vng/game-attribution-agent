@@ -17,7 +17,6 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from gaa.server import persona
 
 STATE_KEY = "gaa-state.tar.gz"
 
@@ -64,12 +63,13 @@ def _durable_items(ctx):
     """
     cache = Path(ctx.settings.cache_dir)
     tools = Path(os.environ.get("GAA_TOOLS_DIR", str(cache / "tools")))
+    openclaw_home = Path(os.environ.get("OPENCLAW_HOME", str(Path.home() / ".openclaw")))
     return [
         ("config.toml", Path(ctx.config._path), False),
         ("profiles.sqlite", Path(ctx.settings.db_path), False),
         ("metrics", cache / "metrics", True),
         ("tools", tools, True),
-        ("persona", persona.persona_dir(ctx), True),
+        ("openclaw", openclaw_home, True),
     ]
 
 

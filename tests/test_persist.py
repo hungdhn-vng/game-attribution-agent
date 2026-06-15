@@ -4,7 +4,6 @@ import os
 from gaa.cli.wiring import build_context
 from gaa.core.llm.client import FakeLLM
 from gaa import persist
-from gaa.server import persona
 
 
 class FakeS3:
@@ -44,21 +43,25 @@ def test_snapshot_noop_when_disabled(tmp_path, monkeypatch):
 
 
 def test_snapshot_then_restore_roundtrip(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENCLAW_HOME", str(tmp_path / ".openclaw"))
     ctx = _ctx(tmp_path, monkeypatch)
-    persona.ensure_seeded(ctx)
-    persona.write_persona(ctx, "MEMORY.md", "# MEMORY\n\nLearned: ShooterX is hot.\n")
+    # seed the openclaw workspace
+    openclaw_dir = tmp_path / ".openclaw"
+    openclaw_dir.mkdir(parents=True, exist_ok=True)
+    (openclaw_dir / "memory.md").write_text("# MEMORY\n\nLearned: ShooterX is hot.\n")
     ctx.config.set("benchmark_mode", "crawl")  # writes gaa-config.toml
 
     s3 = FakeS3()
     assert persist.snapshot(ctx, client=s3, bucket="b") is True
     assert ("b", persist.STATE_KEY) in s3.objects
 
-    # wipe local persona + config, then restore from the snapshot
-    (persona.persona_dir(ctx) / "MEMORY.md").unlink()
+    # wipe local openclaw dir + config, then restore from the snapshot
+    import shutil
+    shutil.rmtree(openclaw_dir)
     os.remove(ctx.config._path) if os.path.exists(ctx.config._path) else None
 
     assert persist.restore(ctx, client=s3, bucket="b") is True
-    assert "ShooterX" in persona.load_memory(ctx)
+    assert "ShooterX" in (openclaw_dir / "memory.md").read_text()
 
 
 def test_restore_noop_when_no_snapshot(tmp_path, monkeypatch):
