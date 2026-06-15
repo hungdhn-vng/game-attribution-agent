@@ -22,7 +22,12 @@ def test_mcp_top_level_servers():
     gaa = cfg["mcp"]["servers"]["gaa"]
     assert gaa["command"] == "python3"
     assert gaa["args"] == ["-m", "gaa.mcp.server"]
-    assert "env" not in gaa
+    # OpenClaw's env-var security filter strips GAA_*/LLM_* from the MCP subprocess,
+    # so they are re-injected here as ${ENV} refs (substituted at config load — verified
+    # live in the Phase A/E spike that mcp.servers.*.env DOES do ${VAR} substitution).
+    assert gaa["env"]["LLM_API_KEY"] == "${LLM_API_KEY}"
+    assert gaa["env"]["GAA_RUN_SIDECAR"] == "${GAA_RUN_SIDECAR}"
+    assert gaa["env"]["GAA_DB_PATH"] == "${GAA_DB_PATH}"
 
 
 def test_gateway_http_endpoints():

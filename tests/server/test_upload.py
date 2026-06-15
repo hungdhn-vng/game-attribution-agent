@@ -15,7 +15,7 @@ def test_upload_dispatches_onboard(monkeypatch):
     import gaa.server.app as appmod
     calls = []
     monkeypatch.setattr(appmod, "_onboard_from_csv",
-                        lambda ctx, path: calls.append(path) or {"status": "success", "run_id": "r1"})
+                        lambda ctx, path, **kw: calls.append(path) or {"status": "success", "run_id": "r1"})
     client = TestClient(create_app(ctx=object()))
     r = client.post("/upload", headers={"Authorization": "Bearer secret"},
                     files={"file": ("d.csv", io.BytesIO(b"a,b\n1,2\n"), "text/csv")})
