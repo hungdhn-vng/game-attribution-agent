@@ -21,3 +21,4 @@ workspace
 scripts/openclaw_install.py
 scripts/build_benchmark_snapshot.py
 scripts/openclaw_bootstrap.py
+.agentbase/
