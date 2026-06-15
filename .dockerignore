@@ -11,6 +11,7 @@ data/cache
 tests
 docs
 *.md
+!openclaw/*.md
 .venv
 __pycache__
 **/__pycache__
@@ -18,3 +19,5 @@ __pycache__
 .pytest_cache
 workspace
 scripts/openclaw_install.py
+scripts/build_benchmark_snapshot.py
+scripts/openclaw_bootstrap.py

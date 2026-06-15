@@ -44,6 +44,15 @@ def render_config(*, model: str = "google/gemma-4-31b-it") -> str:
                 "gaa": {
                     "command": "python3",
                     "args": ["-m", "gaa.mcp.server"],
+                    "env": {
+                        "GAA_DB_PATH": "${GAA_DB_PATH}",
+                        "GAA_CACHE_DIR": "${GAA_CACHE_DIR}",
+                        "GAA_RUN_SIDECAR": "${GAA_RUN_SIDECAR}",
+                        "GAA_MCP_ADMIN": "${GAA_MCP_ADMIN}",
+                        "LLM_BASE_URL": "${LLM_BASE_URL}",
+                        "LLM_API_KEY": "${LLM_API_KEY}",
+                        "LLM_MODEL": "${LLM_MODEL}",
+                    },
                 }
             }
         },

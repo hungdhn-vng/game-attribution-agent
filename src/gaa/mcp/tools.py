@@ -120,6 +120,7 @@ def run_tool(ctx, name: str, arguments: dict, *, is_admin: bool) -> dict:
     except jsonschema.ValidationError as exc:
         return {"status": "error", "error": f"invalid args for {name!r}: {exc.message}"}
     result = actions.dispatch(ctx, name, arguments or {}, is_admin=is_admin)
-    if name == "analyze" and isinstance(result, dict) and result.get("status") == "success":
+    # analyze returns status="done" (not "success") when the pipeline completes
+    if name == "analyze" and isinstance(result, dict) and result.get("run_id"):
         _record_analyze_run(ctx, result)
     return result

@@ -49,11 +49,20 @@ def _safe(events) -> None:
         yield {"type": "done", "run_id": None, "error": "internal error"}
 
 
-def _onboard_from_csv(ctx, path: str) -> dict:
-    proposed = actions.dispatch(ctx, "onboard_propose", {"csv": path}, is_admin=False)
+def _onboard_from_csv(ctx, path: str, *, name: str = "uploaded_game",
+                      platform: str = "generic", genre: str = "casual",
+                      adapter: str = "generic") -> dict:
+    import json as _json
+    proposed = actions.dispatch(ctx, "onboard_propose", {"csv": path, "adapter": adapter},
+                                is_admin=False)
     if proposed.get("status") != "success":
         return proposed
-    return actions.dispatch(ctx, "onboard_confirm", {}, is_admin=False)
+    mapping_json = _json.dumps(proposed["mapping"])
+    return actions.dispatch(ctx, "onboard_confirm",
+                            {"csv": path, "mapping": mapping_json,
+                             "name": name, "platform": platform,
+                             "genre": genre, "adapter": adapter},
+                            is_admin=False)
 
 
 def create_app(ctx=None) -> FastAPI:
@@ -118,11 +127,19 @@ def create_app(ctx=None) -> FastAPI:
         if upload_file is None:
             raise HTTPException(status_code=422, detail="file field required")
         data = await upload_file.read()
+        # Derive a game name from the uploaded filename (stem only, no extension)
+        original_name = getattr(upload_file, "filename", None) or "uploaded_game"
+        game_name = os.path.splitext(original_name)[0].replace(" ", "_") or "uploaded_game"
+        platform = form.get("platform", "generic")
+        genre = form.get("genre", "casual")
+        adapter = form.get("adapter", "generic")
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
             tmp.write(data)
             path = tmp.name
         try:
-            result = _onboard_from_csv(get_ctx(), path)
+            result = _onboard_from_csv(get_ctx(), path,
+                                       name=game_name, platform=platform,
+                                       genre=genre, adapter=adapter)
         finally:
             os.unlink(path)
         return JSONResponse(result)
