@@ -14,7 +14,7 @@
 - **Reuse unchanged:** `gaa.core`, `gaa.runs`, `gaa.config`, `gaa.lab`, `gaa.tools_registry`, `gaa.cli`, `server/actions.py` (the dispatch seam), the `GET /runs/<id>/<artifact>` route logic, `persist.py` (re-targeted).
 - **Retire:** `server/agent.py` (homegrown loop), `server/capabilities.py` (exec/browse/self_edit — now OpenClaw's), the loop bits of `server/persona.py` (protocol/tool-guide/system-prompt), and `server/tools.py` (the loop-hardening registry — never used on this branch).
 
-**Conventions:** run tests with `.venv/bin/python -m pytest`. The `.venv` is created locally (`uv venv --python 3.11 .venv && .venv/bin/pip install -e ".[server]"`). Commit after every green step.
+**Conventions:** run tests with `.venv/bin/python -m pytest`. The `.venv` is created locally (`uv venv --python 3.11 .venv && uv pip install -e ".[server]" && uv pip install pytest moto`). Note: uv venvs ship no `pip` — always use `uv pip install`. Baseline suite = **358 passing**. Commit after every green step.
 
 ---
 
