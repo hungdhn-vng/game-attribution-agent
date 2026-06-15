@@ -5,7 +5,7 @@ Routes:
   GET  /runs/<id>/<artifact>  open, read-only, allowlisted, traversal-safe (UNCHANGED).
   POST /chat                  Bearer-gated SSE shim to OpenClaw (Task C3).
   POST /upload                Bearer-gated CSV onboarding (Task C4).
-On startup: persist.restore(ctx) (best-effort)."""
+On startup: nothing (restore is done by the container entrypoint before the gateway boots)."""
 from __future__ import annotations
 
 import hmac
@@ -79,10 +79,6 @@ def create_app(ctx=None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        try:
-            persist.restore(get_ctx())
-        except Exception:
-            pass
         yield
 
     app = FastAPI(title="GAA Front Door", lifespan=lifespan)
@@ -140,6 +136,11 @@ def create_app(ctx=None) -> FastAPI:
             result = _onboard_from_csv(get_ctx(), path,
                                        name=game_name, platform=platform,
                                        genre=genre, adapter=adapter)
+            if isinstance(result, dict) and result.get("status") == "success":
+                try:
+                    persist.snapshot(get_ctx())
+                except Exception:
+                    _log.exception("vStorage snapshot after /upload failed")
         finally:
             os.unlink(path)
         return JSONResponse(result)
