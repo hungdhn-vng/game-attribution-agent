@@ -61,5 +61,10 @@ def render_config(*, model: str = "google/gemma-4-31b-it") -> str:
                 }
             }
         },
+        # Trim OpenClaw's built-in tools down to only our MCP server's. `group:openclaw`
+        # is every built-in (fs/runtime/web/ui/sessions/memory/media/...); denying it
+        # ~halves per-turn prompt tokens (measured: 22.9k->11.8k plain, 45.9k->23.6k tool)
+        # while KEEPING the gaa MCP tools (they're plugin-owned, not in group:openclaw).
+        "tools": {"deny": ["group:openclaw"]},
     }
     return json.dumps(cfg, indent=2)
