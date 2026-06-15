@@ -11,6 +11,7 @@ NOT exposed as agent tools — they remain reachable via the CLI/ops."""
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -18,6 +19,8 @@ from pathlib import Path
 import jsonschema
 
 from gaa.server import actions
+
+_log = logging.getLogger(__name__)
 
 _STR = {"type": "string"}
 
@@ -71,6 +74,8 @@ def _sidecar_path(ctx) -> str | None:
     try:
         cache_dir = ctx.settings.cache_dir
     except AttributeError:
+        _log.warning("ctx.settings.cache_dir unavailable and GAA_RUN_SIDECAR unset; "
+                     "analyze run_id sidecar not written")
         return None
     return str(Path(cache_dir) / "last_run.json")
 
