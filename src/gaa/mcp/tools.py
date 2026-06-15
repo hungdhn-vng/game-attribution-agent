@@ -19,6 +19,7 @@ from pathlib import Path
 import jsonschema
 
 from gaa.server import actions
+from gaa import persist
 
 _log = logging.getLogger(__name__)
 
@@ -123,4 +124,9 @@ def run_tool(ctx, name: str, arguments: dict, *, is_admin: bool) -> dict:
     # analyze returns status="done" (not "success") when the pipeline completes
     if name == "analyze" and isinstance(result, dict) and result.get("run_id"):
         _record_analyze_run(ctx, result)
+    if isinstance(result, dict) and result.get("status") == "success" and name in actions.MUTATING_ACTIONS:
+        try:
+            persist.snapshot(ctx)
+        except Exception:
+            _log.exception("vStorage snapshot after %s failed", name)
     return result
