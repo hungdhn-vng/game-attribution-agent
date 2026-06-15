@@ -64,11 +64,15 @@ _SPECS: dict[str, tuple[str, dict]] = {
 }
 
 
-def _sidecar_path(ctx) -> str:
+def _sidecar_path(ctx) -> str | None:
     p = os.environ.get("GAA_RUN_SIDECAR")
     if p:
         return p
-    return str(Path(ctx.settings.cache_dir) / "last_run.json")
+    try:
+        cache_dir = ctx.settings.cache_dir
+    except AttributeError:
+        return None
+    return str(Path(cache_dir) / "last_run.json")
 
 
 def _record_analyze_run(ctx, result: dict) -> None:
@@ -76,6 +80,8 @@ def _record_analyze_run(ctx, result: dict) -> None:
     if not rid:
         return
     path = _sidecar_path(ctx)
+    if not path:
+        return
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
