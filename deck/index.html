@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Game Attribution Agent — Claw-a-thon 2026</title>
+  <link rel="stylesheet" href="vendor/reveal/dist/reveal.css" />
+  <link rel="stylesheet" href="theme/gaa.css" />
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- 1 · TITLE -->
+      <section>
+        <div class="split l">
+          <div class="pane">
+            <p class="kicker">Claw-a-thon 2026 · Data Analysis</p>
+            <h1 class="d1">Game<br>Attribution<br>Agent</h1>
+            <p class="lede" style="margin-top:.7em;max-width:24ch">The AI analyst that explains <em>why</em> your game's metrics moved — and shows its evidence.</p>
+            <p class="mono" style="font-size:.46em;color:var(--soft);letter-spacing:.06em;margin-top:1.4em">internal vs market · every claim cited · scenarios, not decisions</p>
+          </div>
+          <div class="panel blue" style="justify-content:flex-end">
+            <div class="bignum">why?</div>
+            <p class="plabel" style="margin-top:.7em">internal vs market</p>
+            <p class="chip" style="align-self:flex-start;margin-top:1.1em">cited, every claim</p>
+          </div>
+        </div>
+        <aside class="notes">Good morning. This is the Game Attribution Agent. Every games team has lived this: a metric moves and nobody can say why with any confidence. We built an AI analyst that answers why — and shows its evidence for every claim.</aside>
+      </section>
+
+      <!-- 2 · PROBLEM -->
+      <section>
+        <div class="split l">
+          <div class="pane">
+            <p class="kicker">The problem</p>
+            <h2>A number moved.<br>The fire drill starts.</h2>
+            <p class="lede" style="margin-top:.8em;max-width:30ch">DAU drops 22% overnight. The team burns days arguing <em>our update?</em> vs <em>a genre-wide slump?</em> — pulling dashboards by hand, no audit trail, no agreement.</p>
+          </div>
+          <div class="panel ink">
+            <p class="plabel" style="color:var(--blue);opacity:1">BI dashboards</p>
+            <p style="font-size:1.05em;margin:.25em 0 1.2em">Show you <b>what</b> happened. Never <b>why</b>.</p>
+            <p class="plabel" style="color:var(--amber);opacity:1">LLM copilots</p>
+            <p style="font-size:1.05em;margin:.25em 0 0">Will <b>say</b> why — and hallucinate the numbers.</p>
+            <p class="mono" style="font-size:.46em;opacity:.6;margin-top:1.4em">Nothing answers <b>why</b>, honestly.</p>
+          </div>
+        </div>
+        <aside class="notes">When a number drops, the fire drill starts: was it our update, or the whole genre? People pull dashboards by hand, argue for days, no audit trail. Dashboards tell you WHAT moved; LLM copilots will happily tell you WHY and make the numbers up. Nothing answers why, honestly.</aside>
+      </section>
+
+      <!-- 3 · ASK -->
+      <section>
+        <div class="split l">
+          <div class="pane">
+            <p class="kicker">Demo</p>
+            <h2>So we just<br>ask.</h2>
+            <div class="pipe" style="margin-top:1.4em"><b>plan</b><span>→</span><b>crawl</b><span>→</span><b>modules</b><span>→</span><b>synth</b><span>→</span><b>render</b></div>
+            <p class="lede" style="font-size:.6em;margin-top:.6em">one sentence drives a five-stage pipeline</p>
+          </div>
+          <div class="panel blue">
+            <p class="plabel" style="opacity:.8">You</p>
+            <p style="font-family:'Bricolage';font-weight:800;font-size:1.7em;line-height:1.05;letter-spacing:-.02em;margin-top:.3em">"What's going on with my Roblox game's DAU this week?"</p>
+          </div>
+        </div>
+        <aside class="notes">So we just ask it, in plain language: what is going on with my Roblox game's DAU this week? Behind that one sentence it runs a five-stage pipeline — plan, crawl the market, run the analysis modules, synthesize, render.</aside>
+      </section>
+
+      <!-- 4 · DOSSIER (wow) -->
+      <section>
+        <div class="full" style="padding:48px 60px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1em">
+            <div>
+              <p class="kicker" style="margin-bottom:.5em">Attribution dossier · DAU · Jun 1 – 14</p>
+              <h3 style="font-size:1.5em;max-width:24ch;line-height:1.02">Your −22% DAU largely tracked a genre-wide dip — mostly the market, not your update.</h3>
+            </div>
+            <span class="pill" style="flex:none"><span class="dot"></span>Likely · Strong evidence</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1.15fr .85fr;gap:2em;align-items:center;margin-top:1em">
+            <div class="card" style="padding:1em 1.2em">
+              <p class="plabel" style="color:var(--soft);font-size:.4em;margin-bottom:.4em">You vs the market · indexed to 100</p>
+              <svg class="chartwrap" viewBox="0 0 480 200" style="height:auto">
+                <rect x="300" y="14" width="160" height="152" fill="#ef4444" opacity="0.06"/>
+                <line x1="40" y1="166" x2="460" y2="166" stroke="#e4ded3"/>
+                <line x1="40" y1="14" x2="40" y2="166" stroke="#e4ded3"/>
+                <text x="44" y="28" font-family="Plex Mono" font-size="11" fill="#9b9088">100</text>
+                <polyline fill="none" stroke="#c2740a" stroke-width="3" points="50,52 150,48 250,58 320,100 400,112 455,110"/>
+                <polyline fill="none" stroke="#2563eb" stroke-width="3.6" points="50,44 150,40 250,52 320,120 400,142 455,138"/>
+                <line x1="455" y1="110" x2="455" y2="138" stroke="#2563eb" stroke-dasharray="3 3"/>
+                <circle cx="455" cy="138" r="4.5" fill="#2563eb"/><circle cx="455" cy="110" r="4" fill="#c2740a"/>
+                <text x="56" y="186" font-family="Plex Mono" font-size="11" fill="#9b9088">Jun 1</text>
+                <text x="416" y="186" font-family="Plex Mono" font-size="11" fill="#9b9088">Jun 14</text>
+              </svg>
+              <div style="display:flex;gap:1.4em;margin-top:.4em;font-family:'Plex Mono';font-size:.4em;color:var(--soft)">
+                <span><b style="color:#2563eb">—</b> Your DAU (indexed)</span><span><b style="color:#c2740a">—</b> Genre (indexed)</span>
+              </div>
+            </div>
+            <div>
+              <div class="cause m"><p>Genre-wide CCU fell ~18% the same week.</p><span class="tag m">Market</span> <span class="tag n">Likely</span> <span class="cite">E2,E5</span></div>
+              <div class="cause i"><p>v2.3 added load time on mobile-SEA.</p><span class="tag i">Internal</span> <span class="tag n">Possible</span> <span class="cite">E7</span></div>
+            </div>
+          </div>
+          <p class="mono" style="font-size:.42em;color:var(--soft);margin-top:.9em;text-align:center">It read the data, crawled the market, ran four analyses, and wrote this — every line cited.</p>
+        </div>
+        <aside class="notes">And this is what comes back. It read the export, crawled the genre's player counts, ran four analyses, and wrote a cited dossier — headline, confidence, the you-versus-market chart, and causes that each point to evidence. Do not read it all yet — just notice it took one sentence from me.</aside>
+      </section>
+
+      <!-- 5 · HINGE -->
+      <section>
+        <div class="full dark center">
+          <p class="kicker" style="color:var(--amber)">The catch</p>
+          <h2 class="d2" style="max-width:20ch;text-align:center">But would you trust an LLM with your <span style="color:var(--amber)">numbers?</span></h2>
+          <p class="lede" style="color:#b8afa2;max-width:34ch;text-align:center;margin-top:1em">LLMs invent confident percentages. If an AI says revenue dropped because of one region — can you bet a roadmap on it?</p>
+        </div>
+        <aside class="notes">Now the obvious objection. This is an LLM, and LLMs invent confident numbers. Would you bet a roadmap on an AI telling you revenue dropped because of one region? That question is the whole design.</aside>
+      </section>
+
+      <!-- 6 · TRUST CHAIN -->
+      <section>
+        <div class="full">
+          <p class="kicker">The answer</p>
+          <h2 style="max-width:18ch">The LLM never invents a finding.</h2>
+          <div class="chain" style="margin:1.1em 0;font-size:.54em">
+            <div class="node">Deterministic tools<span class="role">produce facts</span></div>
+            <span class="arrow">→</span>
+            <div class="node">Evidence ledger<span class="role">append-only</span></div>
+            <span class="arrow">→</span>
+            <div class="node llm">Synthesizer<span class="role">LLM narrates</span></div>
+            <span class="arrow">→</span>
+            <div class="node">Self-consistency<span class="role">N samples agree</span></div>
+            <span class="arrow">→</span>
+            <div class="node">Citation validator<span class="role">hard gate</span></div>
+            <span class="arrow">→</span>
+            <div class="node" style="background:var(--ink);color:var(--paper);border-color:var(--ink)">Dossier</div>
+          </div>
+          <p class="lede" style="max-width:42ch">The LLM only <b style="color:var(--ink)">routes intent</b>, <b style="color:var(--ink)">maps columns</b>, and <b style="color:var(--ink)">writes the narrative</b>. Every number traces to a ledger entry. An uncited claim never ships.</p>
+        </div>
+        <aside class="notes">Here is the answer: the LLM never invents a finding. Deterministic tools produce the facts and write them to an append-only evidence ledger. The model only narrates — and the citation validator is a hard gate: any claim without a ledger citation never ships. It routes, maps columns, and writes prose. It does not do the math.</aside>
+      </section>
+
+      <!-- 7 · LAYER 1 ANOMALY -->
+      <section>
+        <div class="split l">
+          <div class="pane">
+            <p class="kicker">Layer 1 · Anomaly</p>
+            <h2>What moved —<br>and exactly when.</h2>
+            <p class="lede" style="margin-top:.9em;max-width:30ch"><b style="color:var(--ink)">Change-point detection</b> (ruptures · PELT) finds the break: <span class="mono" style="color:var(--blue)">Jun 8</span>.</p>
+            <p class="lede fragment" style="margin-top:.5em;max-width:30ch"><b style="color:var(--ink)">STL decomposition</b> quantifies how anomalous it is vs seasonality.</p>
+            <p class="fragment" style="margin-top:.7em"><span class="cite">→ E1, E2 written to the ledger</span></p>
+          </div>
+          <div class="panel paper" style="padding:48px 52px">
+            <div class="card" style="padding:1em 1.1em">
+              <p class="plabel" style="color:var(--soft);font-size:.4em;margin-bottom:.5em">DAU over time</p>
+              <svg class="chartwrap" viewBox="0 0 460 210">
+                <rect x="290" y="12" width="160" height="160" fill="#ef4444" opacity="0.06"/>
+                <line x1="30" y1="172" x2="450" y2="172" stroke="#e4ded3"/>
+                <polyline fill="none" stroke="#2563eb" stroke-width="3.4" points="40,60 105,55 170,62 235,57 290,64 350,124 410,146 448,142"/>
+                <line x1="290" y1="12" x2="290" y2="172" stroke="#a99f92" stroke-dasharray="4 4"/>
+                <text x="298" y="26" font-family="Plex Mono" font-size="11" fill="#8c8276">change-point · Jun 8</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Let's peel the dossier apart, one layer per slide. Layer one: what moved and when. Change-point detection — ruptures, PELT — finds the exact break. STL decomposition says how anomalous it is versus normal seasonality. Two evidence entries, written down.</aside>
+      </section>
+
+      <!-- 8 · LAYER 2 INTERNAL VS MARKET -->
+      <section>
+        <div class="split r">
+          <div class="pane">
+            <p class="kicker">Layer 2 · Internal vs market</p>
+            <h2>Is it us —<br>or the market?</h2>
+            <p class="lede" style="margin-top:.8em;max-width:30ch"><b style="color:var(--ink)">CausalImpact-style counterfactual</b> (BSTS) vs a genre benchmark.</p>
+            <p class="lede fragment" style="margin-top:.5em;max-width:30ch">"What <em>would</em> DAU have been without the event?" The gap is the <b style="color:var(--ink)">true internal effect</b>.</p>
+            <div class="card" style="padding:.9em 1em;margin-top:1em">
+              <p class="plabel" style="color:var(--soft);font-size:.4em;margin-bottom:.4em">You vs genre · indexed to 100</p>
+              <svg class="chartwrap" viewBox="0 0 460 170">
+                <rect x="290" y="10" width="160" height="128" fill="#ef4444" opacity="0.06"/>
+                <line x1="30" y1="138" x2="450" y2="138" stroke="#e4ded3"/>
+                <polyline fill="none" stroke="#c2740a" stroke-width="3" points="40,44 130,40 215,50 290,84 370,94 448,92"/>
+                <polyline fill="none" stroke="#2563eb" stroke-width="3.6" points="40,38 130,34 215,44 290,100 370,118 448,114"/>
+                <g class="fragment"><line x1="448" y1="92" x2="448" y2="114" stroke="#2563eb" stroke-dasharray="3 3"/>
+                  <circle cx="448" cy="114" r="4.5" fill="#2563eb"/><circle cx="448" cy="92" r="4" fill="#c2740a"/></g>
+              </svg>
+            </div>
+          </div>
+          <div class="panel amber">
+            <p class="plabel">The verdict</p>
+            <div class="midnum" style="margin-top:.3em">Mostly the<br>market.</div>
+            <p style="font-size:.66em;margin-top:.8em;max-width:24ch">A genre-wide dip drove most of the −22%. Only a slice was you.</p>
+            <div style="margin-top:1em"><span class="chip">Market · Likely</span> <span class="chip">Internal · Possible</span></div>
+            <p class="mono fragment" style="font-size:.42em;margin-top:1.2em;opacity:.85">benchmark tiers: snapshot → Roblox/Steam crawl → Perplexity</p>
+          </div>
+        </div>
+        <aside class="notes">Layer two, the heart of it: is it us or the market? We build a CausalImpact-style counterfactual against a genre benchmark — what would DAU have been with no event? The gap between that and reality is the true internal effect. Here most of the drop is the market; only a slice is us. The benchmark comes from a live tier: snapshot, then Roblox and Steam crawl, then Perplexity.</aside>
+      </section>
+
+      <!-- 9 · LAYER 3 SEGMENT -->
+      <section>
+        <div class="split l">
+          <div class="pane">
+            <p class="kicker">Layer 3 · Segment root-cause</p>
+            <h2>Of the part that<br><em>was</em> us — which slice?</h2>
+            <p class="lede" style="margin-top:.9em;max-width:30ch"><b style="color:var(--ink)">Adtributor</b> attributes the internal residual to a dimension — as a citable percentage.</p>
+          </div>
+          <div class="panel blue">
+            <p class="plabel" style="opacity:.85">Internal residual</p>
+            <div class="bignum" style="font-size:5em;margin-top:.1em">~70%</div>
+            <p style="font-size:.8em;margin-top:.6em;max-width:20ch">from the <b>v2.3 update</b> on <b>mobile · SEA</b>.</p>
+            <div style="margin-top:1em"><span class="chip">Possible</span> <span class="chip">E7, E9</span></div>
+          </div>
+        </div>
+        <aside class="notes">Layer three: of the part that was us, which slice? Adtributor attributes the internal residual to a dimension as a citable percentage — here, mostly the v2.3 update on mobile in SEA. Cited, of course.</aside>
+      </section>
+
+      <!-- 10 · LAYER 4 CONFIDENCE -->
+      <section>
+        <div class="split r">
+          <div class="pane">
+            <p class="kicker">Layer 4 · Confidence</p>
+            <h2>Most tools give one number. We give two.</h2>
+            <p class="lede" style="margin-top:.9em;max-width:30ch">How <b style="color:var(--ink)">likely</b> is this cause — and how <b style="color:var(--ink)">good</b> is the evidence for it?</p>
+            <p class="lede fragment" style="margin-top:.5em;max-width:30ch">Every claim sits on a likelihood × evidence grid, so a confident guess and a real finding never look the same.</p>
+          </div>
+          <div class="panel paper" style="padding:44px 50px">
+            <div class="card" style="padding:1em 1.1em">
+              <svg class="chartwrap" viewBox="-16 0 476 250">
+                <line x1="78" y1="210" x2="448" y2="210" stroke="#e4ded3"/>
+                <line x1="78" y1="20" x2="78" y2="210" stroke="#e4ded3"/>
+                <g font-family="Plex Mono" font-size="11" fill="#8c8276">
+                  <text x="150" y="230" text-anchor="middle">Weak</text>
+                  <text x="265" y="230" text-anchor="middle">Moderate</text>
+                  <text x="380" y="230" text-anchor="middle">Strong</text>
+                  <text x="70" y="192" text-anchor="end">Unlikely</text>
+                  <text x="70" y="145" text-anchor="end">Possible</text>
+                  <text x="70" y="92" text-anchor="end">Likely</text>
+                  <text x="70" y="44" text-anchor="end">Very likely</text>
+                </g>
+                <circle cx="380" cy="92" r="10" fill="#c2740a"/><text x="380" y="74" font-family="Plex Sans" font-size="12" fill="#16120d" text-anchor="middle">Genre dip</text>
+                <circle cx="265" cy="145" r="10" fill="#2563eb"/><text x="265" y="127" font-family="Plex Sans" font-size="12" fill="#16120d" text-anchor="middle">v2.3 update</text>
+                <circle cx="150" cy="145" r="10" fill="#9ca3af"/><text x="150" y="127" font-family="Plex Sans" font-size="12" fill="#16120d" text-anchor="middle">Seasonality</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Layer four. Most tools give you one number. We give two: how likely is this cause, and how good is the evidence behind it. Every claim sits on this likelihood-by-evidence grid, so a confident guess and a well-supported finding never look the same.</aside>
+      </section>
+
+      <!-- 11 · LAYER 5 HONESTY -->
+      <section>
+        <div class="split l">
+          <div class="pane">
+            <p class="kicker">Layer 5 · Honesty</p>
+            <h2>When the evidence is thin, it says so.</h2>
+            <div class="gaps" style="margin-top:1em;font-size:.62em;max-width:30ch">
+              <p class="kicker" style="font-size:.7em">Assumptions &amp; gaps</p>
+              <ul style="margin:0;padding-left:1.1em"><li>Pre-period &lt; 14 days → confidence lowered.</li><li>No cohort export → segment is indicative.</li></ul>
+            </div>
+            <p class="lede fragment" style="margin-top:.8em;max-width:32ch">A <b style="color:var(--ink)">self-consistency gate</b> (N samples must agree) + the <b style="color:var(--ink)">citation validator</b> reject shaky claims.</p>
+          </div>
+          <div class="panel ink center" style="text-align:center;align-items:center">
+            <p class="plabel" style="color:var(--amber);opacity:1">The ethos</p>
+            <div class="d2" style="font-size:2.1em;margin-top:.4em;max-width:14ch">Scenarios, not decisions.</div>
+            <p class="lede" style="color:#b8afa2;margin-top:.7em">The human decides.</p>
+          </div>
+        </div>
+        <aside class="notes">Layer five, the one I'm proudest of: when the evidence is thin, it says so. It lists its assumptions and gaps and lowers its own confidence. A self-consistency gate and the citation validator reject shaky claims. It gives you scenarios, not decisions — the human still decides.</aside>
+      </section>
+
+      <!-- 12 · ARCHITECTURE -->
+      <section>
+        <div class="full center" style="padding:54px 64px">
+          <p class="kicker">How it's built</p>
+          <h2 style="text-align:center;max-width:22ch">One agent. Deterministic core. LLM at the edges.</h2>
+          <div class="arch" style="margin-top:1.3em;width:100%;max-width:1000px;font-size:.52em">
+            <div class="tier"><div class="box" style="flex:none;min-width:60%">Browser — Next.js on <b>Vercel</b> · chat · live trace · dossier iframe</div></div>
+            <div class="flow">↕ /invocations · /chat (SSE)</div>
+            <div class="tier"><div class="box agent" style="flex:none;min-width:75%"><b>FastAPI Custom Agent</b> on GreenNode AgentBase<br><span class="mono" style="font-size:.86em">/chat loop · resumable pipeline plan→crawl→modules→synth→render · /runs/&lt;id&gt; dossier</span></div></div>
+            <div class="tier">
+              <div class="box">Deterministic engine<br><span class="mono" style="font-size:.84em;color:var(--soft)">PELT · STL · Adtributor · BSTS · ledger · validator</span></div>
+              <div class="box">LLM · Qwen 3.5 27B (MaaS)<br><span class="mono" style="font-size:.84em;color:var(--soft)">route · map columns · narrate</span></div>
+            </div>
+            <div class="ext">External: MaaS LLM · SteamCharts / Roblox trackers · Perplexity sonar (opt-in)</div>
+          </div>
+        </div>
+        <aside class="notes">Quickly, how it's built. One FastAPI custom agent on GreenNode AgentBase: a chat loop driving a resumable pipeline, serving the dossier. Next.js frontend on Vercel. The deterministic engine runs in-process; the LLM — Qwen 3.5 27B via the platform's MaaS — only routes, maps, and narrates.</aside>
+      </section>
+
+      <!-- 13 · PROOF -->
+      <section>
+        <div class="split r">
+          <div class="pane">
+            <p class="kicker">Proof</p>
+            <h2>Real, not<br>a mockup.</h2>
+            <div class="lede" style="margin-top:.9em;font-size:.62em;color:var(--ink)">
+              <p style="margin:.3em 0">✓ <b>177 passing tests</b> · TDD throughout</p>
+              <p style="margin:.3em 0">✓ Engine verified end-to-end with a fake LLM</p>
+              <p style="margin:.3em 0">✓ Deployed live on <b>AgentBase</b> + <b>Vercel</b></p>
+              <p style="margin:.3em 0">✓ Real Roblox / Steam benchmark crawl</p>
+            </div>
+            <div style="display:flex;gap:.8em;align-items:center;margin-top:1.1em">
+              <img src="assets/img/qr.png" alt="Open the live app" style="width:96px;height:96px;border-radius:10px;border:1px solid var(--line)" />
+              <div><p class="plabel" style="color:var(--blue);font-size:.42em">Scan it — it's live</p><p class="mono" style="font-size:.46em;color:var(--soft);margin-top:.3em">game-attribution-agent.vercel.app</p></div>
+            </div>
+          </div>
+          <div class="panel ink">
+            <p class="plabel" style="color:var(--amber);opacity:1;margin-bottom:.6em">An actual run — cited, live</p>
+            <img src="assets/screenshots/dossier.png" alt="A real GAA dossier from the live app" style="width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.14);box-shadow:0 18px 50px -12px rgba(0,0,0,.6)" />
+          </div>
+        </div>
+        <aside class="notes">This is not a mockup. 177 tests, TDD throughout, the engine verified end to end, deployed live on AgentBase and Vercel, with a real Roblox and Steam benchmark crawl. The screenshot on the right is an actual live run — scan the code and try it yourself right now.</aside>
+      </section>
+
+      <!-- 14 · CLOSE -->
+      <section>
+        <div class="split l">
+          <div class="pane">
+            <p class="kicker">Game Attribution Agent</p>
+            <h2 style="max-width:18ch">Attribution done honestly.</h2>
+            <p class="lede" style="margin-top:.8em;max-width:30ch">Every claim cited. Every gap admitted. Scenarios, not decisions.</p>
+            <p class="lede" style="font-size:.6em;margin-top:1em;max-width:32ch">Next: multi-game portfolio views · a toolbox that grows (tool promotion) · admin-only hardening.</p>
+          </div>
+          <div class="panel blue center" style="text-align:center;align-items:center">
+            <img src="assets/img/qr.png" alt="Open the live app" style="width:150px;height:150px;border-radius:14px;border:3px solid rgba(255,255,255,.85)" />
+            <p class="plabel" style="margin-top:1em">Scan it — it's live</p>
+            <p class="mono" style="font-size:.46em;margin-top:.4em;opacity:.9">game-attribution-agent.vercel.app</p>
+          </div>
+        </div>
+        <aside class="notes">So: attribution done honestly — every claim cited, every gap admitted. Next we're adding multi-game portfolio views and a toolbox that grows. Thank you — the link and the code are right here.</aside>
+      </section>
+
+    </div>
+  </div>
+  <script src="vendor/reveal/dist/reveal.js"></script>
+  <script src="vendor/reveal/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: "c/t",
+      width: 1280, height: 720, margin: 0,
+      controls: true, progress: true,
+      transition: "fade",
+      pdfMaxPagesPerSlide: 1,
+      pdfSeparateFragments: false,
+      plugins: [RevealNotes],
+    });
+  </script>
+</body>
+</html>
