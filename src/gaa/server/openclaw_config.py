@@ -52,6 +52,11 @@ def render_config(*, model: str = "google/gemma-4-31b-it") -> str:
                         "LLM_BASE_URL": "${LLM_BASE_URL}",
                         "LLM_API_KEY": "${LLM_API_KEY}",
                         "LLM_MODEL": "${LLM_MODEL}",
+                        "VSTORAGE_ENDPOINT": "${VSTORAGE_ENDPOINT}",
+                        "VSTORAGE_BUCKET": "${VSTORAGE_BUCKET}",
+                        "VSTORAGE_ACCESS_KEY": "${VSTORAGE_ACCESS_KEY}",
+                        "VSTORAGE_SECRET_KEY": "${VSTORAGE_SECRET_KEY}",
+                        "VSTORAGE_REGION": "${VSTORAGE_REGION}",
                     },
                 }
             }
