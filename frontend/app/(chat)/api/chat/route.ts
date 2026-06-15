@@ -2,10 +2,10 @@ import { cookies } from "next/headers";
 import { BACKEND_URL, authHeaders } from "@/lib/gaa/backend";
 import { forwardChatBody } from "@/lib/gaa/request";
 
-// Stream the SSE proxy without static optimization, and keep the function alive
-// long enough for a full analyze turn (dead-air while the tool runs, then tokens).
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+// Keep the function alive for a full analyze turn (dead-air while the tool runs,
+// then streamed tokens). A POST route handler is dynamic by default under
+// cacheComponents, so no `dynamic`/`runtime` segment config is needed (and those
+// exports are rejected when cacheComponents is enabled).
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
