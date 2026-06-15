@@ -51,11 +51,10 @@ def _for_test_handles(*, is_admin: bool):
     """
     ctx = build_context()
     srv = build_server(ctx, is_admin=is_admin)
-    loop = asyncio.new_event_loop()
 
     def listed() -> list[types.Tool]:
         req = types.ListToolsRequest(method="tools/list")
-        result = loop.run_until_complete(
+        result = asyncio.run(
             srv.request_handlers[types.ListToolsRequest](req)
         )
         return result.root.tools
@@ -65,7 +64,7 @@ def _for_test_handles(*, is_admin: bool):
             method="tools/call",
             params=types.CallToolRequestParams(name=name, arguments=args),
         )
-        result = loop.run_until_complete(
+        result = asyncio.run(
             srv.request_handlers[types.CallToolRequest](req)
         )
         return result.root.content

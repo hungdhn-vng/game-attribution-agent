@@ -3,10 +3,13 @@
 Wraps the existing action seam (gaa.server.actions.dispatch over gaa.core). The
 general capabilities (exec/browse/self_edit) are intentionally NOT here — OpenClaw
 owns those. Admin-class tools are filtered out of non-admin listings (defense in
-depth on top of dispatch's own admin gate)."""
+depth on top of dispatch's own admin gate).
+
+MCP surface is an intentional focused subset: rarer maintenance/admin actions
+(step, tools_remove, tools_import, tools_export, tools_sync_docs) are intentionally
+NOT exposed as agent tools — they remain reachable via the CLI/ops."""
 from __future__ import annotations
 
-import json
 import jsonschema
 
 from gaa.server import actions
@@ -54,10 +57,6 @@ _SPECS: dict[str, tuple[str, dict]] = {
                   {"type": "object", "properties": {"name": _STR, "run": _STR, "args": {"type": "object"}},
                    "required": ["name"]}),
 }
-
-
-def all_tool_names() -> list[str]:
-    return list(_SPECS)
 
 
 def tool_specs(*, is_admin: bool) -> list[dict]:
