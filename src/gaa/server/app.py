@@ -112,8 +112,17 @@ def create_app(ctx=None) -> FastAPI:
         events = app.state.openclaw.stream_chat(
             messages=body.get("messages", []), is_admin=is_admin,
             active_run_id=body.get("active_run_id") or None)
-        return StreamingResponse(_shim.sse_events(_safe(events)),
-                                 media_type="text/event-stream")
+        return StreamingResponse(
+            _shim.sse_events(_safe(events)),
+            media_type="text/event-stream",
+            # Defeat proxy/ingress buffering so tokens + activity arrive live, not
+            # in one burst at the end (X-Accel-Buffering disables nginx buffering).
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @app.post("/upload")
     async def upload(request: Request):

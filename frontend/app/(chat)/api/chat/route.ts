@@ -2,6 +2,12 @@ import { cookies } from "next/headers";
 import { BACKEND_URL, authHeaders } from "@/lib/gaa/backend";
 import { forwardChatBody } from "@/lib/gaa/request";
 
+// Stream the SSE proxy without static optimization, and keep the function alive
+// long enough for a full analyze turn (dead-air while the tool runs, then tokens).
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({ messages: [] }));
   const adminCookie = (await cookies()).get("gaa_admin")?.value;

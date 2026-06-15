@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -35,5 +37,24 @@ class Run(BaseModel):
     updated_at: str = Field(default_factory=_now_iso)
 
     def add_activity(self, stage: str, text: str) -> None:
-        """Append an activity entry stamped with the current time."""
-        self.activity.append({"ts": _now_iso(), "stage": stage, "text": text})
+        """Append an activity entry stamped with the current time.
+
+        When ``$GAA_PROGRESS`` is set (in the container, the analyze pipeline runs
+        inside the MCP subprocess), each entry is also appended as a JSONL line to
+        that sidecar so the front door can tail it and narrate live GAA activity
+        during the dead-air of a tool turn. Best-effort: never break a run.
+        """
+        entry = {"ts": _now_iso(), "stage": stage, "text": text}
+        self.activity.append(entry)
+        _emit_progress(entry)
+
+
+def _emit_progress(entry: dict) -> None:
+    path = os.environ.get("GAA_PROGRESS")
+    if not path:
+        return
+    try:
+        with open(path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:  # progress narration is cosmetic — never break the run
+        pass

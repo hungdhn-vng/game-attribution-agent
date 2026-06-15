@@ -14,7 +14,8 @@ ENV OPENCLAW_CONFIG_DIR=/home/node/.openclaw \
     OPENCLAW_URL=http://127.0.0.1:18789 \
     GAA_CACHE_DIR=/home/node/.gaa \
     GAA_DB_PATH=/home/node/.gaa/gaa.sqlite \
-    GAA_RUN_SIDECAR=/home/node/.gaa/last_run.json
+    GAA_RUN_SIDECAR=/home/node/.gaa/last_run.json \
+    GAA_PROGRESS=/home/node/.gaa/progress.jsonl
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=6 \
   CMD curl -fsS http://127.0.0.1:8080/health || exit 1

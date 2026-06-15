@@ -27,6 +27,9 @@ def test_mcp_top_level_servers():
     # live in the Phase A/E spike that mcp.servers.*.env DOES do ${VAR} substitution).
     assert gaa["env"]["LLM_API_KEY"] == "${LLM_API_KEY}"
     assert gaa["env"]["GAA_RUN_SIDECAR"] == "${GAA_RUN_SIDECAR}"
+    # progress sidecar: the MCP subprocess writes per-stage progress here; the front
+    # door tails it to narrate GAA activity during the dead-air of a tool turn.
+    assert gaa["env"]["GAA_PROGRESS"] == "${GAA_PROGRESS}"
     assert gaa["env"]["GAA_DB_PATH"] == "${GAA_DB_PATH}"
     # vStorage creds must be forwarded so the MCP subprocess can snapshot on mutation
     assert gaa["env"]["VSTORAGE_ENDPOINT"] == "${VSTORAGE_ENDPOINT}"

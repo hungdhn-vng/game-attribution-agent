@@ -4,11 +4,28 @@ from __future__ import annotations
 
 import json
 import os
+import queue
+import threading
 import time
 from pathlib import Path
 from typing import Iterator, Protocol
 
 import httpx
+
+_SENTINEL = object()  # marks end-of-stream on the internal queue
+
+
+def _read_complete_lines(path: str) -> list[str]:
+    """Return only newline-terminated lines from *path* (drops a partial trailing
+    line still being appended). Missing/unreadable file → []."""
+    try:
+        with open(path, "r") as f:
+            data = f.read()
+    except OSError:
+        return []
+    if not data:
+        return []
+    return data.split("\n")[:-1]
 
 
 class OpenClawClient(Protocol):
@@ -39,37 +56,106 @@ class RealOpenClawClient:
     """Drives an OpenClaw chat turn over HTTP /v1/chat/completions (stream) and surfaces
     the analyze run_id via the shared-FS sidecar (HTTP completions hides MCP tool results)."""
 
-    def __init__(self, *, url: str | None = None, token: str | None = None, sidecar: str | None = None):
+    def __init__(self, *, url: str | None = None, token: str | None = None,
+                 sidecar: str | None = None, progress: str | None = None,
+                 progress_interval: float = 0.4):
         self._url = (url or os.environ.get("OPENCLAW_URL", "http://127.0.0.1:18789")).rstrip("/")
         self._token = token or os.environ.get("OPENCLAW_TOKEN", "")
         self._sidecar = sidecar or os.environ.get("GAA_RUN_SIDECAR", "")
+        # Progress sidecar the analyze pipeline appends per stage; tailed here to
+        # narrate activity during the dead-air while a server-side tool runs.
+        self._progress = progress if progress is not None else os.environ.get("GAA_PROGRESS", "")
+        self._progress_interval = progress_interval
 
     def stream_chat(self, *, messages, is_admin, active_run_id) -> Iterator[dict]:
         start = time.time()
         body = {"model": "openclaw", "messages": messages, "stream": True,
                 "user": active_run_id or "default"}
         headers = {"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"}
-        with httpx.stream("POST", f"{self._url}/v1/chat/completions",
-                          json=body, headers=headers, timeout=300.0) as resp:
-            resp.raise_for_status()
-            for line in resp.iter_lines():
-                if not line or not line.startswith("data: "):
-                    continue
-                data = line[6:]
-                if data == "[DONE]":
+
+        # The HTTP completion stream is dead-air while OpenClaw runs a server-side
+        # tool, then bursts the answer tokens. To narrate GAA progress during that
+        # gap we read the stream and tail the progress sidecar on two threads, both
+        # feeding one queue this generator yields from (tokens + activity interleaved).
+        q: queue.Queue = queue.Queue()
+        stop = threading.Event()
+        err: list[Exception] = []
+
+        # Capture the sidecar's current line count BEFORE work starts so only THIS
+        # turn's progress is narrated (prior turns' lines are gated out).
+        progress_start = len(_read_complete_lines(self._progress)) if self._progress else 0
+
+        reader = threading.Thread(target=self._read_stream, args=(body, headers, q, err), daemon=True)
+        poller = None
+        if self._progress:
+            poller = threading.Thread(target=self._poll_progress, args=(q, stop, progress_start), daemon=True)
+        reader.start()
+        if poller:
+            poller.start()
+
+        try:
+            while True:
+                item = q.get()
+                if item is _SENTINEL:
                     break
-                try:
-                    chunk = json.loads(data)
-                except ValueError:
-                    continue
-                delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
-                text = delta.get("content")
-                if text:
-                    yield {"type": "token", "text": text}
+                yield item
+        finally:
+            stop.set()
+        if poller:
+            poller.join(timeout=1.0)
+        # Drain any straggler activity the poller queued after the answer streamed.
+        while not q.empty():
+            item = q.get_nowait()
+            if item is not _SENTINEL:
+                yield item
+
+        if err:
+            raise err[0]
         rid = self._run_since(start)
         if rid:
             yield {"type": "tool_result", "tool": "analyze", "run_id": rid}
         yield {"type": "done", "run_id": None}
+
+    def _read_stream(self, body: dict, headers: dict, q: queue.Queue, err: list) -> None:
+        try:
+            with httpx.stream("POST", f"{self._url}/v1/chat/completions",
+                              json=body, headers=headers, timeout=300.0) as resp:
+                resp.raise_for_status()
+                for line in resp.iter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                    except ValueError:
+                        continue
+                    delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
+                    text = delta.get("content")
+                    if text:
+                        q.put({"type": "token", "text": text})
+        except Exception as exc:  # surfaced to the generator after the sentinel
+            err.append(exc)
+        finally:
+            q.put(_SENTINEL)
+
+    def _poll_progress(self, q: queue.Queue, stop: threading.Event, start_index: int) -> None:
+        emitted = start_index
+        while True:
+            lines = _read_complete_lines(self._progress)
+            for raw in lines[emitted:]:
+                try:
+                    obj = json.loads(raw)
+                except ValueError:
+                    continue
+                text = obj.get("text")
+                if text:
+                    q.put({"type": "activity", "text": text})
+            emitted = max(emitted, len(lines))
+            if stop.is_set():
+                return  # one final read above already happened, then we exit
+            stop.wait(self._progress_interval)
 
     def _run_since(self, start: float):
         if not self._sidecar:
