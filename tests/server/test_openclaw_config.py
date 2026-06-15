@@ -28,6 +28,12 @@ def test_mcp_top_level_servers():
     assert gaa["env"]["LLM_API_KEY"] == "${LLM_API_KEY}"
     assert gaa["env"]["GAA_RUN_SIDECAR"] == "${GAA_RUN_SIDECAR}"
     assert gaa["env"]["GAA_DB_PATH"] == "${GAA_DB_PATH}"
+    # vStorage creds must be forwarded so the MCP subprocess can snapshot on mutation
+    assert gaa["env"]["VSTORAGE_ENDPOINT"] == "${VSTORAGE_ENDPOINT}"
+    assert gaa["env"]["VSTORAGE_BUCKET"] == "${VSTORAGE_BUCKET}"
+    assert gaa["env"]["VSTORAGE_ACCESS_KEY"] == "${VSTORAGE_ACCESS_KEY}"
+    assert gaa["env"]["VSTORAGE_SECRET_KEY"] == "${VSTORAGE_SECRET_KEY}"
+    assert gaa["env"]["VSTORAGE_REGION"] == "${VSTORAGE_REGION}"
 
 
 def test_gateway_http_endpoints():

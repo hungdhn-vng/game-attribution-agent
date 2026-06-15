@@ -45,23 +45,46 @@ def test_snapshot_noop_when_disabled(tmp_path, monkeypatch):
 def test_snapshot_then_restore_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENCLAW_HOME", str(tmp_path / ".openclaw"))
     ctx = _ctx(tmp_path, monkeypatch)
-    # seed the openclaw workspace
+    # seed the openclaw workspace (only the workspace subdir is snapshotted now)
     openclaw_dir = tmp_path / ".openclaw"
-    openclaw_dir.mkdir(parents=True, exist_ok=True)
-    (openclaw_dir / "memory.md").write_text("# MEMORY\n\nLearned: ShooterX is hot.\n")
+    workspace_dir = openclaw_dir / "workspace"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    (workspace_dir / "MEMORY.md").write_text("# MEMORY\n\nLearned: ShooterX is hot.\n")
     ctx.config.set("benchmark_mode", "crawl")  # writes gaa-config.toml
 
     s3 = FakeS3()
     assert persist.snapshot(ctx, client=s3, bucket="b") is True
     assert ("b", persist.STATE_KEY) in s3.objects
 
-    # wipe local openclaw dir + config, then restore from the snapshot
+    # wipe local openclaw workspace + config, then restore from the snapshot
     import shutil
-    shutil.rmtree(openclaw_dir)
+    shutil.rmtree(workspace_dir)
     os.remove(ctx.config._path) if os.path.exists(ctx.config._path) else None
 
     assert persist.restore(ctx, client=s3, bucket="b") is True
-    assert "ShooterX" in (openclaw_dir / "memory.md").read_text()
+    # restore places the workspace dir at <OPENCLAW_HOME>/workspace
+    assert "ShooterX" in (workspace_dir / "MEMORY.md").read_text()
+
+
+def test_snapshot_uses_workspace_arcname_not_openclaw_root(tmp_path, monkeypatch):
+    """Snapshot must use 'openclaw_workspace' arcname (not 'openclaw') so openclaw.json
+    is NOT captured and the workspace lands at <OPENCLAW_HOME>/workspace on restore."""
+    monkeypatch.setenv("OPENCLAW_HOME", str(tmp_path / ".openclaw"))
+    ctx = _ctx(tmp_path, monkeypatch)
+    workspace_dir = tmp_path / ".openclaw" / "workspace"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    (workspace_dir / "SOUL.md").write_text("# SOUL\n")
+    # also place openclaw.json in the root (should NOT be snapshotted)
+    (tmp_path / ".openclaw" / "openclaw.json").write_text("{}")
+
+    s3 = FakeS3()
+    persist.snapshot(ctx, client=s3, bucket="b")
+    names = tarfile.open(fileobj=io.BytesIO(s3.objects[("b", persist.STATE_KEY)]), mode="r:gz").getnames()
+    # workspace is included
+    assert any(n == "openclaw_workspace" or n.startswith("openclaw_workspace/") for n in names)
+    # root dir and openclaw.json are NOT included
+    assert "openclaw" not in names
+    assert not any(n == "openclaw/openclaw.json" for n in names)
 
 
 def test_restore_noop_when_no_snapshot(tmp_path, monkeypatch):
