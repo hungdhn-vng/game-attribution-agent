@@ -20,3 +20,13 @@ def test_done_run_id_injected_from_analyze_result():
 def test_done_always_terminal_even_on_empty():
     out = _parse(sse_events([]))
     assert out[-1]["type"] == "done"
+
+
+def test_non_serializable_event_yields_terminal_done():
+    """A non-JSON-serializable event must still produce a terminal done, not truncate."""
+    events = [
+        {"type": "token", "text": object()},  # object() is not JSON-serializable
+    ]
+    out = _parse(sse_events(events))
+    assert out[-1]["type"] == "done"
+    assert out[-1].get("error") == "serialization error"

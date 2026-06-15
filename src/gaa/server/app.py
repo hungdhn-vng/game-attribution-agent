@@ -9,16 +9,22 @@ On startup: persist.restore(ctx) (best-effort)."""
 from __future__ import annotations
 
 import hmac
+import logging
 import os
+import tempfile
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from gaa.cli.wiring import build_context
 from gaa import persist
+from gaa.server import actions
+from gaa.server import shim as _shim
+from gaa.server.openclaw_client import RealOpenClawClient
 
-_ARTIFACTS = {"report.html", "summary.md", "activity.log", "ledger.jsonl", "job.json"}
+_log = logging.getLogger(__name__)
+
 _CONTENT_TYPES = {
     "report.html": "text/html", "summary.md": "text/markdown",
     "activity.log": "text/plain", "ledger.jsonl": "application/x-ndjson",
@@ -35,15 +41,15 @@ def _bearer(request: Request) -> str | None:
     return h[7:] if h.lower().startswith("bearer ") else None
 
 
-def _safe(events):
+def _safe(events) -> None:
     try:
         yield from events
     except Exception:
+        _log.exception("openclaw stream_chat raised; injecting terminal done")
         yield {"type": "done", "run_id": None, "error": "internal error"}
 
 
 def _onboard_from_csv(ctx, path: str) -> dict:
-    from gaa.server import actions
     proposed = actions.dispatch(ctx, "onboard_propose", {"csv": path}, is_admin=False)
     if proposed.get("status") != "success":
         return proposed
@@ -71,8 +77,8 @@ def create_app(ctx=None) -> FastAPI:
         yield
 
     app = FastAPI(title="GAA Front Door", lifespan=lifespan)
-    app.state.get_ctx = get_ctx
-    app.state.require_token = require_token
+    # Construction must stay cheap; Task C5 connects lazily on first stream_chat.
+    app.state.openclaw = RealOpenClawClient()
 
     @app.get("/health")
     def health():
@@ -80,7 +86,7 @@ def create_app(ctx=None) -> FastAPI:
 
     @app.get("/runs/{run_id}/{artifact}")
     def artifact(run_id: str, artifact: str):
-        if artifact not in _ARTIFACTS:
+        if artifact not in _CONTENT_TYPES:
             raise HTTPException(status_code=404, detail="unknown artifact")
         runs = get_ctx().runs
         runs_root = runs.path_for("__root_probe__").parent.resolve()
@@ -92,34 +98,21 @@ def create_app(ctx=None) -> FastAPI:
             raise HTTPException(status_code=404, detail="not found")
         return FileResponse(str(path), media_type=_CONTENT_TYPES[artifact])
 
-    def get_openclaw():
-        client = getattr(app.state, "openclaw", None)
-        if client is None:
-            from gaa.server.openclaw_client import RealOpenClawClient  # Task C5
-            client = RealOpenClawClient()
-            app.state.openclaw = client
-        return client
-
     @app.post("/chat")
-    def chat(request: Request, body: dict):
+    def chat(request: Request, body: dict | None = None):
         require_token(request)
+        body = body or {}
         is_admin = _const_eq(request.headers.get("x-gaa-admin-key"),
                              os.environ.get("GAA_ADMIN_KEY"))
-        from fastapi.responses import StreamingResponse
-        from gaa.server import shim as _shim
-        events = get_openclaw().stream_chat(
+        events = app.state.openclaw.stream_chat(
             messages=body.get("messages", []), is_admin=is_admin,
             active_run_id=body.get("active_run_id") or None)
         return StreamingResponse(_shim.sse_events(_safe(events)),
                                  media_type="text/event-stream")
 
     @app.post("/upload")
-    async def upload(request: Request, file=None):
+    async def upload(request: Request):
         require_token(request)
-        import tempfile
-        from fastapi import UploadFile, File
-        from fastapi.responses import JSONResponse
-        # Re-read the file from the request
         form = await request.form()
         upload_file = form.get("file")
         if upload_file is None:
@@ -128,7 +121,11 @@ def create_app(ctx=None) -> FastAPI:
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
             tmp.write(data)
             path = tmp.name
-        return JSONResponse(_onboard_from_csv(get_ctx(), path))
+        try:
+            result = _onboard_from_csv(get_ctx(), path)
+        finally:
+            os.unlink(path)
+        return JSONResponse(result)
 
     return app
 
