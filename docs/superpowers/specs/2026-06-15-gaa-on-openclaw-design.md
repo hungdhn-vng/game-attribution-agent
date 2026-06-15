@@ -1,6 +1,6 @@
 # GAA-on-OpenClaw — Design (self-hosted OpenClaw runtime in a Custom AgentBase image)
 
-**Status:** Approved design (pre-implementation; the build is gated on Spike 1, §9).
+**Status:** Approved design. **Spike 1 (OpenClaw × MaaS native tool-calling) PASSED 2026-06-15 — verdict GO; the build is no longer gated. See §15.**
 **Date:** 2026-06-15
 **Scope:** Re-host the GAA agent on a **self-hosted OpenClaw runtime**, packaged into **our own Custom Agent Docker image** on GreenNode AgentBase. OpenClaw owns the agent loop, tool-calling, real browser automation, MCP, persona/memory continuity, and sandboxing. GAA shrinks to an **analysis engine exposed over MCP** plus a small HTTP front door that serves the byte-exact dossier and bridges chat.
 **Builds on / reuses:** `2026-06-13-gaa-custom-agent-design.md` — the analysis core/CLI/run-dirs/lab/tools, the traversal-safe dossier route, and the vStorage persistence pattern are **reused unchanged**.
@@ -180,4 +180,32 @@ Each spike records a go/no-go + the concrete config that worked (folded into the
 
 ## 14. What needs confirming before planning
 
-The two requester-facing decisions are **resolved** (frontend = keep + shim; spikes-first, gated on Spike 1). No open questions block planning. Spikes 1–4 are the first plan phase; the integration build is conditional on Spike 1 passing.
+The two requester-facing decisions are **resolved** (frontend = keep + shim; spikes-first). **Spike 1 — the make-or-break gate — passed (§15), so the integration build is unblocked.** Spikes 2–4 (OpenClaw headless-in-container; MCP discovery/dispatch + admin gating; dossier coexistence + shim round-trip) become **phase 1 of the implementation plan** — they need a real container, not a quick probe. No open questions block planning.
+
+## 15. Spike 1 result — PASS (2026-06-15)
+
+**Verdict: GO.** Both faces of the make-or-break risk cleared.
+
+**OpenClaw side** (research, HIGH confidence, primary sources):
+- Generic **`openai-compatible` provider** (`api: "openai-completions"`) — point at MaaS via `models.providers.<name>.{baseUrl, apiKey (${ENV}), models[]}` in `openclaw.json`, select with `agents.defaults.model.primary`; the self-hosted vLLM path is documented explicitly. (`docs.openclaw.ai/concepts/model-providers`, `/providers/vllm`)
+- **The loop consumes NATIVE `tool_calls`, not text ReAct** — if the model emits prose instead of structured `tool_calls`, tools silently no-op (issue #45049). ⇒ the backing model *must* reliably emit native tool_calls. This is precisely the requirement the MaaS probe verified.
+- MCP via **stdio** (`agents.defaults.mcpServers` → `command`/`args`/`env`); official **Docker image** (`node:24-bookworm-slim`), foreground/headless; `gateway.bind` modes for reverse-proxy (container bind gotcha #61779 — test reachability early). MIT, very active (v2026.6.6, ~379k★).
+
+**MaaS side** (direct probe of `…/v1/chat/completions` with an OpenAI `tools` fixture; tool-needed ×2 + no-tool ×1, `temperature=0`):
+
+| Model | native tool_calls (auto) | correct tool+args | no-tool restraint | latency |
+|---|---|---|---|---|
+| `google/gemma-4-31b-it` (current default) | **2/2** | `get_weather({"location":"Hanoi"})` | ✅ no spurious call | 5.8s (cold) / 2.4s |
+| `minimax/minimax-m2.5` | **2/2** | ✅ | ✅ | **1.0–1.5s (fastest)** |
+| `qwen/qwen3-5-27b` | **2/2** | ✅ | ✅ | ~2.2s |
+
+All three emit well-formed native `tool_calls`, select the right tool with valid JSON args, **and** refrain from calling tools when none are needed — exactly what OpenClaw's loop requires.
+
+**Recommended deploy model:** all three are perfect on tool-calling, so it's no longer a differentiator. `minimax/minimax-m2.5` is fastest; `google/gemma-4-31b-it` is the incumbent + OpenClaw's documented default. Final pick deferred to the fuller orchestration+synthesis bake-off during implementation.
+
+**Caveats — what Spike 1 did NOT prove (deferred to Spikes 3–4):**
+- Tested MaaS **directly**, not yet **through OpenClaw** (same wire protocol via `openai-completions`, so expected identical; end-to-end is Spike 3).
+- Single-tool, single-turn fixture — GAA has ~19 tools; selection reliability with a larger tool list + multi-step chains is validated in Spike 3.
+- Catalog hygiene: some listed IDs (`openai/gpt-4o`, `qwen/qwen3.7-plus`) return 404 "model not found" — pin to verified IDs.
+
+Probe kept at `spikes/spike1_maas_toolcall.py` (reads creds from env; no secrets committed).
