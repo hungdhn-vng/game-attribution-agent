@@ -1122,3 +1122,62 @@ Small, written as its own short plan once the backend is live. Key changes only:
 **Type consistency:** `actions.dispatch(ctx, action, args, *, is_admin)` used identically in B3/C4; `tools.run_tool(ctx, name, arguments, *, is_admin)` and `tool_specs(*, is_admin)` consistent across B/C; `OpenClawClient.stream_chat(*, messages, is_admin, active_run_id)` consistent across C2/C3/C5; event shapes (`tool_result.run_id`, terminal `done.run_id`) consistent across C2/C3/shim.
 
 **Note:** Phase A must run before B–H lock their spike-dependent details (C5 transport, server.py admin wiring, Dockerfile OpenClaw install, openclaw.json/SDK shapes). The TDD core (B, C1–C4, D1, F) is spike-independent and can proceed in parallel with A.
+
+---
+
+## Spike findings (Phase A) — live-verified 2026-06-15 (GO)
+
+Run against `ghcr.io/openclaw/openclaw:latest` (v2026.6.6, 1.71 GB) with Docker 29.4.0; MaaS creds from the sibling repo `.env`. The full path **HTTP `/v1/chat/completions` → OpenClaw loop → MaaS (MiniMax) native tool_calls → stdio MCP server → result → reply** was proven live.
+
+### A1 — OpenClaw headless in a container ✅
+- Image entrypoint `tini -s --`, cmd `node openclaw.mjs gateway`, user `node`, workdir `/app`. Config at **`/home/node/.openclaw/openclaw.json`**. Health: unauthenticated **`GET /healthz`** (liveness) + **`/readyz`** (readiness) on port 18789; built-in HEALTHCHECK pings `/healthz`.
+- **It will NOT boot unconfigured** — a bare run exits 78 `"Missing config"`. A valid `openclaw.json` must be mounted. The CLI has **`node openclaw.mjs config validate`** — use it for fast schema iteration before booting.
+- Bind via `OPENCLAW_GATEWAY_BIND=lan` for host reachability.
+
+### A2 — config shape + MaaS + MCP dispatch ✅ (end-to-end live)
+The **validated, working** `openclaw.json` skeleton (proven to boot + serve + dispatch):
+```json
+{
+  "gateway": {
+    "mode": "local",
+    "auth": { "mode": "token", "token": "<GATEWAY_TOKEN>" },
+    "http": { "endpoints": { "chatCompletions": { "enabled": true }, "responses": { "enabled": true } } }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": { "maas": {
+      "api": "openai-completions",
+      "baseUrl": "${LLM_BASE_URL}", "apiKey": "${LLM_API_KEY}",
+      "models": [ { "id": "minimax/minimax-m2.5", "name": "MiniMax M2.5", "reasoning": false, "input": ["text"], "contextWindow": 128000, "maxTokens": 8192 } ]
+    } }
+  },
+  "agents": { "defaults": { "model": { "primary": "maas/minimax/minimax-m2.5" } } },
+  "mcp": { "servers": { "<name>": { "command": "...", "args": [ ... ] } } }
+}
+```
+- **`${ENV}` substitution WORKS** for provider `baseUrl`/`apiKey` (creds passed as container env, never in the file).
+- MaaS/MiniMax reliably emits native tool_calls **through OpenClaw** and the MCP tool dispatched correctly (returned the tool's output) — confirms Spike 1 at the loop level.
+
+**⚠️ PLAN CORRECTIONS to Task D1 (`render_config`) — the built version is WRONG:**
+1. MCP servers go under top-level **`mcp.servers.<name>`**, NOT `agents.defaults.mcpServers`.
+2. Must add `gateway.mode:"local"`, `gateway.auth` (token mode, token via `${OPENCLAW_GATEWAY_TOKEN}`), and **`gateway.http.endpoints.chatCompletions.enabled:true`** (the front-door shim needs this endpoint — off by default).
+3. Keep `models.mode:"merge"`.
+4. `mcp.servers.<name>.env` does **NOT** do `${VAR}` substitution (literal only) — the MCP child inherits the gateway process env, so pass `GAA_MCP_ADMIN` etc. via the container env, not via config `env`.
+5. `models[]` items use a **strict** schema (extra keys rejected; `id`+`name` required) — the fields above are accepted; don't add undocumented ones.
+6. In our own image the MCP command is `python3` (or the venv path), confirmed in E — not `python`.
+
+### A3 — admin gating (documented; not separately live-tested)
+- OpenClaw's native per-caller mechanism is **`tools.toolsBySender`** (deny a tool for `"*"`, `alsoAllow` for specific senders). Over the HTTP completions endpoint the "sender" correlation is not clearly exposed, so per-request admin distinction is **not cleanly available** there.
+- **Decision (single-user demo):** coarse gating — the GAA MCP server runs non-admin by default; admin tools enabled at deploy via `GAA_MCP_ADMIN` and/or OpenClaw `tools.allow/deny`. The dangerous RCE surface (`exec`/`browse`) is now **OpenClaw-native**, gated by OpenClaw's sandbox + `tools.exec.ask` approval — so the high-stakes part is covered platform-side. Per-request admin distinction deferred (revisit if multi-user).
+
+### A4 — transport + run-id surfacing (reshapes C5; refines spec §5)
+- **Transport = `POST /v1/chat/completions`** (enable in config), Bearer `gateway.auth.token`. `stream:true` → OpenAI SSE chunks: `choices[].delta.content` deltas, terminal `finish_reason:"stop"`, then `data: [DONE]`. Non-stream also works.
+- **Session model:** stateless per request unless you pass **`user`: <stable key>` (derives a stable session) or header `x-openclaw-session-key`. The shim maps a conversation/`active_run_id` to a stable `user`.
+- **CRITICAL:** over `/v1/chat/completions`, **server-side MCP tool results are NOT returned to the client** — only the final assistant text (verified: the tool turn's response had no `tool_calls`/tool messages). So the shim **cannot** read the `analyze` run_id from a tool-result event (the original spec §5 / Task C3 assumption is invalid over HTTP).
+- **New run-id surfacing (reshapes C5 + the `analyze` MCP tool):** the GAA `analyze` MCP tool writes its `run_id` (with a timestamp) to a **shared-FS sidecar** (e.g. `<cache>/last_run.json`). The front door records a start-timestamp before calling OpenClaw, then after the turn reads the newest run created since then and emits it in the `done` event. (Alternative: connect a WS gateway client with `operator.read` to observe `session.tool` events carrying the result — more complex; deferred.) The shim's existing "always-terminal `done`" + injection point stays; only the *source* of the run_id changes.
+
+### Cost signal
+- OpenClaw injects a large system prompt: **~23k prompt tokens** on a plain turn, **~46k** on a tool turn (tool schemas + multi-step). Factor into MaaS cost; consider trimming OpenClaw's default tool bundle (`tools.deny`) to only what GAA needs.
+
+### Go/No-Go: **GO**
+End-to-end verified live. Remaining (container/deploy): **D1 fix** (config shape above), **C5** (HTTP-completions client + sidecar run-id), **C3 tweak** (run_id source), **D2** seeds, **E** (our own Node-OpenClaw + Python-GAA image + supervisor; MCP `command:"python3"`), **H** deploy. Spike artifacts: `/tmp/oc-a2/openclaw.json` (throwaway).
