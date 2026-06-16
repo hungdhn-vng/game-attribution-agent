@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 import { makePkce, buildAuthorizeUrl, getToken, tokenIsFresh } from "@/lib/gaa/st-oauth";
 
 export function SensorTowerConnect() {
@@ -15,5 +16,14 @@ export function SensorTowerConnect() {
       state, challenge,
     });
   };
-  return <button onClick={connect}>{connected ? "Sensor Tower ✓" : "Connect Sensor Tower"}</button>;
+  return (
+    <Button
+      className="h-7 rounded-lg border border-border/40 px-2 text-xs text-foreground transition-colors hover:border-border hover:text-foreground"
+      onClick={(e) => { e.preventDefault(); void connect(); }}
+      type="button"
+      variant="ghost"
+    >
+      {connected ? "Sensor Tower ✓" : "Connect Sensor Tower"}
+    </Button>
+  );
 }

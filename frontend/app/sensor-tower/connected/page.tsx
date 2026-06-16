@@ -22,6 +22,8 @@ export default function Connected() {
           code, verifier,
         });
         setToken(t);
+        sessionStorage.removeItem("st_state");      // single-use PKCE state/verifier — clear after exchange
+        sessionStorage.removeItem("st_verifier");
         setMsg("✅ Connected — you can return to your chat.");
       } catch (e) {
         setMsg(`Connection failed: ${(e as Error).message}`);
