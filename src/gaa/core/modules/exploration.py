@@ -149,8 +149,10 @@ def _p2_interaction(ctx: AnalysisContext) -> list[_Candidate]:
         grand = _mean(list(delta.values()))
         row_mean = {ka: _mean([delta.get((ka, kb), 0.0) for kb in keys_b]) for ka in keys_a}
         col_mean = {kb: _mean([delta.get((ka, kb), 0.0) for ka in keys_a]) for kb in keys_b}
-        total = sum(delta.values())
-        denom = abs(total) if abs(total) > 1e-9 else 1e-9
+        # Normalize by total absolute activity (not net total): the net can be ~0 when
+        # cells compensate (a "shift" pattern), which would otherwise blow scores up.
+        abs_total = sum(abs(v) for v in delta.values())
+        denom = abs_total if abs_total > 1e-9 else 1e-9
         best = None
         for (ka, kb), d in delta.items():
             resid = d - (row_mean[ka] + col_mean[kb] - grand)
