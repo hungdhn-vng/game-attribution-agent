@@ -85,8 +85,9 @@ the runtime.**
 
 | Unit | Responsibility | Depends on |
 |---|---|---|
-| `gaa/mcp/tools.py` (changed) | Agent-facing **guarded** tools: `st_app_performance`, `st_unified_app_performance`, `st_download_channel`, `st_app_store`, `st_search_optimization` (defer `fetch_report`), plus `st_set_app_id`. Simplified schemas: required date range; `app_ids`/`labels`/`keyword` optional (**multiple allowed** — resolved from profile or asked); optional `countries`, `metrics`. Routes to guard+relay. | `guard`, `relay`, profile |
+| `gaa/mcp/tools.py` (changed) | Agent-facing **guarded** tools: `st_app_performance`, `st_unified_app_performance`, `st_download_channel`, `st_app_store`, `st_search_optimization` (defer `fetch_report`), plus `st_set_app_id`. Simplified schemas: required date range; `app_ids`/`labels`/`keyword` optional (**multiple allowed** — resolved from profile or asked); optional `countries`, `metrics`, `refresh` (force live re-fetch, bypass cache). Routes to guard→cache→relay. | `guard`, `relay`, profile |
 | `gaa/sensortower/guard.py` (new) | Per tool: validate args, **resolve app_id** (arg → profile → `need_app_id`), **fill defaults** (devices/granularity/bundles/metrics), **estimate + cap** data points (trim scope), build the final ST request `{st_tool, params}`. | profile app-id store |
+| `gaa/sensortower/cache.py` (new) | **Global, query-keyed** result cache: `get(key)` (TTL-aware) / `put(key, data, end_date)`. Key = hash of the normalized built request. A **hit short-circuits the relay** (no browser, no data points). TTL **7 days** (24h if `end_date` is within the last 3 days — ST revises the recent window); LRU/size-capped; under `GAA_CACHE_DIR`, added to `persist._durable_items` → vStorage (cross-session/restart). | `GAA_CACHE_DIR`, persist |
 | `gaa/sensortower/relay.py` (new) | `request(built) → result`: write a *pending* sidecar `{req_id, st_tool, params}`, block-poll for a *result* sidecar (timeout ~120s), return result/timeout; enforce `req_id` correlation; clear sidecars on return. | `GAA_CACHE_DIR` sidecars |
 | profile app-ID store | `get_app_ids(profile)` / `set_app_id(profile, label, id, id_type)` on the active game profile (mutating → vStorage snapshot). | ProfileStore |
 
@@ -110,13 +111,15 @@ the runtime.**
 ### Data flow (the relay)
 
 ```
-LLM → st_app_performance(app_ids?/labels?, start_date, end_date, …)   # one or several games
+LLM → st_app_performance(app_ids?/labels?, start_date, end_date, …, refresh?)   # one or several games
   guard: resolve ids (args + labels→profile → need_app_id) · fill defaults · estimate+cap scope → built request
+  cache: hit (and not refresh)? → return cached data (no browser, no data points)  ┐ short-circuit
+                                  miss → relay                                      ┘
   relay: write pending sidecar {req_id, st_tool, params} ; block-poll result (≤120s)
 front-door SSE poller: pending sidecar → emit st_request {req_id, st_tool, params}
 browser: token? no → fulfill{not_connected}+Connect UI ; yes → MCP call ST → fulfill{result|error}
   /api/sensor-tower/fulfill → agent /sensor-tower/fulfill → write result sidecar (matching req_id)
-relay poll resolves → tool returns to LLM
+relay poll resolves → cache.put(key, data, end_date) → tool returns to LLM
   (need_app_id → agent asks user + persists ; not_connected → agent says "click Connect", then RE-CALLS)
 ```
 
@@ -156,6 +159,30 @@ limit), trim in order (countries → date range → granularity → **drop least
 resort**) and return a `scope_trimmed` note. Apps is trimmed last because the set of games to
 compare is the user's intent. A single over-broad query cannot drain the shared allowance.
 
+## Caching (global, query-keyed)
+
+ST charges data points per call from a shared monthly allowance, so caching is high-value:
+repeat questions become zero-cost and instant, and a cache hit needs **no browser connection**.
+
+- **Scope: global, query-keyed.** The cache fills only from a real authenticated browser fetch,
+  but once filled, an identical query hits the cache for any user (market data is the same
+  regardless of who asks). This maximizes budget savings and lets a not-yet-connected user
+  benefit. (Accepted trade-off: serves ST-derived data without that specific user
+  authenticating — a slight relaxation of the per-user access/audit model, documented under
+  Security.)
+- **Key** = hash of the *normalized built request* (`st_tool` + sorted `app_ids` + dates +
+  `countries` + `devices` + `bundles` + `metrics` + `granularity`). Normalization (sorting,
+  default-filling done by the guard first) ensures equivalent queries share a key.
+- **Hit short-circuits the relay** — return cached data immediately, no browser round-trip, no
+  data points spent. Works even when the browser is disconnected.
+- **Freshness:** TTL **7 days**; **24h** if the query's `end_date` is within the last 3 days
+  (ST revises the recent window). A `refresh: true` tool arg forces a live re-fetch (and
+  re-caches). Historical-only queries are effectively immutable, so the 7-day TTL is safe.
+- **Bounded:** LRU/size cap (max entries + max bytes) so the vStorage snapshot doesn't bloat;
+  evict oldest on overflow.
+- **Persistence:** stored under `GAA_CACHE_DIR`, added to `persist._durable_items` → snapshotted
+  to vStorage on write, restored on boot → cross-session and survives restarts.
+
 ## App-ID resolution + persistence (ask-then-persist)
 
 - Active **game profile** gains an `app_ids` map: `{ label → {id, id_type} }`, e.g.
@@ -191,6 +218,11 @@ compare is the user's intent. A single over-broad query cannot drain the shared 
   params — no secrets.
 - The budget guard doubles as an abuse control on the shared org allowance.
 - `/sensor-tower/fulfill` is bearer-gated and `req_id`-correlated (stale results rejected).
+- **Global cache trade-off (documented):** the query-keyed cache serves ST-derived data to any
+  user once it's been fetched by *some* authenticated user, which relaxes the per-user
+  access/audit model for cached data. Accepted for the VNG-internal demo (market data is not
+  user-specific; the cache only fills from authenticated fetches). Per-user scoping is the
+  fallback if policy requires it.
 
 ## Testing
 
@@ -198,6 +230,8 @@ compare is the user's intent. A single over-broad query cannot drain the shared 
 to simulate the browser):
 - `guard`: default-filling per tool, scope cap/trim + estimate math, app_id resolution order,
   id-type → ST-param mapping.
+- `cache`: key normalization (equivalent queries → same key), hit short-circuits relay, TTL
+  expiry (7d / 24h-for-recent), `refresh=true` bypass, LRU/size eviction, snapshot on put.
 - `relay`: pending-sidecar write, result poll, timeout, `req_id` correlation, stale-fulfill ignored.
 - profile app-id store: set/get round-trip + snapshot on set.
 - `tools`: routing of `st_*` + `st_set_app_id`; pass-through of each error contract.
@@ -222,8 +256,8 @@ runtime is 403-blocked, the prod path moves to the browser:
   (still tested) and remain valid for a **local-laptop run mode** (where the runtime *is* on the
   VNG network and the 403 doesn't apply); they are not deleted.
 - **Repointed:** the agent-facing ST tools now route through guard+relay (browser), not direct ST.
-- **New work is mostly frontend (TS)** + `guard.py` + `relay.py` + the `st_request` SSE emission
-  + `POST /sensor-tower/fulfill` + the profile app-id store.
+- **New work is mostly frontend (TS)** + `guard.py` + `cache.py` + `relay.py` + the `st_request`
+  SSE emission + `POST /sensor-tower/fulfill` + the profile app-id store.
 
 ## Out of scope (Phase 2+)
 
