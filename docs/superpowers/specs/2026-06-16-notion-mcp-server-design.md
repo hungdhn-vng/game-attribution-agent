@@ -1,8 +1,15 @@
 # Notion MCP — Build Updates & User Sentiment Connector — Design
 
 **Date:** 2026-06-16
-**Status:** Design (approved in brainstorming; pending spec review → plan)
-**Branch:** `feat/gaa-on-openclaw` (worktree `TestGreenNode-openclaw`)
+**Status:** Design approved → in implementation (worktree `feat/notion-mcp`).
+**Branch:** `feat/notion-mcp` (worktree `TestGreenNode-notion-mcp`)
+
+> **⚠️ Read the "Live recon corrections (2026-06-16)" section at the bottom first.**
+> A live probe of the user's real Notion workspace changed the API model: it uses
+> Notion's **new data-source model** (`Notion-Version: 2025-09-03`, query via
+> `/v1/data_sources/{id}/query`), **not** the `2022-06-28` `/databases/{id}/query`
+> model the body below originally assumed. Where the body and the corrections differ,
+> **the corrections win** and the implementation plan reflects them.
 
 ## Goal
 
@@ -245,3 +252,57 @@ Notion test workspace + integration token: confirm `/search`, `/databases/{id}/q
   focused tools only if usage warrants.
 - **Pipeline-level (code) enrichment** — backing a `gaa.core` stage with Notion context
   rather than agent orchestration.
+
+---
+
+## Live recon corrections (2026-06-16)
+
+A live probe against the user's real workspace (integration **"01 [HGF] - Discord
+Sentiments"**) — see `docs/spikes/notion-api-shapes.md` — corrected several assumptions.
+**These override the body above.**
+
+### 1. API model: data sources, version `2025-09-03`
+
+The workspace uses Notion's **new data-source model**. The IDs the user provided are
+**data-source IDs**, not classic database IDs:
+
+- Schema: `GET /v1/data_sources/{id}` (returns `name` + `properties`).
+- Rows: `POST /v1/data_sources/{id}/query` (same `sorts`/`filter`/`page_size` as the old
+  database query).
+- Search `filter.value` is `page` | **`data_source`** (the old `database` value is gone).
+- `GET /v1/pages/{id}` and `GET /v1/blocks/{id}/children` are **unchanged**.
+- The old `Notion-Version: 2022-06-28` + `POST /databases/{id}/query` returns **404** for
+  these IDs. **Use `Notion-Version: 2025-09-03` throughout.**
+
+Net effect on the design: `client.py` exposes `get_data_source` / `query_data_source`
+(not `get_database` / `query_database`); env config is `NOTION_BUILDS_DS` /
+`NOTION_SENTIMENT_DS`; `notion_fetch` falls back page → **data source**; `notion_search`
+`type` enum is `["page", "data_source"]`.
+
+### 2. The two accessible data sources (validated)
+
+| Role | Data-source ID | Name | Detected title / date / text |
+|---|---|---|---|
+| Builds (best available) | `abee2267-021c-4a98-b91b-95d71e2a0cee` | **04_LiveOps Calendar Content** (45 rows) | `Event Name` / `Go-live Date` / `Brief` |
+| Sentiment | `3590e4e2-3942-8032-8e8e-000bbb4da32a` | **10_Discord Sentiment** (5 rows) | `Report` / *(none → `created_time`)* / `note` |
+
+The best-effort property detection (`_find_prop` for title/date, `_longest_rich_text` for
+summary) maps **exactly** onto these schemas. Sentiment rows carry only a title + short
+`note`; the substantive report text lives in the **page body**, reachable via
+`notion_fetch` — documented for the agent, not auto-fetched per row (latency).
+
+### 3. Builds ID discrepancy (action for the user)
+
+The build-updates ID the user gave (`32b0e4e2-3942-80bf-8ea3-000b238300d1`) is **not
+shared** with this integration (404 on every endpoint). The only build/release-shaped data
+source the integration can see is **04_LiveOps Calendar Content** (`abee2267…`) — events
+with go-live dates. The implementation wires that as the builds source for live
+verification; the user can rebind to the intended database any time via
+`secret_set notion_builds_ds <id>` once it is shared with the integration. This is config,
+not code — no rebuild needed.
+
+### 4. `_plain` property coverage
+
+Real rows use `select`, `status`, `multi_select`, `created_time`, `unique_id`,
+`checkbox`, `people`, `date`, `title`, `rich_text`. `_plain` is extended to cover these so
+`notion_fetch` row summaries and date fallback are populated.
