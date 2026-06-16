@@ -66,6 +66,7 @@ class RealOpenClawClient:
         # narrate activity during the dead-air while a server-side tool runs.
         self._progress = progress if progress is not None else os.environ.get("GAA_PROGRESS", "")
         self._progress_interval = progress_interval
+        self._st_request = os.environ.get("GAA_ST_REQUEST", "")
 
     def stream_chat(self, *, messages, is_admin, active_run_id) -> Iterator[dict]:
         start = time.time()
@@ -89,9 +90,14 @@ class RealOpenClawClient:
         poller = None
         if self._progress:
             poller = threading.Thread(target=self._poll_progress, args=(q, stop, progress_start), daemon=True)
+        st_poller = None
+        if self._st_request:
+            st_poller = threading.Thread(target=self._poll_st_request, args=(q, stop), daemon=True)
         reader.start()
         if poller:
             poller.start()
+        if st_poller:
+            st_poller.start()
 
         try:
             while True:
@@ -103,6 +109,8 @@ class RealOpenClawClient:
             stop.set()
         if poller:
             poller.join(timeout=1.0)
+        if st_poller:
+            st_poller.join(timeout=1.0)
         # Drain any straggler activity the poller queued after the answer streamed.
         while not q.empty():
             item = q.get_nowait()
@@ -156,6 +164,21 @@ class RealOpenClawClient:
             if stop.is_set():
                 return  # one final read above already happened, then we exit
             stop.wait(self._progress_interval)
+
+    def _poll_st_request(self, q: "queue.Queue", stop: threading.Event) -> None:
+        last = None
+        while True:
+            try:
+                rec = json.loads(Path(self._st_request).read_text())
+            except (OSError, ValueError):
+                rec = None
+            if rec and rec.get("req_id") and rec["req_id"] != last:
+                last = rec["req_id"]
+                q.put({"type": "st_request", "req_id": rec["req_id"],
+                       "st_tool": rec.get("st_tool"), "params": rec.get("params")})
+            if stop.is_set():
+                return
+            stop.wait(0.3)
 
     def _run_since(self, start: float):
         if not self._sidecar:
