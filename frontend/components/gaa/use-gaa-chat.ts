@@ -4,9 +4,27 @@ import { readSSE } from "@/lib/gaa/sse";
 import { extractRunId, stripMarker } from "@/lib/gaa/marker";
 import { buildChatBody } from "@/lib/gaa/request";
 import type { Msg } from "@/lib/gaa/store";
+import { getToken, tokenIsFresh } from "@/lib/gaa/st-oauth";
+import { callSensorTower } from "@/lib/gaa/st-client";
 
 export type Think = { scope?: string; text: string };
 export type Turn = Msg & { thinking?: Think[]; activity?: string[]; runId?: string | null };
+
+export async function fulfillSensorTower(ev: { req_id: string; st_tool: string; params: Record<string, unknown> }) {
+  const post = (body: unknown) =>
+    fetch("/api/sensor-tower/fulfill", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const token = getToken();
+  if (!tokenIsFresh(token, Math.floor(Date.now() / 1000))) {
+    await post({ req_id: ev.req_id, error: { kind: "not_connected" } });
+    return;
+  }
+  try {
+    const data = await callSensorTower(token!, ev);
+    await post({ req_id: ev.req_id, result: data });
+  } catch (e) {
+    await post({ req_id: ev.req_id, error: { kind: "upstream_error", detail: (e as Error).message } });
+  }
+}
 
 export function useGaaChat(initial: Turn[] = []) {
   const [messages, setMessages] = useState<Turn[]>(initial);
@@ -52,6 +70,8 @@ export function useGaaChat(initial: Turn[] = []) {
           const rid = ev.run_id ?? extractRunId(acc);
           patch((a) => { a.runId = rid ?? null; a.content = stripMarker(acc); });
           if (rid) setLatestRunId(rid);
+        } else if (e.type === "st_request") {
+          void fulfillSensorTower(e as { req_id: string; st_tool: string; params: Record<string, unknown> });
         }
       });
     } finally {

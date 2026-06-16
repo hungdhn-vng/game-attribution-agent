@@ -3,6 +3,7 @@ export type GaaEvent =
   | { type: "thinking"; text: string; scope?: string }
   | { type: "token"; text: string }
   | { type: "done"; run_id: string | null; error?: string }
+  | { type: "st_request"; req_id: string; st_tool: string; params: Record<string, unknown> }
   | { type: string; [k: string]: unknown };
 
 /** Split accumulated SSE text on event boundaries; keep an incomplete tail in `buffer`. */
