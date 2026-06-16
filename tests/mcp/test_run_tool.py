@@ -1,4 +1,3 @@
-import time
 import time as _t
 from gaa.mcp import tools
 from gaa.mcp import tools as mcp_tools
@@ -114,6 +113,19 @@ def test_st_tool_relay_on_miss(tmp_path, monkeypatch):
     out = mcp_tools.run_tool(ctx, "st_app_performance",
                              {"app_ids": [222], "start_date": "2024-01-01", "end_date": "2024-02-01"}, is_admin=False)
     assert out["cached"] is False and out["data"] == {"fresh": 1}
+
+def test_st_tool_refresh_bypasses_cache(tmp_path, monkeypatch):
+    ctx = _ctx(tmp_path, monkeypatch)
+    monkeypatch.setattr(mcp_tools, "_st_today", lambda: "2024-06-01")
+    called = []
+    monkeypatch.setattr(mcp_tools, "_st_relay", lambda b: (called.append(1), {"result": {"r": 1}})[1])
+    from gaa.sensortower import guard, cache
+    args = {"app_ids": [111], "start_date": "2024-01-01", "end_date": "2024-02-01"}
+    built = guard.build("st_app_performance", args, resolver=lambda l: None, today="2024-06-01")["built"]
+    cache.put(cache.make_key(built), {"hit": True}, end_date="2024-02-01", now=_t.time())
+    out = mcp_tools.run_tool(ctx, "st_app_performance", {**args, "refresh": True}, is_admin=False)
+    assert out["cached"] is False and out["data"] == {"r": 1} and called  # relay used despite cached entry
+    assert out["scope_trimmed"] == []  # surfaced on the success path
 
 def test_st_tool_not_connected(tmp_path, monkeypatch):
     ctx = _ctx(tmp_path, monkeypatch)
