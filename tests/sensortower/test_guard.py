@@ -3,6 +3,30 @@ from gaa.sensortower import guard
 def _resolver(label):
     return {"self": {"id": 111, "id_type": "app_id"}}.get(label)
 
+def test_bad_date_returns_structured_error():
+    out = guard.build("st_app_performance", {"app_ids": [111], "end_date": "not-a-date"},
+                      resolver=_resolver, today="2024-06-01")
+    assert out["status"] == "error" and out["error"] == "bad_date"
+
+def test_trim_terminates_at_low_cap(monkeypatch):
+    # Wide daily window + low cap forces date_range + granularity levers; must return, not hang.
+    monkeypatch.setattr(guard, "_CAP", 10)
+    out = guard.build("st_app_store", {"app_ids": [111], "countries": ["US"],
+                      "start_date": "2020-01-01", "end_date": "2024-01-01"},
+                      resolver=_resolver, today="2024-06-01")
+    assert "built" in out and out.get("scope_trimmed")  # converged with some trim recorded
+
+def test_search_optimization_passes_keyword():
+    out = guard.build("st_search_optimization", {"app_ids": [111], "keyword": ["puzzle"],
+                      "start_date": "2024-01-01", "end_date": "2024-01-05"},
+                      resolver=_resolver, today="2024-06-01")
+    assert out["built"]["params"]["keyword"] == ["puzzle"]
+
+def test_unknown_tool_key_raises():
+    import pytest
+    with pytest.raises(ValueError):
+        guard.build("st_nope", {"app_ids": [1]}, resolver=_resolver, today="2024-06-01")
+
 def test_need_app_id_when_unresolved():
     out = guard.build("st_app_performance", {"labels": ["self", "ghost"],
                       "start_date": "2024-01-01", "end_date": "2024-03-01"},

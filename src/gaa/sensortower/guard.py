@@ -38,7 +38,7 @@ def _date_count(start: str, end: str, gran: str) -> int:
 def _estimate(p: dict, id_param: str, gran: str) -> int:
     apps = max(1, len(p.get(id_param) or [1]))
     return (apps * max(1, len(p["countries"])) * max(1, len(p["devices"]))
-            * _date_count(p["start_date"], p["end_date"], gran) * 1)
+            * _date_count(p["start_date"], p["end_date"], gran) * max(1, len(p["bundles"])))
 
 
 def _note(lst, item):
@@ -47,7 +47,9 @@ def _note(lst, item):
 
 
 def build(tool_key: str, args: dict, *, resolver, today: str) -> dict:
-    st_tool, id_param, dft_devices, dft_gran, dft_bundle, unified = _TOOLS[tool_key]
+    if tool_key not in _TOOLS:
+        raise ValueError(f"unknown tool_key: {tool_key!r}")
+    st_tool, id_param, dft_devices, dft_gran, dft_bundle, _unified = _TOOLS[tool_key]
 
     ids = list(args.get("app_ids") or [])
     unresolved = []
@@ -61,11 +63,17 @@ def build(tool_key: str, args: dict, *, resolver, today: str) -> dict:
         return {"status": "error", "error": "need_app_id", "labels": unresolved}
     ids = list(dict.fromkeys(ids))[:_MAX_APPS]
 
+    # Validate caller-supplied dates up front — never let an LLM's malformed date raise out
+    # of build(); return a structured error instead (consistent with need_app_id).
     end = args.get("end_date") or today
-    if args.get("start_date"):
-        start = args["start_date"]
-    else:
-        start = (date.fromisoformat(end) - timedelta(days=_DEFAULT_RANGE_DAYS)).isoformat()
+    try:
+        end_d = date.fromisoformat(end)
+        if args.get("start_date"):
+            date.fromisoformat(args["start_date"])
+    except ValueError:
+        return {"status": "error", "error": "bad_date",
+                "detail": f"unparseable date(s): end={end!r} start={args.get('start_date')!r}"}
+    start = args["start_date"] if args.get("start_date") else (end_d - timedelta(days=_DEFAULT_RANGE_DAYS)).isoformat()
 
     countries = (args.get("countries") or ["US"])[:_MAX_COUNTRIES]
     trimmed = []
@@ -86,11 +94,14 @@ def build(tool_key: str, args: dict, *, resolver, today: str) -> dict:
 
     gran = params["granularity"]
     while _estimate(params, id_param, gran) > _CAP:
+        shorter = (date.fromisoformat(params["end_date"]) - timedelta(days=30)).isoformat()
         if len(params["countries"]) > 1:
             params["countries"] = params["countries"][: max(1, len(params["countries"]) // 2)]
             _note(trimmed, "countries")
-        elif _date_count(params["start_date"], params["end_date"], gran) > 2:
-            params["start_date"] = (date.fromisoformat(params["end_date"]) - timedelta(days=30)).isoformat()
+        elif _date_count(params["start_date"], params["end_date"], gran) > 2 and shorter > params["start_date"]:
+            # Only take this lever if it STRICTLY shortens the window — otherwise fall
+            # through to coarser granularity so the loop always makes progress.
+            params["start_date"] = shorter
             _note(trimmed, "date_range")
         elif gran in _COARSER:
             gran = params["granularity"] = _COARSER[gran]
