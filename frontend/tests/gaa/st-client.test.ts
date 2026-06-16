@@ -41,6 +41,16 @@ describe("callSensorTower", () => {
     expect(seenSession[1]).toBe("SID");
   });
 
+  it("throws (not crashes) on an event-stream response with no data line", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (_url: any, init: any) => {
+      const rpc = JSON.parse(init.body);
+      if (rpc.method === "initialize") return jsonResp({ jsonrpc: "2.0", id: rpc.id, result: {} });
+      return new Response(": keepalive\n\n", { status: 200, headers: { "content-type": "text/event-stream" } });
+    }));
+    await expect(callSensorTower({ access_token: "AT", expiry: 9e9 },
+      { req_id: "R", st_tool: "t", params: {} })).rejects.toThrow(/no data line/);
+  });
+
   it("throws on a JSON-RPC error", async () => {
     vi.stubGlobal("fetch", vi.fn(async (_url: any, init: any) => {
       const rpc = JSON.parse(init.body);
