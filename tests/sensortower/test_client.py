@@ -70,3 +70,28 @@ def test_call_tool_returns_text_content(monkeypatch):
     out = st_client.call_tool("AT", "get_app", {"id": "42"})
     assert out["content"] == ["get_app:42"]
     assert out["is_error"] is False
+
+
+def _fake_st_server_error() -> Server:
+    srv = Server("fake-st-err")
+
+    @srv.list_tools()
+    async def _lt():
+        return []
+
+    @srv.call_tool()
+    async def _ct(name, arguments):
+        raise ValueError("boom")  # SDK surfaces this as a CallToolResult with isError=True
+
+    return srv
+
+
+def test_call_tool_propagates_is_error(monkeypatch):
+    @asynccontextmanager
+    async def fake_open_session(_token):
+        async with _connect(_fake_st_server_error()) as session:
+            yield session
+
+    monkeypatch.setattr(st_client, "_open_session", fake_open_session)
+    out = st_client.call_tool("AT", "broken", {})
+    assert out["is_error"] is True

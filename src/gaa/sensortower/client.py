@@ -15,6 +15,7 @@ from gaa.sensortower import config
 
 _loop = None
 _lock = threading.Lock()
+_CALL_TIMEOUT_S = 60  # max wait for a single ST MCP round-trip before the sync caller unblocks
 
 
 def _bg_loop():
@@ -26,7 +27,9 @@ def _bg_loop():
     return _loop
 
 
-def _run(coro, timeout=60):
+def _run(coro, timeout=_CALL_TIMEOUT_S):
+    # On timeout the coroutine keeps running on _bg_loop until the HTTP layer closes it;
+    # acceptable for single-user demo traffic.
     return asyncio.run_coroutine_threadsafe(coro, _bg_loop()).result(timeout)
 
 
@@ -59,6 +62,7 @@ def call_tool(access_token: str, name: str, arguments: dict) -> dict:
     async def _go():
         async with _open_session(access_token) as session:
             result = await session.call_tool(name, arguments or {})
+            # ST responses are text/JSON; image/embedded-resource blocks are intentionally dropped.
             texts = [
                 c.text
                 for c in result.content
