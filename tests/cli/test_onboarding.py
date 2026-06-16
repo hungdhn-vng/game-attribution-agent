@@ -65,6 +65,22 @@ def test_onboard_confirm_persists_and_activates(tmp_path):
     assert len(df) == 4
 
 
+def test_onboard_preserves_na_region(tmp_path):
+    # "NA" (North America) must survive ingestion — pandas' default na_values would
+    # otherwise parse the string "NA" as NaN and silently null out the region label,
+    # excluding North America from every dimensional analysis.
+    csv = _write_csv(tmp_path)  # region column includes "NA" rows
+    mapping_json = json.dumps(_MAPPING_PRESET)
+    _run(
+        ["onboard", "confirm", "--csv", csv, "--mapping", mapping_json,
+         "--name", "MyGame", "--platform", "roblox", "--genre", "survival"],
+        FakeLLM(_MAPPING_PRESET), tmp_path,
+    )
+    df = MetricsStore(os.environ["GAA_CACHE_DIR"] + "/metrics").load("MyGame")
+    assert df["region"].isna().sum() == 0, "no region should be lost to NA-token parsing"
+    assert "NA" in set(df["region"]), "the 'NA' region must be preserved, not parsed as NaN"
+
+
 def test_onboard_confirm_bad_mapping_is_error(tmp_path):
     csv = _write_csv(tmp_path)
     resp = _run(

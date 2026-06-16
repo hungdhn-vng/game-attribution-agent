@@ -6,7 +6,10 @@ from gaa.core.schema.canonical import validate_canonical
 
 class CSVAdapter:
     def load(self, raw: Union[str, pd.DataFrame], mapping: ColumnMapping) -> pd.DataFrame:
-        raw_df = raw if isinstance(raw, pd.DataFrame) else pd.read_csv(raw)
+        # NA-safe read: keep_default_na=False so values like "NA" (North America)
+        # survive instead of being parsed as NaN; only an empty cell is missing.
+        raw_df = raw if isinstance(raw, pd.DataFrame) else pd.read_csv(
+            raw, keep_default_na=False, na_values=[""])
         id_vars = [mapping.date_col] + list(mapping.dim_cols.keys())
         value_vars = list(mapping.metric_cols.keys())
         long = raw_df.melt(

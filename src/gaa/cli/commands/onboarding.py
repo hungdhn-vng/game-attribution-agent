@@ -16,11 +16,17 @@ def _adapter(name: str):
 
 
 def _read_csv(args, **kw):
-    """Read the onboarding CSV from base64 content (csv_b64) or a file path (csv)."""
+    """Read the onboarding CSV from base64 content (csv_b64) or a file path (csv).
+
+    NA-safe: keep_default_na=False so dimension values like "NA" (North America),
+    "N/A", or "null" survive instead of being parsed as NaN and silently dropped
+    from every dimensional analysis; only a truly empty cell counts as missing.
+    """
+    read_kw = {"keep_default_na": False, "na_values": [""], **kw}
     b64 = getattr(args, "csv_b64", None)
     if b64:
-        return pd.read_csv(io.BytesIO(base64.b64decode(b64)), **kw)
-    return pd.read_csv(args.csv, **kw)
+        return pd.read_csv(io.BytesIO(base64.b64decode(b64)), **read_kw)
+    return pd.read_csv(args.csv, **read_kw)
 
 
 def cmd_onboard_propose(ctx, args) -> dict:
