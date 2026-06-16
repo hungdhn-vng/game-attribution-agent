@@ -45,7 +45,8 @@ _SEG_SRC_RE = re.compile(r"internal:(?P<metric>[^ ]+) by (?P<dim>\w+) \(Adtribut
 
 def _covered_pairs(ledger: EvidenceLedger) -> set[tuple[str, str]]:
     """(metric, dim) pairs already decomposed by the segment module, parsed from its
-    source strings (e.g. 'internal:dau by region (Adtributor)')."""
+    source strings (e.g. 'internal:dau by region (Adtributor)').
+    v1 simplification: this gates the WHOLE (metric, dim) pair if segment touched it — not per-element/strength as the spec's finest form allows. Only P1 is gated; P2/P3 emit finding shapes segment never produces, so they need no gate."""
     pairs: set[tuple[str, str]] = set()
     for e in ledger.all():
         if e.module == "segment":
@@ -262,16 +263,36 @@ class ExplorationSweep:
             ctx.extras.setdefault("exploration_dropped", 0)
             ctx.extras.setdefault("exploration_kept", 0)
             covered = _covered_pairs(ledger)
-            cands = (_safe(_p1_surprise_scan, ctx, covered)
-                     + _safe(_p2_interaction, ctx)
-                     + _safe(_p3_lead_lag, ctx))
+            # One bucket per probe, each sorted best-first. We round-robin across the
+            # buckets (rather than globally sorting by score) because the probes' score
+            # scales are NOT comparable — a global sort lets the high-volume P1 surprise
+            # scan (~1.0, many candidates) crowd the rarer P2 interaction (~0.25) and P3
+            # lead-lag out of the top-N entirely. Round-robin guarantees each probe that
+            # found something gets a slot before any probe contributes a second finding.
+            # (The `seen` set dedups by dedup_key; in practice keys never collide ACROSS
+            # probes since each probe uses a distinct key shape, so this is within-probe.)
+            buckets = [
+                _safe(_p1_surprise_scan, ctx, covered),
+                _safe(_p2_interaction, ctx),
+                _safe(_p3_lead_lag, ctx),
+            ]
+            for b in buckets:
+                b.sort(key=lambda c: c.score, reverse=True)
             seen: set[tuple] = set()
             ranked: list[_Candidate] = []
-            for c in sorted(cands, key=lambda c: c.score, reverse=True):
-                if c.dedup_key in seen:
-                    continue
-                seen.add(c.dedup_key)
-                ranked.append(c)
+            idx = [0] * len(buckets)
+            progressed = True
+            while progressed:
+                progressed = False
+                for bi, b in enumerate(buckets):
+                    while idx[bi] < len(b) and b[idx[bi]].dedup_key in seen:
+                        idx[bi] += 1            # skip within-probe dedup collisions
+                    if idx[bi] < len(b):
+                        c = b[idx[bi]]
+                        idx[bi] += 1
+                        seen.add(c.dedup_key)
+                        ranked.append(c)
+                        progressed = True
             kept = ranked[:self._top_n]
             dropped = len(ranked) - len(kept)
             for c in kept:

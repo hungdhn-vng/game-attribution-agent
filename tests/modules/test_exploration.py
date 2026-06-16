@@ -242,7 +242,10 @@ def test_run_respects_novelty_from_segment():
             source="internal:dau by region (Adtributor)", source_type="internal", strength="high")
     ExplorationSweep().run(_ctx(_rich_frame(), metric="dau", start="2026-05-01", end="2026-05-08"), led)
     explored = [e for e in led.all() if e.module == "exploration"]
-    assert all("dau by region" not in e.source for e in explored)
+    # P1 (Adtributor) must NOT re-run the covered dau×region pair; the P2 interaction
+    # source "dau by region×version (exploration/interaction)" is a distinct analysis and
+    # is legitimately allowed — only bar the Adtributor suffix.
+    assert all("dau by region (exploration/Adtributor)" not in e.source for e in explored)
 
 
 def test_run_never_raises_on_empty_frame():
@@ -305,3 +308,17 @@ def test_run_handles_all_nan_dimension():
     led = EvidenceLedger()
     ExplorationSweep().run(_ctx(_frame(rows), metric="dau", start="2026-05-01", end="2026-05-08"), led)
     assert True
+
+
+def test_run_top_n_keeps_diverse_probes():
+    # _rich_frame() yields several P1 surprise candidates (scores ~1.0) AND one P2
+    # interaction (score ~0.25). With a global score sort + top_n=2, the two P1 movers
+    # win and the interaction is dropped. Round-robin must keep the P2 interaction.
+    from gaa.core.modules.exploration import ExplorationSweep
+    led = EvidenceLedger()
+    ExplorationSweep(top_n=2).run(
+        _ctx(_rich_frame(), metric="dau", start="2026-05-01", end="2026-05-08"), led)
+    sources = [e.source for e in led.all()
+               if e.module == "exploration" and "data-quality" not in e.source]
+    assert any("interaction" in s for s in sources), \
+        "P2 interaction must not be crowded out of the top-N by high-volume P1 candidates"

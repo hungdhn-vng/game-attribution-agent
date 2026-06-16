@@ -226,10 +226,11 @@ class AnalysisPipeline:
 
         state["ledger"] = [e.model_dump() for e in ledger.all()]
         explored = sum(1 for e in ledger.all() if e.module == "exploration")
+        dropped = ctx.extras.get("exploration_dropped", 0)
         job.add_activity(
             "modules",
-            f"Segment/Market/Competitor analyzed; {explored} exploration finding(s); "
-            f"ledger has {len(ledger.all())} entries",
+            f"Segment/Market/Competitor analyzed; {explored} exploration finding(s)"
+            f" ({dropped} lower-ranked dropped); ledger has {len(ledger.all())} entries",
         )
         job.stage = "synth"
 
