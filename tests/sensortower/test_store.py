@@ -16,6 +16,16 @@ def test_clear_tokens(tmp_path, monkeypatch):
     store.clear_tokens("s")
     assert store.get_tokens("s") is None
 
+def test_clear_tokens_noop_when_no_store(tmp_path, monkeypatch):
+    _dir(tmp_path, monkeypatch)
+    store.clear_tokens("nonexistent")  # must not raise on an empty/absent store
+    assert store.get_tokens("nonexistent") is None
+
+def test_store_path_has_no_side_effects(tmp_path, monkeypatch):
+    _dir(tmp_path, monkeypatch)
+    p = store.store_path()
+    assert not os.path.exists(os.path.dirname(p))  # querying the path must not create the dir
+
 def test_pending_round_trip_and_pop_is_single_use(tmp_path, monkeypatch):
     _dir(tmp_path, monkeypatch)
     store.set_pending("st8", {"code_verifier": "v", "session": "default", "ts": 100.0})

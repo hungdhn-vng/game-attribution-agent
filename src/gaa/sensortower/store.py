@@ -10,14 +10,15 @@ import os
 from pathlib import Path
 
 
+def store_path() -> str:
+    """Pure: no side effects. Callers that write go through _dir() to ensure the dir."""
+    return str(Path(os.environ.get("GAA_CACHE_DIR", "data/cache")) / "sensortower" / "state.json")
+
+
 def _dir() -> Path:
-    d = Path(os.environ.get("GAA_CACHE_DIR", "data/cache")) / "sensortower"
+    d = Path(store_path()).parent
     d.mkdir(parents=True, exist_ok=True)
     return d
-
-
-def store_path() -> str:
-    return str(_dir() / "state.json")
 
 
 def _read() -> dict:
@@ -29,12 +30,13 @@ def _read() -> dict:
 
 
 def _write(d: dict) -> None:
+    _dir()  # ensure the directory exists (store_path() is side-effect-free)
     path = store_path()
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(d, f)
+    os.chmod(tmp, 0o600)  # secure BEFORE the file becomes visible; mode survives the rename
     os.replace(tmp, path)
-    os.chmod(path, 0o600)
 
 
 def get_tokens(session: str):
