@@ -90,7 +90,7 @@ def run_tool(name: str, arguments: dict) -> dict:
 # --- helpers -------------------------------------------------------------
 
 _DASHED = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
-_HEX32 = re.compile(r"[0-9a-fA-F]{32}")
+_TAIL_HEX32 = re.compile(r"(?<![0-9a-fA-F])([0-9a-fA-F]{32})$")
 
 
 def _normalize_id(s: str) -> str:
@@ -98,9 +98,10 @@ def _normalize_id(s: str) -> str:
     m = _DASHED.search(s)
     if m:
         return m.group(0).replace("-", "")
-    m = _HEX32.search(s.replace("-", ""))
+    seg = s.split("?")[0].split("#")[0].rstrip("/").rsplit("/", 1)[-1]
+    m = _TAIL_HEX32.search(seg)
     if m:
-        return m.group(0)
+        return m.group(1)
     return s
 
 
@@ -138,7 +139,9 @@ def _plain(prop: dict) -> str:
     if t == "unique_id":
         u = prop.get("unique_id") or {}
         pre, num = u.get("prefix"), u.get("number")
-        return f"{pre}-{num}" if pre else ("" if num is None else str(num))
+        if num is None:
+            return ""
+        return f"{pre}-{num}" if pre else str(num)
     if t == "people":
         return ", ".join(p.get("name", "") for p in (prop.get("people") or []))
     return ""

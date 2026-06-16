@@ -52,6 +52,9 @@ def test_normalize_id_extracts_from_url():
         "abee2267-021c-4a98-b91b-95d71e2a0cee"
     ) == "abee2267021c4a98b91b95d71e2a0cee"
     assert tools._normalize_id("plainid") == "plainid"
+    assert tools._normalize_id(
+        "https://www.notion.so/ws/Archive-37c0e4e2394280938d60defc532e5ad8"
+    ) == "37c0e4e2394280938d60defc532e5ad8"
 
 
 def test_plain_extracts_common_property_types():
@@ -64,3 +67,5 @@ def test_plain_extracts_common_property_types():
                          "multi_select": [{"name": "PC"}, {"name": "Mobile"}]}) == "PC, Mobile"
     assert tools._plain({"type": "created_time", "created_time": "2026-06-15T02:06:00.000Z"}) == "2026-06-15T02:06:00.000Z"
     assert tools._plain({"type": "number", "number": 7}) == "7"
+    assert tools._plain({"type": "unique_id", "unique_id": {"prefix": "PROJ", "number": 5}}) == "PROJ-5"
+    assert tools._plain({"type": "unique_id", "unique_id": {"prefix": "PROJ", "number": None}}) == ""
