@@ -214,3 +214,30 @@ def _p3_lead_lag(ctx: AnalysisContext) -> list[_Candidate]:
             ))
     out.sort(key=lambda c: c.score, reverse=True)
     return out
+
+
+def _p4_data_quality(ctx: AnalysisContext) -> list[_Candidate]:
+    """Cheap reliability caveats: non-positive values and abrupt single-step jumps.
+    Always low-strength; these also feed synth's assumptions_and_gaps."""
+    out: list[_Candidate] = []
+    for m in ctx.metrics["metric"].unique():
+        s = metric_series(ctx.metrics, m)
+        if s.empty:
+            continue
+        n_nonpos = int((s <= 0).sum())
+        if n_nonpos:
+            out.append(_Candidate(
+                score=0.05, strength="low",
+                claim=f"{m} has {n_nonpos} non-positive value(s) — possible data gap/outlier",
+                value=f"{n_nonpos} non-positive points",
+                source=f"internal:{m} (exploration/data-quality)",
+                timeframe=None, dedup_key=(m, "dq", "nonpos")))
+        pct = s.pct_change().abs().replace([float("inf")], pd.NA).dropna()
+        if len(pct) and pct.max() >= 5.0:        # >=500% single-step jump
+            out.append(_Candidate(
+                score=0.05, strength="low",
+                claim=f"{m} has an abrupt {pct.max() * 100:.0f}% single-step jump — verify data integrity",
+                value=f"max step {pct.max() * 100:.0f}%",
+                source=f"internal:{m} (exploration/data-quality)",
+                timeframe=None, dedup_key=(m, "dq", "jump")))
+    return out

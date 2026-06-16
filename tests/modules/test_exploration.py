@@ -178,3 +178,24 @@ def test_p3_requires_target_present():
     rows = [{"date": f"2026-05-0{i+1}", "metric": "dau", "value": 1000 - 50 * i} for i in range(6)]
     ctx = _ctx(_frame(rows), metric="revenue")   # not in data
     assert _p3_lead_lag(ctx) == []
+
+
+def test_p4_flags_nonpositive_and_jump():
+    from gaa.core.modules.exploration import _p4_data_quality
+    rows = [
+        {"date": "2026-05-01", "metric": "dau", "value": 1000},
+        {"date": "2026-05-02", "metric": "dau", "value": 0},        # non-positive
+        {"date": "2026-05-03", "metric": "dau", "value": 9000},     # ~huge jump
+        {"date": "2026-05-04", "metric": "dau", "value": 9100},
+    ]
+    cands = _p4_data_quality(_ctx(_frame(rows), metric="dau"))
+    assert cands, "expected at least one data-quality flag"
+    assert all(c.strength == "low" for c in cands)
+    blob = " ".join(c.claim for c in cands)
+    assert "data" in blob.lower()
+
+
+def test_p4_clean_series_no_flags():
+    from gaa.core.modules.exploration import _p4_data_quality
+    rows = [{"date": f"2026-05-0{i+1}", "metric": "dau", "value": 1000 - 20 * i} for i in range(6)]
+    assert _p4_data_quality(_ctx(_frame(rows), metric="dau")) == []
