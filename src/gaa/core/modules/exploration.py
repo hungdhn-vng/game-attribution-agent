@@ -197,10 +197,11 @@ def _p3_lead_lag(ctx: AnalysisContext) -> list[_Candidate]:
             if len(joined) < 4:
                 continue
             c = joined.iloc[:, 0].corr(joined.iloc[:, 1])
-            if c is not None and abs(c) > abs(best[0]):
+            if pd.notna(c) and abs(c) > abs(best[0]):
                 best = (float(c), lag)
         corr, lag = best
         if abs(corr) >= 0.7 and lag > 0:
+            # Reward lead time: a longer lead = more advance warning = more actionable (intentional).
             out.append(_Candidate(
                 score=abs(corr) * (1.0 + lag / 7.0),
                 strength=_strength(abs(corr)),
