@@ -13,12 +13,14 @@ def cmd_mcp_add(ctx, args) -> dict:
             url=args.url, env=args.env or {})
     except ValueError as exc:
         return {"status": "error", "error": str(exc)}
+    extensions.request_reload()
     return {"status": "success", "server": entry,
             "note": "Reloading the runtime so the new tools become available."}
 
 
 def cmd_mcp_remove(ctx, args) -> dict:
     removed = extensions.remove_server(args.name)
+    extensions.request_reload()
     return {"status": "success", "removed": removed}
 
 
@@ -33,11 +35,14 @@ def cmd_secret_set(ctx, args) -> dict:
         extensions.set_secret(args.name, args.value)
     except ValueError as exc:
         return {"status": "error", "error": str(exc)}
+    extensions.request_reload()
     return {"status": "success", "name": args.name}
 
 
 def cmd_secret_unset(ctx, args) -> dict:
-    return {"status": "success", "removed": extensions.unset_secret(args.name)}
+    removed = extensions.unset_secret(args.name)
+    extensions.request_reload()
+    return {"status": "success", "removed": removed}
 
 
 def cmd_secret_list(ctx, args) -> dict:

@@ -91,3 +91,13 @@ def get_secret(name: str):
 
 def list_secret_names() -> list[str]:
     return sorted(_read_secrets().keys())
+
+
+def reload_flag_path() -> str:
+    return str(_dir() / "reload.flag")
+
+
+def request_reload() -> None:
+    """Signal the supervisor to re-render configs and reload the gateways."""
+    with open(reload_flag_path(), "w") as f:
+        f.write("1")

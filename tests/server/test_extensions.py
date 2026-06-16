@@ -40,3 +40,11 @@ def test_secret_file_mode_600(tmp_path):
     ext.set_secret("K", "v")
     mode = stat.S_IMODE(os.stat(ext.secrets_path()).st_mode)
     assert mode == 0o600
+
+
+def test_request_reload_writes_flag(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAA_CACHE_DIR", str(tmp_path))
+    from gaa.server import extensions as ext
+    monkeypatch.setattr(ext, "_dir", lambda: tmp_path)
+    ext.request_reload()
+    assert (tmp_path / "reload.flag").exists()
