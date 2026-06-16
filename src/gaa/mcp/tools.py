@@ -182,6 +182,8 @@ def _run_sensor_tower(name: str, args: dict) -> dict:
     session = args.get("session") or "default"
     if name == "sensor_tower_status":
         tok = _st_valid_token(session)
+        # Second read for the expiry field only (valid_access_token returns just the
+        # token string); idempotent and fine at single-user-demo scope.
         rec = _st_store.get_tokens(session) if tok is not None else None
         return {"connected": tok is not None,
                 "expires_in": (rec["expiry"] - time.time()) if rec else None}
@@ -206,4 +208,5 @@ def _run_sensor_tower(name: str, args: dict) -> dict:
     except Exception as exc:
         _log.exception("sensor tower upstream call failed")
         return {"status": "error", "error": "upstream_error", "detail": str(exc)}
+    # Defensive: unreachable given the router only forwards the four sensor_tower_* names.
     return {"status": "error", "error": f"unknown tool: {name!r}"}

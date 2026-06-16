@@ -110,6 +110,34 @@ def test_st_connect_returns_authorize_url(tmp_path, monkeypatch):
     out = mcp_tools.run_tool(ctx, "sensor_tower_connect", {}, is_admin=False)
     assert out["authorize_url"].startswith("https://h.test/authorize")
 
+def test_st_connect_failure_returns_connect_failed(tmp_path, monkeypatch):
+    ctx = _ctx_env(tmp_path, monkeypatch)
+    def _boom(session):
+        raise RuntimeError("discovery down")
+    monkeypatch.setattr(mcp_tools, "_st_build_authorize_url", _boom)
+    out = mcp_tools.run_tool(ctx, "sensor_tower_connect", {}, is_admin=False)
+    assert out["status"] == "error" and out["error"] == "connect_failed"
+
+def test_st_call_upstream_error(tmp_path, monkeypatch):
+    ctx = _ctx_env(tmp_path, monkeypatch)
+    store.set_tokens("default", {"access_token": "AT", "refresh_token": "r",
+                                 "expiry": time.time() + 999})
+    def _boom(token, name, args):
+        raise RuntimeError("ST 500")
+    monkeypatch.setattr(mcp_tools, "_st_call_tool", _boom)
+    out = mcp_tools.run_tool(ctx, "sensor_tower_call", {"tool": "get_app"}, is_admin=False)
+    assert out["status"] == "error" and out["error"] == "upstream_error"
+
+def test_st_list_tools_upstream_error(tmp_path, monkeypatch):
+    ctx = _ctx_env(tmp_path, monkeypatch)
+    store.set_tokens("default", {"access_token": "AT", "refresh_token": "r",
+                                 "expiry": time.time() + 999})
+    def _boom(token):
+        raise RuntimeError("ST 500")
+    monkeypatch.setattr(mcp_tools, "_st_list_tools", _boom)
+    out = mcp_tools.run_tool(ctx, "sensor_tower_list_tools", {}, is_admin=False)
+    assert out["status"] == "error" and out["error"] == "upstream_error"
+
 def test_st_list_tools_not_connected(tmp_path, monkeypatch):
     ctx = _ctx_env(tmp_path, monkeypatch)
     out = mcp_tools.run_tool(ctx, "sensor_tower_list_tools", {}, is_admin=False)
