@@ -117,21 +117,24 @@ export async function exchangeCode(o: {
 }
 
 // ---------------------------------------------------------------------------
-// sessionStorage token store (browser-only)
+// localStorage token store (browser-only).
+// localStorage (not sessionStorage) so the OAuth popup window and the main chat
+// tab — separate browsing contexts — share the token, and so the chat tab gets a
+// `storage` event when the popup writes it. Token is short-lived (expiry baked in).
 // ---------------------------------------------------------------------------
 
 const KEY = "st_token";
 
 export const getToken = (): StToken | null => {
   try {
-    return JSON.parse(sessionStorage.getItem(KEY) || "null") as StToken | null;
+    return JSON.parse(localStorage.getItem(KEY) || "null") as StToken | null;
   } catch {
     return null;
   }
 };
 
 export const setToken = (t: StToken): void =>
-  sessionStorage.setItem(KEY, JSON.stringify(t));
+  localStorage.setItem(KEY, JSON.stringify(t));
 
 // ---------------------------------------------------------------------------
 // Freshness check

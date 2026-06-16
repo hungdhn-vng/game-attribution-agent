@@ -11,8 +11,8 @@ export default function Connected() {
       const state = u.searchParams.get("state");
       const err = u.searchParams.get("error");
       if (err) return setMsg(`Connection failed: ${err}`);
-      const expected = sessionStorage.getItem("st_state");
-      const verifier = sessionStorage.getItem("st_verifier");
+      const expected = localStorage.getItem("st_state");
+      const verifier = localStorage.getItem("st_verifier");
       if (!code || !state || state !== expected || !verifier) return setMsg("Connection failed: bad state.");
       try {
         const t = await exchangeCode({
@@ -21,10 +21,14 @@ export default function Connected() {
           redirectUri: `${window.location.origin}/sensor-tower/connected`,
           code, verifier,
         });
-        setToken(t);
-        sessionStorage.removeItem("st_state");      // single-use PKCE state/verifier — clear after exchange
-        sessionStorage.removeItem("st_verifier");
-        setMsg("✅ Connected — you can return to your chat.");
+        setToken(t);                                 // localStorage write → fires `storage` in the chat tab
+        localStorage.removeItem("st_state");         // single-use PKCE state/verifier — clear after exchange
+        localStorage.removeItem("st_verifier");
+        setMsg("✅ Connected — closing…");
+        // This page runs in the OAuth popup; close it so the user is back on their (untouched) chat tab.
+        setTimeout(() => window.close(), 600);
+        // If the browser blocked window.close() (e.g. not opened as a popup), guide the user.
+        setTimeout(() => setMsg("✅ Connected — you can close this tab and return to your chat."), 1000);
       } catch (e) {
         setMsg(`Connection failed: ${(e as Error).message}`);
       }

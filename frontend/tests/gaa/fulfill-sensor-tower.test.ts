@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { fulfillSensorTower } from "../../components/gaa/use-gaa-chat";
 
-// minimal sessionStorage shim for the node env
+// minimal localStorage shim for the node env (token store moved to localStorage for popup OAuth)
 beforeEach(() => {
   const store: Record<string, string> = {};
-  vi.stubGlobal("sessionStorage", {
+  vi.stubGlobal("localStorage", {
     getItem: (k: string) => store[k] ?? null,
     setItem: (k: string, v: string) => { store[k] = v; },
     removeItem: (k: string) => { delete store[k]; },
@@ -25,7 +25,7 @@ describe("fulfillSensorTower", () => {
   });
 
   it("posts the ST result when connected", async () => {
-    sessionStorage.setItem("st_token", JSON.stringify({ access_token: "AT", expiry: 9e9 }));
+    localStorage.setItem("st_token", JSON.stringify({ access_token: "AT", expiry: 9e9 }));
     const posts: any[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url: any, init: any) => {
       // the ST MCP calls go to the ST base; the fulfill POST goes to /api/sensor-tower/fulfill
@@ -47,7 +47,7 @@ describe("fulfillSensorTower", () => {
   });
 
   it("posts upstream_error when the ST call throws", async () => {
-    sessionStorage.setItem("st_token", JSON.stringify({ access_token: "AT", expiry: 9e9 }));
+    localStorage.setItem("st_token", JSON.stringify({ access_token: "AT", expiry: 9e9 }));
     const posts: any[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url: any, init: any) => {
       if (String(url).includes("/api/sensor-tower/fulfill")) {
@@ -62,7 +62,7 @@ describe("fulfillSensorTower", () => {
   });
 
   it("maps a 429 to budget_exceeded", async () => {
-    sessionStorage.setItem("st_token", JSON.stringify({ access_token: "AT", expiry: 9e9 }));
+    localStorage.setItem("st_token", JSON.stringify({ access_token: "AT", expiry: 9e9 }));
     const posts: any[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url: any, init: any) => {
       if (String(url).includes("/api/sensor-tower/fulfill")) {
