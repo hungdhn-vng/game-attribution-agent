@@ -200,3 +200,64 @@ def test_p4_clean_series_no_flags():
     from gaa.core.modules.exploration import _p4_data_quality
     rows = [{"date": f"2026-05-0{i+1}", "metric": "dau", "value": 1000 - 20 * i} for i in range(6)]
     assert _p4_data_quality(_ctx(_frame(rows), metric="dau")) == []
+
+
+def _rich_frame():
+    # dau queried; revenue collapses in SEA (P1); SEA×v2.3 interaction (P2).
+    rows = []
+    cells = [("SEA", "v2.3"), ("SEA", "v2.2"), ("NA", "v2.3"), ("NA", "v2.2")]
+    for d, factor in (("2026-05-01", 1.0), ("2026-05-08", None)):
+        for reg, ver in cells:
+            dau = 1000 if factor else (200 if (reg, ver) == ("SEA", "v2.3") else 1000)
+            rev = 1000 if factor else (100 if reg == "SEA" else 1000)
+            rows.append({"date": d, "metric": "dau", "value": dau, "region": reg, "version": ver})
+            rows.append({"date": d, "metric": "revenue", "value": rev, "region": reg, "version": ver})
+    return _frame(rows)
+
+
+def test_run_appends_exploration_findings_to_ledger():
+    from gaa.core.modules.exploration import ExplorationSweep
+    led = EvidenceLedger()
+    ExplorationSweep().run(_ctx(_rich_frame(), metric="dau", start="2026-05-01", end="2026-05-08"), led)
+    explored = [e for e in led.all() if e.module == "exploration"]
+    assert explored, "exploration must write at least one finding"
+    assert all(e.source_type == "derived" for e in explored)
+
+
+def test_run_caps_at_top_n():
+    from gaa.core.modules.exploration import ExplorationSweep
+    led = EvidenceLedger()
+    ExplorationSweep(top_n=1).run(
+        _ctx(_rich_frame(), metric="dau", start="2026-05-01", end="2026-05-08"), led)
+    ranked = [e for e in led.all()
+              if e.module == "exploration" and "data-quality" not in e.source]
+    assert len(ranked) == 1                       # P4 caveats are exempt from the cap
+
+
+def test_run_respects_novelty_from_segment():
+    from gaa.core.modules.exploration import ExplorationSweep
+    led = EvidenceLedger()
+    # pretend segment already decomposed dau by region
+    led.add(module="segment", claim="region=SEA explains 80% of the dau move", value="EP 80%",
+            source="internal:dau by region (Adtributor)", source_type="internal", strength="high")
+    ExplorationSweep().run(_ctx(_rich_frame(), metric="dau", start="2026-05-01", end="2026-05-08"), led)
+    explored = [e for e in led.all() if e.module == "exploration"]
+    assert all("dau by region" not in e.source for e in explored)
+
+
+def test_run_never_raises_on_empty_frame():
+    from gaa.core.modules.exploration import ExplorationSweep
+    from gaa.core.schema.canonical import empty_canonical
+    led = EvidenceLedger()
+    ctx = AnalysisContext(profile=_profile(), metrics=empty_canonical(), query="q",
+                          metric="dau", start=None, end=None, direction=None)
+    ExplorationSweep().run(ctx, led)              # must not raise
+    assert True
+
+
+def test_run_disabled_writes_nothing():
+    from gaa.core.modules.exploration import ExplorationSweep
+    led = EvidenceLedger()
+    ExplorationSweep(enabled=False).run(
+        _ctx(_rich_frame(), metric="dau", start="2026-05-01", end="2026-05-08"), led)
+    assert [e for e in led.all() if e.module == "exploration"] == []

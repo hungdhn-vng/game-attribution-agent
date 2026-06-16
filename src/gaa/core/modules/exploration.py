@@ -244,3 +244,42 @@ def _p4_data_quality(ctx: AnalysisContext) -> list[_Candidate]:
                 source=f"internal:{m} (exploration/data-quality)",
                 timeframe=None, dedup_key=(m, "dq", "jump")))
     return out
+
+
+class ExplorationSweep:
+    """Runs the probe battery, ranks candidates, applies the novelty gate + top-N cap,
+    and appends findings to the ledger. P4 data-quality caveats are exempt from the cap."""
+    name = "exploration"
+
+    def __init__(self, top_n: int = 4, enabled: bool = True) -> None:
+        self._top_n = top_n
+        self._enabled = enabled
+
+    def run(self, ctx: AnalysisContext, ledger: EvidenceLedger) -> None:
+        if not self._enabled:
+            return
+        try:
+            covered = _covered_pairs(ledger)
+            cands = (_safe(_p1_surprise_scan, ctx, covered)
+                     + _safe(_p2_interaction, ctx)
+                     + _safe(_p3_lead_lag, ctx))
+            seen: set[tuple] = set()
+            ranked: list[_Candidate] = []
+            for c in sorted(cands, key=lambda c: c.score, reverse=True):
+                if c.dedup_key in seen:
+                    continue
+                seen.add(c.dedup_key)
+                ranked.append(c)
+            kept = ranked[:self._top_n]
+            dropped = len(ranked) - len(kept)
+            for c in kept:
+                ledger.add(module=self.name, claim=c.claim, value=c.value, source=c.source,
+                           source_type="derived", strength=c.strength, timeframe=c.timeframe)
+            for c in _safe(_p4_data_quality, ctx):   # caveats: always appended, exempt from cap
+                ledger.add(module=self.name, claim=c.claim, value=c.value, source=c.source,
+                           source_type="derived", strength=c.strength, timeframe=c.timeframe)
+            ctx.extras["exploration_dropped"] = dropped
+            ctx.extras["exploration_kept"] = len(kept)
+        except Exception:
+            ledger.add(module=self.name, claim="exploration sweep encountered an error",
+                       value="n/a", source="internal", source_type="derived", strength="low")
