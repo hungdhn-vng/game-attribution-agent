@@ -53,6 +53,16 @@ def ensure_client() -> dict:
     return rec
 
 
+def _expiry(data: dict, now: float) -> float:
+    """Absolute expiry time, robust to a missing/malformed expires_in (don't let an
+    upstream data quirk raise ValueError — that would be misread as a client error)."""
+    try:
+        ttl = float(data.get("expires_in", 3600))
+    except (TypeError, ValueError):
+        ttl = 3600.0
+    return now + ttl - _REFRESH_MARGIN_S
+
+
 def _pkce() -> tuple[str, str]:
     verifier = base64.urlsafe_b64encode(os.urandom(48)).decode().rstrip("=")
     challenge = base64.urlsafe_b64encode(
@@ -98,7 +108,7 @@ def exchange_code(code: str, state: str, *, now: float) -> dict:
     })
     rec = {"access_token": data["access_token"],
            "refresh_token": data.get("refresh_token", ""),
-           "expiry": now + float(data.get("expires_in", 3600)) - _REFRESH_MARGIN_S}
+           "expiry": _expiry(data, now)}
     store.set_tokens(pending["session"], rec)
     return rec
 
@@ -133,6 +143,6 @@ def valid_access_token(session: str, *, now: float) -> str | None:
         return None
     new = {"access_token": data["access_token"],
            "refresh_token": data.get("refresh_token") or rec["refresh_token"],
-           "expiry": now + float(data.get("expires_in", 3600)) - _REFRESH_MARGIN_S}
+           "expiry": _expiry(data, now)}
     store.set_tokens(session, new)
     return new["access_token"]

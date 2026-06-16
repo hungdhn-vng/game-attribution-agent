@@ -5,6 +5,7 @@ Routes:
   GET  /runs/<id>/<artifact>  open, read-only, allowlisted, traversal-safe (UNCHANGED).
   POST /chat                  Bearer-gated SSE shim to OpenClaw (Task C3).
   POST /upload                Bearer-gated CSV onboarding (Task C4).
+  POST /sensor-tower/callback Bearer-gated; frontend relays an O365 OAuth code to exchange for tokens.
 On startup: nothing (restore is done by the container entrypoint before the gateway boots)."""
 from __future__ import annotations
 

@@ -135,3 +135,13 @@ def test_sensor_tower_callback_missing_fields_is_422(tmp_path, monkeypatch):
     r = client.post("/sensor-tower/callback", json={"code": "c"},
                     headers={"authorization": "Bearer t0k"})
     assert r.status_code == 422
+
+def test_sensor_tower_callback_unexpected_error_is_502(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    import gaa.server.app as appmod
+    def fake_exchange(code, state, *, now):
+        raise RuntimeError("token endpoint 500")  # not a ValueError → upstream failure
+    monkeypatch.setattr(appmod, "_st_exchange_code", fake_exchange)
+    r = client.post("/sensor-tower/callback", json={"code": "c", "state": "s"},
+                    headers={"authorization": "Bearer t0k"})
+    assert r.status_code == 502
