@@ -60,4 +60,18 @@ describe("fulfillSensorTower", () => {
     const fulfill = posts.find((p) => p.req_id === "R3");
     expect(fulfill).toMatchObject({ req_id: "R3", error: { kind: "upstream_error", detail: expect.stringContaining("500") } });
   });
+
+  it("maps a 429 to budget_exceeded", async () => {
+    sessionStorage.setItem("st_token", JSON.stringify({ access_token: "AT", expiry: 9e9 }));
+    const posts: any[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: any, init: any) => {
+      if (String(url).includes("/api/sensor-tower/fulfill")) {
+        posts.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ status: "success" }), { status: 200 });
+      }
+      return new Response("rate limited", { status: 429 });  // ST initialize → 429
+    }));
+    await fulfillSensorTower({ req_id: "R4", st_tool: "t", params: {} });
+    expect(posts.find((p) => p.req_id === "R4").error.kind).toBe("budget_exceeded");
+  });
 });

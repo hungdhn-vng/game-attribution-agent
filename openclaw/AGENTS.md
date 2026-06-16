@@ -19,5 +19,8 @@ more games — via the user's browser (they click "Connect Sensor Tower" once pe
   retry the same call after they confirm.
 - If a result has `scope_trimmed`, mention what was narrowed (e.g. fewer countries) to stay
   within the data budget. `cached: true` means it was served from cache (free, instant).
-- On `upstream_error`/`fulfill_timeout`, say Sensor Tower is unavailable and continue the
-  analysis without it — ST is enrichment, never required. Never paste tokens.
+- If a tool returns `bad_date`, the date range was unparseable — ask the user to restate it
+  (YYYY-MM-DD).
+- On `budget_exceeded`, tell the user the shared Sensor Tower data-point budget is exhausted
+  for now. On `upstream_error`/`fulfill_timeout`, say Sensor Tower is unavailable and continue
+  the analysis without it — ST is enrichment, never required. Never paste tokens.

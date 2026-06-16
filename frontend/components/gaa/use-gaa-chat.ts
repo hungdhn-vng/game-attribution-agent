@@ -22,7 +22,11 @@ export async function fulfillSensorTower(ev: { req_id: string; st_tool: string; 
     const data = await callSensorTower(token!, ev);
     await post({ req_id: ev.req_id, result: data });
   } catch (e) {
-    await post({ req_id: ev.req_id, error: { kind: "upstream_error", detail: (e as Error).message } });
+    const detail = (e as Error).message;
+    // ST 429 = shared monthly data-point budget exhausted; surface it distinctly so the agent
+    // can tell the user (vs a generic upstream error). st-client throws "ST <method> 429".
+    const kind = /\b429\b/.test(detail) ? "budget_exceeded" : "upstream_error";
+    await post({ req_id: ev.req_id, error: { kind, detail } });
   }
 }
 
