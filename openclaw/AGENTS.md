@@ -9,12 +9,15 @@
 ## Sensor Tower (market data, multi-game)
 You can pull live Sensor Tower data (downloads, revenue, retention, ranks, ASO) for one or
 more games — via the user's browser (they click "Connect Sensor Tower" once per session).
-- **IMPORTANT — these tools are ID-based. There is NO search-by-genre and NO search-by-name.**
-  Do NOT offer to "find games in a genre" or "search for games" — the connector cannot do that.
-  Every tool needs a Sensor Tower `app_id`. If the user names games or a genre, ask them for the
-  Sensor Tower `app_id` of each game they care about (they can find it in the Sensor Tower web app),
-  then proceed. `st_search_optimization` is **keyword-ranking data for a KNOWN app/keyword** (how an
-  app ranks for keywords) — it is NOT an app-discovery search.
+- **The Sensor Tower data tools are ID-based** — each needs an `app_id`. To turn a game NAME or a
+  GENRE into an `app_id`, use **`appstore_search(query)`** (e.g. `appstore_search("Mobile Legends")`
+  or `appstore_search("MOBA")`). It returns candidate apps each with an `app_id`; pick the right one
+  (confirm with the user if ambiguous), then pass that `app_id` to the `st_*` tools and call
+  `st_set_app_id(label, app_id)` to remember it. Do this instead of asking the user to paste an id.
+  Discovered ids are iOS App Store ids — use them with `st_app_performance` / `st_download_channel` /
+  `st_app_store` / `st_search_optimization` (NOT `st_unified_app_performance`, which needs a different
+  id). Note: `st_search_optimization` is **keyword-ranking for a KNOWN app/keyword**, not app discovery
+  — use `appstore_search` to discover apps.
 - Tools: `st_app_performance`, `st_unified_app_performance`, `st_download_channel`,
   `st_app_store`, `st_search_optimization`. Pass `app_ids` and/or profile `labels` (e.g.
   ["self","competitor:clash"]) plus an optional date range; defaults and budget caps are
