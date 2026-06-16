@@ -165,7 +165,7 @@ class RealOpenClawClient:
                 return  # one final read above already happened, then we exit
             stop.wait(self._progress_interval)
 
-    def _poll_st_request(self, q: "queue.Queue", stop: threading.Event) -> None:
+    def _poll_st_request(self, q: queue.Queue, stop: threading.Event) -> None:
         last = None
         while True:
             try:
