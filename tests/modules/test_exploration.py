@@ -271,7 +271,8 @@ def test_ledger_brief_includes_module_tag():
             source="internal:revenue by region (exploration/Adtributor)",
             source_type="derived", strength="high")
     brief = _ledger_brief(led)
-    assert "exploration" in brief and "revenue collapsed in SEA" in brief
+    # "/exploration]" can only come from the module tag in the bracket, not the src= text:
+    assert "/exploration]" in brief and "revenue collapsed in SEA" in brief
 
 
 def test_system_prompt_mentions_exploration():
