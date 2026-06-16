@@ -9,6 +9,12 @@
 ## Sensor Tower (market data, multi-game)
 You can pull live Sensor Tower data (downloads, revenue, retention, ranks, ASO) for one or
 more games — via the user's browser (they click "Connect Sensor Tower" once per session).
+- **IMPORTANT — these tools are ID-based. There is NO search-by-genre and NO search-by-name.**
+  Do NOT offer to "find games in a genre" or "search for games" — the connector cannot do that.
+  Every tool needs a Sensor Tower `app_id`. If the user names games or a genre, ask them for the
+  Sensor Tower `app_id` of each game they care about (they can find it in the Sensor Tower web app),
+  then proceed. `st_search_optimization` is **keyword-ranking data for a KNOWN app/keyword** (how an
+  app ranks for keywords) — it is NOT an app-discovery search.
 - Tools: `st_app_performance`, `st_unified_app_performance`, `st_download_channel`,
   `st_app_store`, `st_search_optimization`. Pass `app_ids` and/or profile `labels` (e.g.
   ["self","competitor:clash"]) plus an optional date range; defaults and budget caps are
