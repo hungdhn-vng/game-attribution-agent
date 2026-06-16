@@ -12,6 +12,7 @@ import hmac
 import logging
 import os
 import tempfile
+import time as _time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
@@ -24,6 +25,12 @@ from gaa.server import shim as _shim
 from gaa.server.openclaw_client import RealOpenClawClient
 
 _log = logging.getLogger(__name__)
+
+
+def _st_exchange_code(code: str, state: str, *, now: float) -> dict:
+    from gaa.sensortower import oauth
+    return oauth.exchange_code(code, state, now=now)
+
 
 _CONTENT_TYPES = {
     "report.html": "text/html", "summary.md": "text/markdown",
@@ -157,6 +164,26 @@ def create_app(ctx=None) -> FastAPI:
         finally:
             os.unlink(path)
         return JSONResponse(result)
+
+    @app.post("/sensor-tower/callback")
+    def sensor_tower_callback(request: Request, body: dict | None = None):
+        require_token(request)
+        body = body or {}
+        code, state = body.get("code"), body.get("state")
+        if not code or not state:
+            raise HTTPException(status_code=422, detail="code and state required")
+        try:
+            _st_exchange_code(code, state, now=_time.time())
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception:
+            _log.exception("sensor tower code exchange failed")
+            raise HTTPException(status_code=502, detail="token exchange failed")
+        try:
+            persist.snapshot(get_ctx())
+        except Exception:
+            _log.exception("vStorage snapshot after sensor-tower connect failed")
+        return JSONResponse({"status": "success"})
 
     return app
 

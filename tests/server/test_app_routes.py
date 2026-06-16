@@ -96,3 +96,42 @@ def test_chat_sse_injects_run_id(monkeypatch):
                 done_event = ev
     assert done_event is not None
     assert done_event["run_id"] == "run-abc"
+
+
+# ---------------------------------------------------------------------------
+# POST /sensor-tower/callback
+# ---------------------------------------------------------------------------
+
+def test_sensor_tower_callback_requires_token(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    r = client.post("/sensor-tower/callback", json={"code": "c", "state": "s"})
+    assert r.status_code == 401
+
+def test_sensor_tower_callback_exchanges_and_acks(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    import gaa.server.app as appmod
+    called = {}
+    def fake_exchange(code, state, *, now):
+        called["code"], called["state"] = code, state
+        return {"access_token": "AT"}
+    monkeypatch.setattr(appmod, "_st_exchange_code", fake_exchange)
+    r = client.post("/sensor-tower/callback", json={"code": "CODE", "state": "ST"},
+                    headers={"authorization": "Bearer t0k"})
+    assert r.status_code == 200 and r.json()["status"] == "success"
+    assert called == {"code": "CODE", "state": "ST"}
+
+def test_sensor_tower_callback_bad_state_is_400(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    import gaa.server.app as appmod
+    def fake_exchange(code, state, *, now):
+        raise ValueError("unknown or expired state")
+    monkeypatch.setattr(appmod, "_st_exchange_code", fake_exchange)
+    r = client.post("/sensor-tower/callback", json={"code": "c", "state": "bad"},
+                    headers={"authorization": "Bearer t0k"})
+    assert r.status_code == 400
+
+def test_sensor_tower_callback_missing_fields_is_422(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    r = client.post("/sensor-tower/callback", json={"code": "c"},
+                    headers={"authorization": "Bearer t0k"})
+    assert r.status_code == 422
