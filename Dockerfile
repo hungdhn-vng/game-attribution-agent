@@ -10,8 +10,14 @@ RUN pip3 install --no-cache-dir --break-system-packages ".[server]"
 COPY openclaw /opt/gaa/openclaw
 COPY scripts/entrypoint.sh /opt/gaa/entrypoint.sh
 RUN chmod +x /opt/gaa/entrypoint.sh && chmod -R a+rX /opt/gaa
-ENV OPENCLAW_CONFIG_DIR=/home/node/.openclaw \
-    OPENCLAW_URL=http://127.0.0.1:18789 \
+ENV OPENCLAW_HOME=/home/node/.openclaw \
+    OPENCLAW_WORKSPACE=/home/node/.openclaw/workspace \
+    OPENCLAW_CONFIG_NONADMIN=/home/node/.openclaw-nonadmin/openclaw.json \
+    OPENCLAW_CONFIG_ADMIN=/home/node/.openclaw-admin/openclaw.json \
+    OPENCLAW_STATE_NONADMIN=/home/node/.openclaw-nonadmin/state \
+    OPENCLAW_STATE_ADMIN=/home/node/.openclaw-admin/state \
+    OPENCLAW_URL_NONADMIN=http://127.0.0.1:18789 \
+    OPENCLAW_URL_ADMIN=http://127.0.0.1:18790 \
     GAA_CACHE_DIR=/home/node/.gaa \
     GAA_DB_PATH=/home/node/.gaa/gaa.sqlite \
     GAA_RUN_SIDECAR=/home/node/.gaa/last_run.json \
