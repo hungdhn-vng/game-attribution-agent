@@ -67,5 +67,7 @@ class NotionClient:
         return self._request("GET", f"/pages/{page_id}")
 
     def get_block_children(self, block_id: str, *, page_size: int = 50) -> list[dict]:
+        # Deliberate single-page read (no has_more/next_cursor follow): callers truncate
+        # the extracted text to a token budget anyway, so the first page is enough.
         ps = min(int(page_size or 50), 100)
         return self._request("GET", f"/blocks/{block_id}/children?page_size={ps}").get("results", [])

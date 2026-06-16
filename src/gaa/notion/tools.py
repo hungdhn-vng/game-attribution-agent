@@ -50,8 +50,9 @@ _SPECS: dict[str, tuple[str, dict]] = {
                         "limit": _INT},
          "required": ["query"]}),
     "notion_fetch": (
-        "Fetch a Notion page (text) or data source (rows) by id or URL.",
-        {"type": "object", "properties": {"id": _STR}, "required": ["id"]}),
+        "Fetch a Notion page (text) or data source (rows) by id or URL. limit caps rows "
+        "when the id resolves to a data source.",
+        {"type": "object", "properties": {"id": _STR, "limit": _INT}, "required": ["id"]}),
 }
 
 
@@ -272,6 +273,8 @@ def _from_data_source(client, ds_id, *, kind, limit):
     version_p = _find_named(schema, ("version", "build"))
     sorts = ([{"property": date_p, "direction": "descending"}] if date_p
              else [{"timestamp": "last_edited_time", "direction": "descending"}])
+    # Over-fetch (floor 25) so client-side date filtering in _focused still has enough
+    # in-range rows to return `limit` after dropping out-of-range ones.
     rows = client.query_data_source(ds_id, sorts=sorts, page_size=max(limit, 25))
     out = []
     for row in rows:

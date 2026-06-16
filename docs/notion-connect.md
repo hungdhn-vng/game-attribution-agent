@@ -30,7 +30,7 @@ secrets, and auto-allows `notion__*` in non-admin mode.
 - `notion__build_updates(since?, until?, query?, limit?)`
 - `notion__user_sentiment(since?, until?, query?, limit?)`
 - `notion__notion_search(query, type?, limit?)`  — `type` is `page` or `data_source`
-- `notion__notion_fetch(id)`  — id or URL of a page or data source
+- `notion__notion_fetch(id, limit?)`  — id or URL of a page or data source (`limit` caps rows when it resolves to a data source)
 
 If no Builds/Sentiment data source is configured, the focused tools fall back to
 workspace keyword search. **Sentiment report detail lives in the page body** — the
