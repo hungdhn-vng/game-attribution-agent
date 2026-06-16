@@ -278,3 +278,30 @@ def test_ledger_brief_includes_module_tag():
 def test_system_prompt_mentions_exploration():
     from gaa.core.synth import synthesizer
     assert "exploration" in synthesizer.SYSTEM.lower()
+
+
+def test_run_handles_missing_all_dims():
+    from gaa.core.modules.exploration import ExplorationSweep
+    rows = [{"date": f"2026-05-0{i+1}", "metric": "dau", "value": 1000 - 30 * i} for i in range(6)]
+    led = EvidenceLedger()
+    ExplorationSweep().run(_ctx(_frame(rows), metric="dau"), led)   # no dim columns populated
+    assert True  # must not raise
+
+
+def test_run_handles_single_date():
+    from gaa.core.modules.exploration import ExplorationSweep
+    rows = [{"date": "2026-05-01", "metric": "dau", "value": 1000, "region": "SEA"},
+            {"date": "2026-05-01", "metric": "dau", "value": 800, "region": "NA"}]
+    led = EvidenceLedger()
+    ExplorationSweep().run(_ctx(_frame(rows), metric="dau"), led)   # only one date
+    assert True
+
+
+def test_run_handles_all_nan_dimension():
+    from gaa.core.modules.exploration import ExplorationSweep
+    rows = []
+    for d, v in (("2026-05-01", 1000), ("2026-05-08", 400)):
+        rows.append({"date": d, "metric": "dau", "value": v})       # region etc. all None
+    led = EvidenceLedger()
+    ExplorationSweep().run(_ctx(_frame(rows), metric="dau", start="2026-05-01", end="2026-05-08"), led)
+    assert True
