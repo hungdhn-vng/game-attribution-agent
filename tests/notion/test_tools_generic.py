@@ -69,3 +69,63 @@ def test_plain_extracts_common_property_types():
     assert tools._plain({"type": "number", "number": 7}) == "7"
     assert tools._plain({"type": "unique_id", "unique_id": {"prefix": "PROJ", "number": 5}}) == "PROJ-5"
     assert tools._plain({"type": "unique_id", "unique_id": {"prefix": "PROJ", "number": None}}) == ""
+
+
+def test_notion_search_shapes_hits(monkeypatch):
+    def handler(request):
+        return httpx.Response(200, json={"results": [
+            {"object": "page", "id": "p1", "url": "https://n/p1",
+             "properties": {"Event Name": {"type": "title", "title": [{"plain_text": "Patch 1.2"}]}}},
+            {"object": "data_source", "id": "d1", "url": "https://n/d1",
+             "name": [{"plain_text": "Releases"}]},
+        ]})
+    mock_tools(monkeypatch, handler)
+    out = tools.run_tool("notion_search", {"query": "patch"})
+    assert out["status"] == "success"
+    assert out["results"][0] == {"id": "p1", "type": "page", "title": "Patch 1.2", "url": "https://n/p1"}
+    assert out["results"][1]["title"] == "Releases"
+    assert out["results"][1]["type"] == "data_source"
+
+
+def test_notion_fetch_page_returns_text(monkeypatch):
+    def handler(request):
+        path = request.url.path
+        if path == "/v1/pages/abc":
+            return httpx.Response(200, json={"object": "page", "id": "abc", "url": "https://n/abc",
+                                             "properties": {"Event Name": {"type": "title",
+                                                                           "title": [{"plain_text": "Notes"}]}}})
+        if path == "/v1/blocks/abc/children":
+            return httpx.Response(200, json={"results": [
+                {"type": "heading_1", "heading_1": {"rich_text": [{"plain_text": "Build 5"}]}},
+                {"type": "paragraph", "paragraph": {"rich_text": [{"plain_text": "Fixed crash."}]}},
+            ]})
+        return httpx.Response(500, json={})
+    mock_tools(monkeypatch, handler)
+    out = tools.run_tool("notion_fetch", {"id": "abc"})
+    assert out["status"] == "success"
+    assert out["kind"] == "page"
+    assert out["title"] == "Notes"
+    assert out["text"] == "Build 5\nFixed crash."
+
+
+def test_notion_fetch_falls_back_to_data_source(monkeypatch):
+    def handler(request):
+        path = request.url.path
+        if path == "/v1/pages/ds9":
+            return httpx.Response(404, json={"object": "error", "code": "object_not_found",
+                                             "message": "Could not find page"})
+        if path == "/v1/data_sources/ds9":
+            return httpx.Response(200, json={"id": "ds9", "url": "https://n/ds9",
+                                             "name": [{"plain_text": "Feedback"}]})
+        if path == "/v1/data_sources/ds9/query":
+            return httpx.Response(200, json={"results": [
+                {"id": "r1", "url": "https://n/r1",
+                 "properties": {"note": {"type": "rich_text", "rich_text": [{"plain_text": "great"}]}}},
+            ]})
+        return httpx.Response(500, json={})
+    mock_tools(monkeypatch, handler)
+    out = tools.run_tool("notion_fetch", {"id": "ds9"})
+    assert out["status"] == "success"
+    assert out["kind"] == "data_source"
+    assert out["title"] == "Feedback"
+    assert out["rows"][0]["properties"]["note"] == "great"

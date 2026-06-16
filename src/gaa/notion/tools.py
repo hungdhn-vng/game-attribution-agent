@@ -19,6 +19,9 @@ _INT = {"type": "integer"}
 _MAX_TEXT = 2000
 _MAX_SNIPPET = 500
 
+_TEXT_BLOCKS = ("paragraph", "heading_1", "heading_2", "heading_3", "bulleted_list_item",
+                "numbered_list_item", "to_do", "quote", "callout", "toggle", "code")
+
 _FOCUSED_PROPS = {"since": _STR, "until": _STR, "query": _STR, "limit": _INT}
 
 _SPECS: dict[str, tuple[str, dict]] = {
@@ -159,16 +162,52 @@ def _object_title(obj: dict) -> str:
     return ""
 
 
+# --- helpers (Tasks 4+) --------------------------------------------------
+
+def _blocks_to_text(blocks: list[dict]) -> str:
+    parts = []
+    for b in blocks:
+        t = b.get("type")
+        if t in _TEXT_BLOCKS:
+            txt = _rich((b.get(t) or {}).get("rich_text"))
+            if txt:
+                parts.append(txt)
+    return "\n".join(parts)
+
+
+def _row_summary(page: dict) -> dict:
+    props = {k: _plain(v) for k, v in (page.get("properties") or {}).items()}
+    return {"id": page.get("id"), "url": page.get("url"),
+            "properties": {k: v for k, v in props.items() if v}}
+
+
 # --- tool bodies (filled in Tasks 4-5) -----------------------------------
 
 def _notion_search(client, args):
-    # Stub: invoke the client so NotionError propagates; full body in Task 4.
-    client.search(args.get("query", ""), type=args.get("type"), limit=args.get("limit", 10))
-    return {"status": "error", "error": "not implemented"}
+    results = client.search(args.get("query", ""), type=args.get("type"),
+                            limit=int(args.get("limit") or 10))
+    hits = [{"id": r.get("id"), "type": r.get("object"),
+             "title": _object_title(r), "url": r.get("url")} for r in results]
+    return {"status": "success", "results": hits}
 
 
 def _notion_fetch(client, args):
-    return {"status": "error", "error": "not implemented"}
+    nid = _normalize_id(args.get("id", ""))
+    page = None
+    try:
+        page = client.get_page(nid)
+    except NotionError as exc:
+        if exc.http_status not in (400, 404):
+            raise
+    if page is not None:
+        text = _blocks_to_text(client.get_block_children(nid))
+        return {"status": "success", "kind": "page", "id": nid,
+                "title": _object_title(page), "url": page.get("url"), "text": text[:_MAX_TEXT]}
+    ds = client.get_data_source(nid)
+    rows = client.query_data_source(nid, page_size=int(args.get("limit") or 10))
+    return {"status": "success", "kind": "data_source", "id": nid,
+            "title": _rich(ds.get("name") or ds.get("title")), "url": ds.get("url"),
+            "rows": [_row_summary(r) for r in rows]}
 
 
 def _focused(client, args, *, kind):
