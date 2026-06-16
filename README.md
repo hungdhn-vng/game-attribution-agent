@@ -128,5 +128,13 @@ External/market data is public (genre benchmark; live Roblox/Steam crawl is conf
 - Built `linux/amd64`, pushed via `/agentbase-deploy` (`--from-cr`), `--env-file .env`. `GREENNODE_*`
   credentials are auto-injected by the runtime (not in the image or env file).
 
+### Sensor Tower (optional)
+| Env var | Required | Default | Notes |
+|---|---|---|---|
+| `GAA_ST_BASE_URL` | No | `https://stg-aawp-connector.vnggames.net/sensor-tower-v2` | Sensor Tower MCP server URL |
+| `GAA_ST_REDIRECT_URI` | **Yes** (if using Sensor Tower) | — | Public Vercel callback, e.g. `https://game-attribution-agent.vercel.app/api/sensor-tower/callback`. Must **exactly** match the OAuth client's registered redirect_uri. |
+
+The frontend needs **no new env vars** — it already uses `GAA_BACKEND_URL` + `GAA_AGENT_TOKEN` to relay the OAuth callback server-to-server.
+
 ## Tests
 `pytest -q` → 177 passing (TDD throughout; engine verified end-to-end with a fake LLM, deploy verified live).
