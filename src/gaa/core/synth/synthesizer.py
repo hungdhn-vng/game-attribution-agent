@@ -16,13 +16,15 @@ SYSTEM = (
     "risks[], assumptions_and_gaps[]. rationale is a 1-2 sentence explanation of your reasoning. "
     "Each cause/scenario item has claim/description, evidence_ids[], "
     "and likelihood in {Very likely,Likely,Possible,Unlikely}. Do NOT output evidence_quality. "
-    "assumptions_and_gaps is an array of plain strings (one short sentence each), NOT objects."
+    "assumptions_and_gaps is an array of plain strings (one short sentence each), NOT objects. "
+    "Evidence whose module is 'exploration' are proactive findings the user did not explicitly "
+    "ask about — surface the notable ones in main_story or scenarios when they matter."
 )
 
 
 def _ledger_brief(ledger: EvidenceLedger) -> str:
     return "\n".join(
-        f"{e.id} [{e.source_type}/{e.strength}] {e.claim} ({e.value}) src={e.source}"
+        f"{e.id} [{e.source_type}/{e.strength}/{e.module}] {e.claim} ({e.value}) src={e.source}"
         for e in ledger.all())
 
 

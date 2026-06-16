@@ -28,6 +28,7 @@ from gaa.core.modules.base import AnalysisContext
 from gaa.core.modules.competitor_signals import CompetitorSignals
 from gaa.core.modules.market_benchmark import MarketBenchmark
 from gaa.core.modules.migration import MigrationPattern
+from gaa.core.modules.exploration import ExplorationSweep
 from gaa.core.modules.segment import SegmentDecomposition
 from gaa.core.orchestrator.planner import parse_query
 from gaa.core.render.markdown import to_markdown
@@ -221,11 +222,15 @@ class AnalysisPipeline:
         MarketBenchmark(self.benchmark).run(ctx, ledger)
         CompetitorSignals(self.signals).run(ctx, ledger)
         MigrationPattern().run(ctx, ledger)
+        ExplorationSweep().run(ctx, ledger)        # runs last: mines unprompted findings
 
         state["ledger"] = [e.model_dump() for e in ledger.all()]
+        explored = sum(1 for e in ledger.all() if e.module == "exploration")
+        dropped = ctx.extras.get("exploration_dropped", 0)
         job.add_activity(
             "modules",
-            f"Segment/Market/Competitor analyzed; ledger has {len(ledger.all())} entries",
+            f"Segment/Market/Competitor analyzed; {explored} exploration finding(s)"
+            f" ({dropped} lower-ranked dropped); ledger has {len(ledger.all())} entries",
         )
         job.stage = "synth"
 
