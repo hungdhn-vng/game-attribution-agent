@@ -24,6 +24,12 @@ _TEXT_BLOCKS = ("paragraph", "heading_1", "heading_2", "heading_3", "bulleted_li
 
 _FOCUSED_PROPS = {"since": _STR, "until": _STR, "query": _STR, "limit": _INT}
 
+_DEFAULT_KEYWORDS = {
+    "build": "release patch changelog build update liveops",
+    "sentiment": "feedback sentiment review player discord",
+}
+_DS_ENV = {"build": "NOTION_BUILDS_DS", "sentiment": "NOTION_SENTIMENT_DS"}
+
 _SPECS: dict[str, tuple[str, dict]] = {
     "build_updates": (
         "Recent build/release/liveops updates from Notion. Queries the configured Builds "
@@ -211,4 +217,91 @@ def _notion_fetch(client, args):
 
 
 def _focused(client, args, *, kind):
-    return {"status": "error", "error": "not implemented"}
+    limit = int(args.get("limit") or 10)
+    ds_id = os.environ.get(_DS_ENV[kind])
+    if ds_id:
+        items = _from_data_source(client, _normalize_id(ds_id), kind=kind, limit=limit)
+        source = "data_source"
+    else:
+        items = _from_search(client, args.get("query"), kind=kind, limit=limit)
+        source = "search"
+    items = [it for it in items if _in_range(it.get("date"), args.get("since"), args.get("until"))]
+    return {"status": "success", "source": source, "items": items[:limit]}
+
+
+def _in_range(date_str, since, until) -> bool:
+    if not date_str:
+        return True  # never drop undated items
+    d = date_str[:10]
+    if since and d < since[:10]:
+        return False
+    if until and d > until[:10]:
+        return False
+    return True
+
+
+def _find_prop(schema: dict, type_name: str):
+    for name, meta in schema.items():
+        if meta.get("type") == type_name:
+            return name
+    return None
+
+
+def _find_named(schema: dict, needles):
+    for name in schema:
+        low = name.lower()
+        if any(n in low for n in needles):
+            return name
+    return None
+
+
+def _longest_rich_text(props: dict) -> str:
+    best = ""
+    for p in props.values():
+        if p.get("type") == "rich_text":
+            t = _rich(p.get("rich_text"))
+            if len(t) > len(best):
+                best = t
+    return best
+
+
+def _from_data_source(client, ds_id, *, kind, limit):
+    schema = client.get_data_source(ds_id).get("properties", {})
+    title_p = _find_prop(schema, "title")
+    date_p = _find_prop(schema, "date")
+    version_p = _find_named(schema, ("version", "build"))
+    sorts = ([{"property": date_p, "direction": "descending"}] if date_p
+             else [{"timestamp": "last_edited_time", "direction": "descending"}])
+    rows = client.query_data_source(ds_id, sorts=sorts, page_size=max(limit, 25))
+    out = []
+    for row in rows:
+        props = row.get("properties") or {}
+        date = (_plain(props.get(date_p, {})) if date_p else "") or (row.get("created_time", "")[:10])
+        summary = _longest_rich_text(props)[:_MAX_SNIPPET]
+        title = _plain(props.get(title_p, {})) if title_p else ""
+        if kind == "build":
+            item = {"date": date, "title": title, "summary": summary, "url": row.get("url")}
+            if version_p:
+                item["version"] = _plain(props.get(version_p, {}))
+        else:
+            item = {"date": date, "source": title or None, "snippet": summary, "url": row.get("url")}
+        out.append(item)
+    return out
+
+
+def _from_search(client, query, *, kind, limit):
+    q = " ".join(x for x in (_DEFAULT_KEYWORDS[kind], query or "") if x).strip()
+    results = client.search(q, type="page", limit=max(limit, 10))
+    out = []
+    for r in results[:max(limit, 5)]:
+        date = (r.get("created_time") or r.get("last_edited_time") or "")[:10]
+        for p in (r.get("properties") or {}).values():
+            if p.get("type") == "date" and _plain(p):
+                date = _plain(p)[:10]
+                break
+        snippet = _blocks_to_text(client.get_block_children(r.get("id")))[:_MAX_SNIPPET]
+        if kind == "build":
+            out.append({"date": date, "title": _object_title(r), "summary": snippet, "url": r.get("url")})
+        else:
+            out.append({"date": date, "source": _object_title(r) or None, "snippet": snippet, "url": r.get("url")})
+    return out
