@@ -1,4 +1,5 @@
-import httpx, pytest
+import httpx
+import pytest
 from gaa.sensortower import oauth, store, config
 
 DISC = {
@@ -103,3 +104,39 @@ def test_valid_access_token_none_when_refresh_fails(monkeypatch):
     _mount(monkeypatch, handler)
     assert oauth.valid_access_token("default", now=1000.0) is None
     assert store.get_tokens("default") is None
+
+
+def test_valid_access_token_returns_cached_when_not_expired(monkeypatch):
+    # Fast path: a still-valid token must be returned with NO network call (no _mount).
+    store.set_tokens("default", {"access_token": "LIVE", "refresh_token": "RT", "expiry": 9000.0})
+    assert oauth.valid_access_token("default", now=1000.0) == "LIVE"
+
+
+def test_valid_access_token_keeps_token_on_transient_error(monkeypatch):
+    # A network blip during refresh must NOT clear a still-valid refresh token.
+    store.set_client({"client_id": "cid", "client_secret": "sec", "expires_at": 0.0})
+    store.set_tokens("default", {"access_token": "OLD", "refresh_token": "RT", "expiry": 1.0})
+    def handler(req):
+        if "oauth-authorization-server" in req.url.path:
+            return httpx.Response(200, json=DISC)
+        if req.url.path.endswith("/token"):
+            raise httpx.ConnectError("boom")
+        return httpx.Response(404)
+    _mount(monkeypatch, handler)
+    assert oauth.valid_access_token("default", now=1000.0) is None
+    assert store.get_tokens("default")["refresh_token"] == "RT"  # preserved for retry
+
+
+def test_valid_access_token_keeps_token_on_5xx(monkeypatch):
+    # A 5xx from the token endpoint is transient, not a dead token → keep it.
+    store.set_client({"client_id": "cid", "client_secret": "sec", "expires_at": 0.0})
+    store.set_tokens("default", {"access_token": "OLD", "refresh_token": "RT", "expiry": 1.0})
+    def handler(req):
+        if "oauth-authorization-server" in req.url.path:
+            return httpx.Response(200, json=DISC)
+        if req.url.path.endswith("/token"):
+            return httpx.Response(503, json={"error": "temporarily_unavailable"})
+        return httpx.Response(404)
+    _mount(monkeypatch, handler)
+    assert oauth.valid_access_token("default", now=1000.0) is None
+    assert store.get_tokens("default")["refresh_token"] == "RT"  # preserved for retry

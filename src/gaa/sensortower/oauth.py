@@ -48,7 +48,7 @@ def ensure_client() -> dict:
         data = r.json()
     rec = {"client_id": data["client_id"],
            "client_secret": data.get("client_secret", ""),
-           "expires_at": float(data.get("client_secret_expires_at", 0) or 0)}
+           "expires_at": float(data.get("client_secret_expires_at") or 0)}
     store.set_client(rec)
     return rec
 
@@ -114,9 +114,22 @@ def valid_access_token(session: str, *, now: float) -> str | None:
         return None
     try:
         data = _token_request({"grant_type": "refresh_token", "refresh_token": rec["refresh_token"]})
+    except httpx.HTTPStatusError as exc:
+        # The server gave a definite answer. 400/401 means the refresh token is dead
+        # (revoked/expired) → clear so the user reconnects. Other statuses (e.g. 5xx)
+        # are transient → keep the token and let the next call retry.
+        if exc.response.status_code in (400, 401):
+            _log.info("sensor tower refresh rejected (HTTP %d) for session=%s; clearing",
+                      exc.response.status_code, session)
+            store.clear_tokens(session)
+        else:
+            _log.info("sensor tower refresh got HTTP %d for session=%s; keeping token for retry",
+                      exc.response.status_code, session)
+        return None
     except httpx.HTTPError:
-        _log.info("sensor tower refresh failed for session=%s; clearing", session)
-        store.clear_tokens(session)
+        # Transport/timeout error — a network blip is NOT proof the refresh token is dead.
+        # Keep it; report "not connected" for now and retry on the next call.
+        _log.info("sensor tower refresh transient error for session=%s; keeping token", session)
         return None
     new = {"access_token": data["access_token"],
            "refresh_token": data.get("refresh_token") or rec["refresh_token"],
