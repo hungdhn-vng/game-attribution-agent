@@ -100,7 +100,10 @@ export async function exchangeCode(o: {
       client_id: o.clientId,
     }),
   });
-  if (!r.ok) throw new Error(`token exchange ${r.status}`);
+  if (!r.ok) {
+    const body = await r.text().catch(() => "");
+    throw new Error(`token exchange ${r.status}: ${body}`);
+  }
   const d = (await r.json()) as {
     access_token: string;
     refresh_token?: string;
