@@ -259,6 +259,8 @@ class ExplorationSweep:
         if not self._enabled:
             return
         try:
+            ctx.extras.setdefault("exploration_dropped", 0)
+            ctx.extras.setdefault("exploration_kept", 0)
             covered = _covered_pairs(ledger)
             cands = (_safe(_p1_surprise_scan, ctx, covered)
                      + _safe(_p2_interaction, ctx)

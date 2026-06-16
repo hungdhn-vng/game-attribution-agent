@@ -252,7 +252,8 @@ def test_run_never_raises_on_empty_frame():
     ctx = AnalysisContext(profile=_profile(), metrics=empty_canonical(), query="q",
                           metric="dau", start=None, end=None, direction=None)
     ExplorationSweep().run(ctx, led)              # must not raise
-    assert True
+    # On an empty frame all probes yield nothing and nothing leaks to the error path:
+    assert led.all() == []
 
 
 def test_run_disabled_writes_nothing():
