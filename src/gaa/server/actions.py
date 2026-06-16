@@ -21,6 +21,9 @@ from gaa.cli.commands.doctor import cmd_doctor
 from gaa.cli.commands.tools import (
     cmd_tools_list, cmd_tools_show, cmd_tools_promote, cmd_tools_run,
     cmd_tools_remove, cmd_tools_sync_docs, cmd_tools_export, cmd_tools_import)
+from gaa.cli.commands.extensions_cmd import (
+    cmd_mcp_add, cmd_mcp_remove, cmd_mcp_list,
+    cmd_secret_set, cmd_secret_unset, cmd_secret_list)
 
 
 class _Args(types.SimpleNamespace):
@@ -66,6 +69,12 @@ _HANDLERS = {
     "tools_sync_docs": cmd_tools_sync_docs,
     "tools_export": cmd_tools_export,
     "tools_import": cmd_tools_import,
+    "mcp_add": cmd_mcp_add,
+    "mcp_remove": cmd_mcp_remove,
+    "mcp_list": cmd_mcp_list,
+    "secret_set": cmd_secret_set,
+    "secret_unset": cmd_secret_unset,
+    "secret_list": cmd_secret_list,
 }
 
 # Actions requiring an admin context (state-changing or dangerous).
@@ -76,12 +85,14 @@ _HANDLERS = {
 ADMIN_ACTIONS = {
     "config_set", "profile_use", "tools_promote", "tools_run",
     "tools_remove", "tools_import",
+    "mcp_add", "mcp_remove", "mcp_list", "secret_set", "secret_unset", "secret_list",
 }
 
 # Actions whose success should trigger a vStorage snapshot. self_edit is added by register().
 MUTATING_ACTIONS = {
     "onboard_confirm", "config_set", "profile_use", "tools_promote", "tools_remove",
     "tools_import",
+    "mcp_add", "mcp_remove", "secret_set", "secret_unset",
 }
 
 
