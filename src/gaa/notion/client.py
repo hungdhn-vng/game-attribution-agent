@@ -52,3 +52,20 @@ class NotionClient:
         if type in ("page", "data_source"):
             body["filter"] = {"value": type, "property": "object"}
         return self._request("POST", "/search", json=body).get("results", [])
+
+    def get_data_source(self, ds_id: str) -> dict:
+        return self._request("GET", f"/data_sources/{ds_id}")
+
+    def query_data_source(self, ds_id: str, *, sorts: list | None = None,
+                          page_size: int = 10) -> list[dict]:
+        body: dict = {"page_size": min(int(page_size or 10), 100)}
+        if sorts:
+            body["sorts"] = sorts
+        return self._request("POST", f"/data_sources/{ds_id}/query", json=body).get("results", [])
+
+    def get_page(self, page_id: str) -> dict:
+        return self._request("GET", f"/pages/{page_id}")
+
+    def get_block_children(self, block_id: str, *, page_size: int = 50) -> list[dict]:
+        ps = min(int(page_size or 50), 100)
+        return self._request("GET", f"/blocks/{block_id}/children?page_size={ps}").get("results", [])
