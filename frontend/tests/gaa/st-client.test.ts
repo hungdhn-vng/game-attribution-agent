@@ -22,23 +22,38 @@ describe("callSensorTower", () => {
     }));
     const out = await callSensorTower({ access_token: "AT", expiry: 9e9 },
       { req_id: "R", st_tool: "app_performance_api_v2_app_performance_get", params: { app_id: [1] } });
-    expect(methods).toEqual(["initialize", "tools/call"]);
+    // MCP order: initialize → initialized notification → tools/call (matches the live wire trace).
+    expect(methods).toEqual(["initialize", "notifications/initialized", "tools/call"]);
     expect(out).toEqual({ rows: 1 });
   });
 
-  it("sends the session id on the tools/call after initialize", async () => {
-    const seenSession: (string | null)[] = [];
+  it("sends the session id on the notification + tools/call after initialize", async () => {
+    const seen: Record<string, string | null> = {};
     vi.stubGlobal("fetch", vi.fn(async (_url: any, init: any) => {
       const rpc = JSON.parse(init.body);
-      seenSession.push((init.headers || {})["mcp-session-id"] ?? null);
+      seen[rpc.method] = (init.headers || {})["mcp-session-id"] ?? null;
       if (rpc.method === "initialize")
         return jsonResp({ jsonrpc: "2.0", id: rpc.id, result: {} }, { "mcp-session-id": "SID" });
       return jsonResp({ jsonrpc: "2.0", id: rpc.id, result: { content: [{ type: "text", text: "[]" }] } });
     }));
     await callSensorTower({ access_token: "AT", expiry: 9e9 },
       { req_id: "R", st_tool: "t", params: {} });
-    // first call (initialize) has no session id; second (tools/call) carries "SID"
-    expect(seenSession[1]).toBe("SID");
+    expect(seen["initialize"]).toBeNull();                       // no session yet
+    expect(seen["notifications/initialized"]).toBe("SID");       // captured from initialize response
+    expect(seen["tools/call"]).toBe("SID");
+  });
+
+  it("throws on a tool-level error (isError) so it is never cached", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (_url: any, init: any) => {
+      const rpc = JSON.parse(init.body);
+      if (rpc.method === "initialize") return jsonResp({ jsonrpc: "2.0", id: rpc.id, result: {} }, { "mcp-session-id": "S" });
+      if (rpc.method === "tools/call")
+        return jsonResp({ jsonrpc: "2.0", id: rpc.id,
+          result: { isError: true, content: [{ type: "text", text: "HTTP error 429: budget" }] } });
+      return jsonResp({});
+    }));
+    await expect(callSensorTower({ access_token: "AT", expiry: 9e9 },
+      { req_id: "R", st_tool: "t", params: {} })).rejects.toThrow(/429/);
   });
 
   it("throws (not crashes) on an event-stream response with no data line", async () => {
