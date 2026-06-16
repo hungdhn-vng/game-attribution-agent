@@ -41,6 +41,7 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
 import { ActivityStrip } from "@/components/gaa/activity-strip";
+import { SensorTowerConnect } from "@/components/gaa/sensor-tower-connect";
 import { UploadMapping } from "@/components/gaa/upload-mapping";
 import { useConversations } from "@/components/gaa/conversation-store";
 import { useGaaChat, type Turn } from "@/components/gaa/use-gaa-chat";
@@ -221,6 +222,8 @@ export function ChatView({ onMessages }: ChatViewProps) {
               >
                 <PaperclipIcon size={14} style={{ width: 14, height: 14 }} />
               </Button>
+              {/* Sensor Tower OAuth connect button */}
+              <SensorTowerConnect />
             </PromptInputTools>
 
             {streaming ? (
