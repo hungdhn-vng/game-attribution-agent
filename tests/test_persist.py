@@ -162,3 +162,13 @@ def test_client_is_tuned_for_vstorage(monkeypatch):
     assert c.meta.config.s3["addressing_style"] == "path"
     assert c.meta.config.signature_version == "s3v4"
     assert c.meta.region_name == "hcm04"
+
+
+def test_durable_items_include_extensions(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAA_CACHE_DIR", str(tmp_path / "cache"))
+    from gaa.cli.wiring import build_context
+    from gaa import persist
+    ctx = build_context()
+    arcnames = {a for a, _p, _d in persist._durable_items(ctx)}
+    assert "mcp_registry.json" in arcnames
+    assert "mcp_secrets.json" in arcnames

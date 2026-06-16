@@ -64,12 +64,15 @@ def _durable_items(ctx):
     cache = Path(ctx.settings.cache_dir)
     tools = Path(os.environ.get("GAA_TOOLS_DIR", str(cache / "tools")))
     openclaw_home = Path(os.environ.get("OPENCLAW_HOME", str(Path.home() / ".openclaw")))
+    from gaa.server import extensions
     return [
         ("config.toml", Path(ctx.config._path), False),
         ("profiles.sqlite", Path(ctx.settings.db_path), False),
         ("metrics", cache / "metrics", True),
         ("tools", tools, True),
         ("openclaw_workspace", openclaw_home / "workspace", True),
+        ("mcp_registry.json", Path(extensions.registry_path()), False),
+        ("mcp_secrets.json", Path(extensions.secrets_path()), False),
     ]
 
 
