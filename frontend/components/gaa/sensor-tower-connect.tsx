@@ -1,9 +1,16 @@
 "use client";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { makePkce, buildAuthorizeUrl, getToken, tokenIsFresh } from "@/lib/gaa/st-oauth";
 
 export function SensorTowerConnect() {
-  const connected = tokenIsFresh(getToken(), Math.floor(Date.now() / 1000));
+  // Read browser-only state (sessionStorage + Date.now) AFTER mount, never during
+  // render/prerender — Next.js forbids Date.now()/sessionStorage in a client component's
+  // render path (prerender error), and it keeps the connected label fresh on mount.
+  const [connected, setConnected] = useState(false);
+  useEffect(() => {
+    setConnected(tokenIsFresh(getToken(), Math.floor(Date.now() / 1000)));
+  }, []);
   const connect = async () => {
     const { verifier, challenge } = await makePkce();
     const state = crypto.randomUUID();
