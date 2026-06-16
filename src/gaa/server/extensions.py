@@ -42,6 +42,8 @@ def list_servers() -> list[dict]:
 def add_server(*, name: str, command, args, url, env) -> dict:
     if not _NAME_RE.match(name or ""):
         raise ValueError(f"invalid server name: {name!r} (use [a-z0-9_], <=32)")
+    if name == "gaa":
+        raise ValueError("'gaa' is a reserved server name")
     if not command and not url:
         raise ValueError("server needs a command or a url")
     servers = [s for s in list_servers() if s["name"] != name]

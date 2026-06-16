@@ -19,6 +19,7 @@ print(render_config(model=os.environ.get('LLM_MODEL','google/gemma-4-31b-it'), p
 }
 render nonadmin "$NA_CFG"
 render admin    "$AD_CFG"
+chmod 0600 "$NA_CFG" "$AD_CFG" 2>/dev/null || true
 
 # 4. Seed workspace persona files ONLY if absent (restore may have placed evolved versions)
 [ -f "$WS/SOUL.md" ]   || cp /opt/gaa/openclaw/SOUL.md   "$WS/SOUL.md"   2>/dev/null || true
@@ -40,8 +41,9 @@ while true; do
   sleep 3
   if [ -f "$FLAG" ]; then
     rm -f "$FLAG"
-    render nonadmin "$NA_CFG"
-    render admin    "$AD_CFG"
+    render nonadmin "$NA_CFG" || { echo "render nonadmin failed; skipping reload" >&2; continue; }
+    render admin    "$AD_CFG" || { echo "render admin failed; skipping reload" >&2; continue; }
+    chmod 0600 "$NA_CFG" "$AD_CFG" 2>/dev/null || true
     OPENCLAW_CONFIG_PATH="$NA_CFG" OPENCLAW_STATE_DIR="$NA_STATE" openclaw mcp reload || true
     OPENCLAW_CONFIG_PATH="$AD_CFG" OPENCLAW_STATE_DIR="$AD_STATE" openclaw mcp reload || true
   fi

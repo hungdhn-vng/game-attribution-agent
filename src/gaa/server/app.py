@@ -84,9 +84,9 @@ def create_app(ctx=None) -> FastAPI:
     app = FastAPI(title="GAA Front Door", lifespan=lifespan)
     # Construction must stay cheap; Task C5 connects lazily on first stream_chat.
     app.state.openclaw = RealOpenClawClient(
-        url=os.environ.get("OPENCLAW_URL_NONADMIN") or os.environ.get("OPENCLAW_URL"))
+        url=os.environ.get("OPENCLAW_URL_NONADMIN", "http://127.0.0.1:18789"))
     app.state.openclaw_admin = RealOpenClawClient(
-        url=os.environ.get("OPENCLAW_URL_ADMIN") or os.environ.get("OPENCLAW_URL"))
+        url=os.environ.get("OPENCLAW_URL_ADMIN", "http://127.0.0.1:18790"))
 
     @app.get("/health")
     def health():

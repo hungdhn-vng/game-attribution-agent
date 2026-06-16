@@ -48,3 +48,8 @@ def test_request_reload_writes_flag(tmp_path, monkeypatch):
     monkeypatch.setattr(ext, "_dir", lambda: tmp_path)
     ext.request_reload()
     assert (tmp_path / "reload.flag").exists()
+
+
+def test_add_server_rejects_reserved_gaa_name():
+    with pytest.raises(ValueError):
+        ext.add_server(name="gaa", command="x", args=[], url=None, env={})
