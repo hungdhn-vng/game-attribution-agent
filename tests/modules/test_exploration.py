@@ -262,3 +262,18 @@ def test_run_disabled_writes_nothing():
     ExplorationSweep(enabled=False).run(
         _ctx(_rich_frame(), metric="dau", start="2026-05-01", end="2026-05-08"), led)
     assert [e for e in led.all() if e.module == "exploration"] == []
+
+
+def test_ledger_brief_includes_module_tag():
+    from gaa.core.synth.synthesizer import _ledger_brief
+    led = EvidenceLedger()
+    led.add(module="exploration", claim="revenue collapsed in SEA", value="EP -60%",
+            source="internal:revenue by region (exploration/Adtributor)",
+            source_type="derived", strength="high")
+    brief = _ledger_brief(led)
+    assert "exploration" in brief and "revenue collapsed in SEA" in brief
+
+
+def test_system_prompt_mentions_exploration():
+    from gaa.core.synth import synthesizer
+    assert "exploration" in synthesizer.SYSTEM.lower()
