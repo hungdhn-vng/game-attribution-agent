@@ -184,15 +184,16 @@ def test_p4_flags_nonpositive_and_jump():
     from gaa.core.modules.exploration import _p4_data_quality
     rows = [
         {"date": "2026-05-01", "metric": "dau", "value": 1000},
-        {"date": "2026-05-02", "metric": "dau", "value": 0},        # non-positive
-        {"date": "2026-05-03", "metric": "dau", "value": 9000},     # ~huge jump
-        {"date": "2026-05-04", "metric": "dau", "value": 9100},
+        {"date": "2026-05-02", "metric": "dau", "value": 7000},   # +600% jump from a positive base
+        {"date": "2026-05-03", "metric": "dau", "value": 7100},
+        {"date": "2026-05-04", "metric": "dau", "value": 0},      # non-positive
     ]
     cands = _p4_data_quality(_ctx(_frame(rows), metric="dau"))
-    assert cands, "expected at least one data-quality flag"
+    assert cands, "expected data-quality flags"
     assert all(c.strength == "low" for c in cands)
-    blob = " ".join(c.claim for c in cands)
-    assert "data" in blob.lower()
+    claims = " ".join(c.claim for c in cands)
+    assert "non-positive" in claims          # non-positive branch fired
+    assert "jump" in claims                  # jump branch genuinely fired (1000->7000 = 600%)
 
 
 def test_p4_clean_series_no_flags():

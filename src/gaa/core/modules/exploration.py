@@ -232,12 +232,15 @@ def _p4_data_quality(ctx: AnalysisContext) -> list[_Candidate]:
                 value=f"{n_nonpos} non-positive points",
                 source=f"internal:{m} (exploration/data-quality)",
                 timeframe=None, dedup_key=(m, "dq", "nonpos")))
+        # inf steps (a jump from/through zero) are dropped here — the zero itself is
+        # already flagged by n_nonpos above.
         pct = s.pct_change().abs().replace([float("inf")], pd.NA).dropna()
-        if len(pct) and pct.max() >= 5.0:        # >=500% single-step jump
+        max_pct = pct.max()
+        if not pct.empty and max_pct >= 5.0:     # >=500% single-step jump
             out.append(_Candidate(
                 score=0.05, strength="low",
-                claim=f"{m} has an abrupt {pct.max() * 100:.0f}% single-step jump — verify data integrity",
-                value=f"max step {pct.max() * 100:.0f}%",
+                claim=f"{m} has an abrupt {max_pct * 100:.0f}% single-step jump — verify data integrity",
+                value=f"max step {max_pct * 100:.0f}%",
                 source=f"internal:{m} (exploration/data-quality)",
                 timeframe=None, dedup_key=(m, "dq", "jump")))
     return out
