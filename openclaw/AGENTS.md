@@ -9,7 +9,8 @@
 ## Sensor Tower (market data)
 You can enrich analysis with live Sensor Tower data. The user must connect their VNG
 O365 account once per session.
-- Before using Sensor Tower, call `sensor_tower_status`.
+- Before using Sensor Tower, call `sensor_tower_status`. If it already reports
+  `connected: true`, skip straight to using the tools — do NOT ask the user to reconnect.
 - If not connected, call `sensor_tower_connect`, then show the user the returned
   `authorize_url` as a clickable link and ask them to sign in with O365 and come back.
 - After they say they're done, call `sensor_tower_status` again to confirm.
