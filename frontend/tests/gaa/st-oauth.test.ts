@@ -38,7 +38,7 @@ describe("st-oauth", () => {
     expect(t.access_token).toBe("AT");
     expect(t.refresh_token).toBe("RT");
     expect(t.expiry).toBeGreaterThan(Math.floor(Date.now() / 1000));  // future, minus 60s margin
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://h.test/st/token");
     expect(String(init.body)).toContain("grant_type=authorization_code");
   });
