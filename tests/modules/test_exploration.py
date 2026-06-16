@@ -151,3 +151,30 @@ def test_p2_no_metric_returns_empty():
             {"date": "2026-05-08", "metric": "dau", "value": 400, "region": "SEA"}]
     ctx = _ctx(_frame(rows), metric=None)
     assert _p2_interaction(ctx) == []
+
+
+def test_p3_detects_leading_indicator():
+    from gaa.core.modules.exploration import _p3_lead_lag
+    # retention_d7 leads dau by 3 days: dau(t) tracks retention_d7(t-3).
+    import numpy as np
+    dates = pd.date_range("2026-05-01", periods=14, freq="D")
+    base = np.linspace(1000, 500, 14)            # a clear decline
+    ret = base.copy()
+    dau = np.empty(14)
+    dau[:3] = 1000
+    dau[3:] = base[:11]                          # dau lags retention by 3 days
+    rows = []
+    for i, d in enumerate(dates):
+        rows.append({"date": str(d.date()), "metric": "retention_d7", "value": float(ret[i])})
+        rows.append({"date": str(d.date()), "metric": "dau", "value": float(dau[i])})
+    ctx = _ctx(_frame(rows), metric="dau")
+    cands = _p3_lead_lag(ctx)
+    assert cands, "expected a lead-lag candidate"
+    assert "retention_d7" in cands[0].claim and "before" in cands[0].claim
+
+
+def test_p3_requires_target_present():
+    from gaa.core.modules.exploration import _p3_lead_lag
+    rows = [{"date": f"2026-05-0{i+1}", "metric": "dau", "value": 1000 - 50 * i} for i in range(6)]
+    ctx = _ctx(_frame(rows), metric="revenue")   # not in data
+    assert _p3_lead_lag(ctx) == []

@@ -174,3 +174,42 @@ def _p2_interaction(ctx: AnalysisContext) -> list[_Candidate]:
             ))
     out.sort(key=lambda c: c.score, reverse=True)
     return out
+
+
+def _p3_lead_lag(ctx: AnalysisContext) -> list[_Candidate]:
+    """Find other metrics whose series LEADS the target metric (positive lag, strong
+    correlation) — a candidate leading indicator. lag>0 means `other` moves first."""
+    target = ctx.metric
+    metrics = list(ctx.metrics["metric"].unique())
+    series = {m: metric_series(ctx.metrics, m) for m in metrics}
+    series = {m: s for m, s in series.items() if len(s) >= 5}
+    if target not in series:
+        return []
+    tgt = series[target]
+    out: list[_Candidate] = []
+    for m, s in series.items():
+        if m == target:
+            continue
+        best = (0.0, 0)  # (corr, lag)
+        for lag in range(1, 8):                  # only positive lags: does `m` lead `tgt`?
+            shifted = s.shift(lag)               # shifted[t] = m[t-lag]; correlate with tgt[t]
+            joined = pd.concat([tgt, shifted], axis=1, join="inner").dropna()
+            if len(joined) < 4:
+                continue
+            c = joined.iloc[:, 0].corr(joined.iloc[:, 1])
+            if c is not None and abs(c) > abs(best[0]):
+                best = (float(c), lag)
+        corr, lag = best
+        if abs(corr) >= 0.7 and lag > 0:
+            out.append(_Candidate(
+                score=abs(corr) * (1.0 + lag / 7.0),
+                strength=_strength(abs(corr)),
+                claim=(f"{m} moves ~{lag}d before {target} (corr {corr:+.2f}) — "
+                       f"possible leading indicator"),
+                value=f"corr {corr:+.2f} at lag {lag}d",
+                source=f"internal:{m}→{target} (exploration/lead-lag)",
+                timeframe=None,
+                dedup_key=(m, "lead-lag", target),
+            ))
+    out.sort(key=lambda c: c.score, reverse=True)
+    return out
