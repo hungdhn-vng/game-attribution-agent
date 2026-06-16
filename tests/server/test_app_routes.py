@@ -145,3 +145,39 @@ def test_sensor_tower_callback_unexpected_error_is_502(tmp_path, monkeypatch):
     r = client.post("/sensor-tower/callback", json={"code": "c", "state": "s"},
                     headers={"authorization": "Bearer t0k"})
     assert r.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# POST /sensor-tower/fulfill
+# ---------------------------------------------------------------------------
+
+def test_fulfill_requires_token(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    r = client.post("/sensor-tower/fulfill", json={"req_id": "R", "result": {}})
+    assert r.status_code == 401
+
+def test_fulfill_writes_result_sidecar(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAA_ST_RESULT", str(tmp_path / "st_result.json"))
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    r = client.post("/sensor-tower/fulfill", json={"req_id": "R1", "result": {"v": 1}},
+                    headers={"authorization": "Bearer t0k"})
+    assert r.status_code == 200
+    import json
+    rec = json.loads((tmp_path / "st_result.json").read_text())
+    assert rec == {"req_id": "R1", "result": {"v": 1}}
+
+def test_fulfill_writes_error(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAA_ST_RESULT", str(tmp_path / "st_result.json"))
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    r = client.post("/sensor-tower/fulfill", json={"req_id": "R2", "error": {"kind": "not_connected"}},
+                    headers={"authorization": "Bearer t0k"})
+    assert r.status_code == 200
+    import json
+    rec = json.loads((tmp_path / "st_result.json").read_text())
+    assert rec == {"req_id": "R2", "error": {"kind": "not_connected"}}
+
+def test_fulfill_missing_fields_422(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch, token="t0k")
+    r = client.post("/sensor-tower/fulfill", json={"req_id": "R1"},
+                    headers={"authorization": "Bearer t0k"})
+    assert r.status_code == 422

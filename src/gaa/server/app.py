@@ -28,6 +28,11 @@ from gaa.server.openclaw_client import RealOpenClawClient
 _log = logging.getLogger(__name__)
 
 
+def _st_result_path() -> str:
+    return os.environ.get("GAA_ST_RESULT") or os.path.join(
+        os.environ.get("GAA_CACHE_DIR", "data/cache"), "sensortower", "st_result.json")
+
+
 def _st_exchange_code(code: str, state: str, *, now: float) -> dict:
     from gaa.sensortower import oauth
     return oauth.exchange_code(code, state, now=now)
@@ -184,6 +189,26 @@ def create_app(ctx=None) -> FastAPI:
             persist.snapshot(get_ctx())
         except Exception:
             _log.exception("vStorage snapshot after sensor-tower connect failed")
+        return JSONResponse({"status": "success"})
+
+    @app.post("/sensor-tower/fulfill")
+    def sensor_tower_fulfill(request: Request, body: dict | None = None):
+        require_token(request)
+        body = body or {}
+        if not body.get("req_id") or ("result" not in body and "error" not in body):
+            raise HTTPException(status_code=422, detail="req_id and result|error required")
+        path = _st_result_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        rec = {"req_id": body["req_id"]}
+        if "result" in body:
+            rec["result"] = body["result"]
+        else:
+            rec["error"] = body["error"]
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            import json as _json
+            _json.dump(rec, f)
+        os.replace(tmp, path)
         return JSONResponse({"status": "success"})
 
     return app
