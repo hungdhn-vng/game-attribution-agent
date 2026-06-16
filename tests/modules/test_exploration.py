@@ -111,6 +111,7 @@ def test_p1_finds_mover_in_unqueried_metric():
     cands = _p1_surprise_scan(ctx, covered=set())
     joined = " | ".join(c.claim for c in cands)
     assert "revenue" in joined and "SEA" in joined
+    assert all("(unprompted)" in c.claim for c in cands)
 
 
 def test_p1_skips_pairs_already_covered():

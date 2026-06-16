@@ -82,7 +82,7 @@ def _p1_surprise_scan(ctx: AnalysisContext, covered: set[tuple[str, str]]) -> li
     """For every metric × dimension NOT already covered by a targeted module, run
     Adtributor between the window endpoints and emit its surprising elements."""
     out: list[_Candidate] = []
-    for metric in ctx.metrics["metric"].unique():
+    for metric in sorted(ctx.metrics["metric"].unique()):
         dfm = ctx.metrics[ctx.metrics["metric"] == metric]
         s, e = _two_dates(dfm, ctx.start, ctx.end)
         if s is None:
@@ -98,6 +98,7 @@ def _p1_surprise_scan(ctx: AnalysisContext, covered: set[tuple[str, str]]) -> li
             if not forecast or not actual:
                 continue
             res = adtributor_dimension(forecast, actual)
+            # Elements can carry low EP (adtributor selects by surprise); the |ep|<0.1 gate below drops noise.
             for el in res["elements"]:
                 ep, sur = el["ep"], el["surprise"]
                 if abs(ep) < 0.1:
