@@ -76,3 +76,39 @@ def _safe(fn, *args) -> list[_Candidate]:
         return fn(*args)
     except Exception:
         return []
+
+
+def _p1_surprise_scan(ctx: AnalysisContext, covered: set[tuple[str, str]]) -> list[_Candidate]:
+    """For every metric × dimension NOT already covered by a targeted module, run
+    Adtributor between the window endpoints and emit its surprising elements."""
+    out: list[_Candidate] = []
+    for metric in ctx.metrics["metric"].unique():
+        dfm = ctx.metrics[ctx.metrics["metric"] == metric]
+        s, e = _two_dates(dfm, ctx.start, ctx.end)
+        if s is None:
+            continue
+        for dim in CANONICAL_DIMS:
+            if (metric, dim) in covered:
+                continue
+            if dim not in dfm.columns or dfm[dim].isna().all():
+                continue
+            sub = dfm[~is_aggregate_label(dfm[dim])]
+            forecast = sub[sub["date"] == s].groupby(dim)["value"].sum().to_dict()
+            actual = sub[sub["date"] == e].groupby(dim)["value"].sum().to_dict()
+            if not forecast or not actual:
+                continue
+            res = adtributor_dimension(forecast, actual)
+            for el in res["elements"]:
+                ep, sur = el["ep"], el["surprise"]
+                if abs(ep) < 0.1:
+                    continue
+                out.append(_Candidate(
+                    score=abs(ep) * (1.0 + sur),
+                    strength=_strength(ep),
+                    claim=f"{dim}={el['key']} drove {ep * 100:.0f}% of the {metric} move (unprompted)",
+                    value=f"EP {ep * 100:.0f}% · surprise {sur:.3f}",
+                    source=f"internal:{metric} by {dim} (exploration/Adtributor)",
+                    timeframe=f"{s.date()}..{e.date()}",
+                    dedup_key=(metric, dim, str(el["key"])),
+                ))
+    return out
