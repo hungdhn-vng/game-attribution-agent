@@ -20,27 +20,64 @@ import jsonschema
 
 from gaa.server import actions
 from gaa import persist
-from gaa.sensortower import oauth as _st_oauth, client as _st_client, store as _st_store
+from gaa.sensortower import guard as _st_guard, cache as _st_cache, relay as _st_relay_mod, appids as _st_appids
 
 _log = logging.getLogger(__name__)
 
-
-def _st_build_authorize_url(session: str) -> str:
-    return _st_oauth.build_authorize_url(session, now=time.time())
-
-
-def _st_valid_token(session: str):
-    return _st_oauth.valid_access_token(session, now=time.time())
-
-
-def _st_call_tool(token: str, name: str, arguments: dict) -> dict:
-    return _st_client.call_tool(token, name, arguments)
-
-
-def _st_list_tools(token: str) -> list[dict]:
-    return _st_client.list_tools(token)
-
 _STR = {"type": "string"}
+
+_ST_DATA_SCHEMA = {"type": "object", "properties": {
+    "app_ids": {"type": "array", "items": {"anyOf": [{"type": "integer"}, {"type": "string"}]}},
+    "labels": {"type": "array", "items": _STR},
+    "start_date": _STR, "end_date": _STR,
+    "countries": {"type": "array", "items": _STR},
+    "metrics": {"type": "array", "items": _STR},
+    "refresh": {"type": "boolean"}}}
+
+_ST_TOOL_KEYS = {"st_app_performance", "st_unified_app_performance", "st_download_channel",
+                 "st_app_store", "st_search_optimization"}
+
+
+def _st_today() -> str:
+    return time.strftime("%Y-%m-%d", time.gmtime())
+
+
+def _st_relay(built: dict) -> dict:
+    return _st_relay_mod.request(built)
+
+
+def _st_resolver_for(ctx):
+    prof = ctx.profiles.get_active()
+    name = prof.name if prof else "__none__"
+    return lambda label: _st_appids.resolve(ctx.settings.db_path, name, label)
+
+
+def _run_st_tool(ctx, name: str, args: dict) -> dict:
+    if name == "st_set_app_id":
+        prof = ctx.profiles.get_active()
+        if not prof:
+            return {"status": "error", "error": "no_active_profile"}
+        _st_appids.set_app_id(ctx.settings.db_path, prof.name, args["label"], args["id"], args.get("id_type", "app_id"))
+        return {"status": "success", "label": args["label"]}
+    built_out = _st_guard.build(name, args, resolver=_st_resolver_for(ctx), today=_st_today())
+    if built_out.get("status") == "error":
+        return built_out  # need_app_id / bad_date
+    built = built_out["built"]
+    key = _st_cache.make_key(built)
+    if not args.get("refresh"):
+        hit = _st_cache.get(key, now=time.time())
+        if hit is not None:
+            return {"data": hit, "cached": True, "scope_trimmed": built_out.get("scope_trimmed", [])}
+    out = _st_relay(built)
+    if "error" in out:
+        kind = out["error"].get("kind", "upstream_error")
+        r = {"status": "error", "error": kind}
+        if out["error"].get("detail"):
+            r["detail"] = out["error"]["detail"]
+        return r
+    data = out["result"]
+    _st_cache.put(key, data, end_date=built["params"]["end_date"], now=time.time())
+    return {"data": data, "cached": False, "scope_trimmed": built_out.get("scope_trimmed", [])}
 
 _SPECS: dict[str, tuple[str, dict]] = {
     "analyze": ("Start a new attribution analysis for a game's metric change; runs to completion and returns a run_id.",
@@ -99,16 +136,14 @@ _SPECS: dict[str, tuple[str, dict]] = {
                      {"type": "object", "properties": {"name": _STR}, "required": ["name"]}),
     "secret_list": ("List stored secret NAMES only (admin) — never values.",
                     {"type": "object", "properties": {}}),
-    "sensor_tower_status": ("Check whether Sensor Tower is connected for this session (no login required to call).",
-                            {"type": "object", "properties": {"session": _STR}}),
-    "sensor_tower_connect": ("Begin connecting Sensor Tower: returns an O365 login URL to show the user. After they log in, the connection completes automatically; poll sensor_tower_status to confirm.",
-                             {"type": "object", "properties": {"session": _STR}}),
-    "sensor_tower_list_tools": ("List the Sensor Tower tools available once connected.",
-                                {"type": "object", "properties": {"session": _STR}}),
-    "sensor_tower_call": ("Call a Sensor Tower tool by name with its arguments (requires a connected session).",
-                          {"type": "object",
-                           "properties": {"tool": _STR, "arguments": {"type": "object"}, "session": _STR},
-                           "required": ["tool"]}),
+    "st_app_performance": ("Sensor Tower app downloads/revenue/active-users/retention/engagement for one or more games (app_ids and/or profile labels).", _ST_DATA_SCHEMA),
+    "st_unified_app_performance": ("Sensor Tower cross-platform unified app performance.", _ST_DATA_SCHEMA),
+    "st_download_channel": ("Sensor Tower organic-vs-paid download attribution.", _ST_DATA_SCHEMA),
+    "st_app_store": ("Sensor Tower app-store ranks/ratings/reviews.", _ST_DATA_SCHEMA),
+    "st_search_optimization": ("Sensor Tower ASO: keyword rank/difficulty/visibility (supports a `keyword` list).",
+                               {"type": "object", "properties": {**_ST_DATA_SCHEMA["properties"], "keyword": {"type": "array", "items": _STR}}}),
+    "st_set_app_id": ("Remember a Sensor Tower app id under a label on the active game profile (e.g. label 'self' or 'competitor:clash').",
+                      {"type": "object", "properties": {"label": _STR, "id": {"anyOf": [{"type": "integer"}, {"type": "string"}]}, "id_type": _STR}, "required": ["label", "id"]}),
 }
 
 
@@ -164,8 +199,14 @@ def run_tool(ctx, name: str, arguments: dict, *, is_admin: bool) -> dict:
         jsonschema.validate(arguments or {}, schema)
     except jsonschema.ValidationError as exc:
         return {"status": "error", "error": f"invalid args for {name!r}: {exc.message}"}
-    if name.startswith("sensor_tower_"):
-        return _run_sensor_tower(name, arguments or {})
+    if name in _ST_TOOL_KEYS or name == "st_set_app_id":
+        result = _run_st_tool(ctx, name, arguments or {})
+        if name == "st_set_app_id" and isinstance(result, dict) and result.get("status") == "success":
+            try:
+                persist.snapshot(ctx)
+            except Exception:
+                _log.exception("vStorage snapshot after st_set_app_id failed")
+        return result
     result = actions.dispatch(ctx, name, arguments or {}, is_admin=is_admin)
     # analyze returns status="done" (not "success") when the pipeline completes
     if name == "analyze" and isinstance(result, dict) and result.get("run_id"):
@@ -178,35 +219,3 @@ def run_tool(ctx, name: str, arguments: dict, *, is_admin: bool) -> dict:
     return result
 
 
-def _run_sensor_tower(name: str, args: dict) -> dict:
-    session = args.get("session") or "default"
-    if name == "sensor_tower_status":
-        tok = _st_valid_token(session)
-        # Second read for the expiry field only (valid_access_token returns just the
-        # token string); idempotent and fine at single-user-demo scope.
-        rec = _st_store.get_tokens(session) if tok is not None else None
-        return {"connected": tok is not None,
-                "expires_in": (rec["expiry"] - time.time()) if rec else None}
-    if name == "sensor_tower_connect":
-        try:
-            url = _st_build_authorize_url(session)
-        except Exception as exc:  # discovery/registration failure
-            _log.exception("sensor_tower_connect failed")
-            return {"status": "error", "error": "connect_failed", "detail": str(exc)}
-        return {"authorize_url": url,
-                "message": "Open this link, sign in with your VNG O365 account, then return here. "
-                           "I'll confirm once you're connected."}
-    tok = _st_valid_token(session)
-    if tok is None:
-        return {"status": "error", "error": "not_connected",
-                "hint": "Call sensor_tower_connect and ask the user to finish the O365 login."}
-    try:
-        if name == "sensor_tower_list_tools":
-            return {"tools": _st_list_tools(tok)}
-        if name == "sensor_tower_call":
-            return _st_call_tool(tok, args["tool"], args.get("arguments") or {})
-    except Exception as exc:
-        _log.exception("sensor tower upstream call failed")
-        return {"status": "error", "error": "upstream_error", "detail": str(exc)}
-    # Defensive: unreachable given the router only forwards the four sensor_tower_* names.
-    return {"status": "error", "error": f"unknown tool: {name!r}"}

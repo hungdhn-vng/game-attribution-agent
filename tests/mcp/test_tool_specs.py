@@ -17,8 +17,14 @@ def test_every_spec_has_object_schema():
         assert t["input_schema"]["type"] == "object"
         assert t["name"] not in {"exec", "browse", "self_edit"}
 
-def test_specs_include_sensor_tower_tools():
+def test_specs_include_st_browser_tools():
     from gaa.mcp import tools as _t
     names = {t["name"] for t in _t.tool_specs(is_admin=False)}
-    assert {"sensor_tower_status", "sensor_tower_connect",
-            "sensor_tower_list_tools", "sensor_tower_call"} <= names
+    assert {"st_app_performance", "st_unified_app_performance", "st_download_channel",
+            "st_app_store", "st_search_optimization", "st_set_app_id"} <= names
+
+def test_old_direct_sensor_tower_tools_removed():
+    from gaa.mcp import tools as _t
+    names = {t["name"] for t in _t.tool_specs(is_admin=True)}
+    assert "sensor_tower_call" not in names and "sensor_tower_list_tools" not in names
+    assert "sensor_tower_status" not in names and "sensor_tower_connect" not in names
