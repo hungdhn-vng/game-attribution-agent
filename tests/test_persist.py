@@ -174,6 +174,20 @@ def test_durable_items_include_extensions(tmp_path, monkeypatch):
     assert "mcp_secrets.json" in arcnames
 
 
+def test_durable_items_include_sensortower_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAA_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("GAA_DB_PATH", str(tmp_path / "gaa.sqlite"))
+    monkeypatch.setenv("GAA_CONFIG_PATH", str(tmp_path / "gaa-config.toml"))
+    from gaa.cli.wiring import build_context
+    from gaa.core.llm.client import FakeLLM
+    from gaa import persist
+    from gaa.sensortower import cache
+    ctx = build_context(llm=FakeLLM({}))
+    cache.put("k", {"v": 1}, end_date="2020-01-01", now=1.0)
+    arcnames = {arc for arc, _p, _d in persist._durable_items(ctx)}
+    assert "sensortower_cache.json" in arcnames
+
+
 def test_durable_items_include_sensortower_state(tmp_path, monkeypatch):
     monkeypatch.setenv("GAA_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("GAA_DB_PATH", str(tmp_path / "gaa.sqlite"))
