@@ -22,7 +22,8 @@ def _res_path() -> str:
 
 def request(built: dict, *, timeout: float = 120.0, poll: float = 0.3, now_fn=time.time) -> dict:
     req_id = uuid.uuid4().hex
-    rp = Path(_req_path()); rp.parent.mkdir(parents=True, exist_ok=True)
+    rp = Path(_req_path())
+    rp.parent.mkdir(parents=True, exist_ok=True)
     tmp = str(rp) + ".tmp"
     with open(tmp, "w") as f:
         json.dump({"req_id": req_id, "st_tool": built["st_tool"], "params": built["params"]}, f)
@@ -32,6 +33,9 @@ def request(built: dict, *, timeout: float = 120.0, poll: float = 0.3, now_fn=ti
     res = Path(_res_path())
     while now_fn() < deadline:
         try:
+            # A partial/torn write by /fulfill raises ValueError → we just retry on the next
+            # poll. /fulfill writes atomically (tmp+replace), so this only guards a rare race;
+            # a permanently torn write would harmlessly time out.
             rec = json.loads(res.read_text())
         except (OSError, ValueError):
             rec = None
