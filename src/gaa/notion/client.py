@@ -30,8 +30,9 @@ class NotionClient:
         headers = {
             "Authorization": f"Bearer {self._token}",
             "Notion-Version": _VERSION,
-            "Content-Type": "application/json",
         }
+        if json is not None:
+            headers["Content-Type"] = "application/json"
         resp = self._http.request(method, f"{_BASE_URL}{path}", headers=headers, json=json)
         if resp.status_code == 429:
             ra = resp.headers.get("Retry-After")

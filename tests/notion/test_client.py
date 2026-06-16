@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 
@@ -13,6 +15,7 @@ def test_search_sends_auth_version_and_returns_results():
         captured["method"] = request.method
         captured["auth"] = request.headers.get("Authorization")
         captured["version"] = request.headers.get("Notion-Version")
+        captured["body"] = json.loads(request.content)
         return httpx.Response(200, json={"results": [{"id": "p1", "object": "page"}]})
 
     client = make_client(handler)
@@ -23,6 +26,9 @@ def test_search_sends_auth_version_and_returns_results():
     assert captured["auth"] == "Bearer ntn_test"
     assert captured["version"] == "2025-09-03"
     assert results == [{"id": "p1", "object": "page"}]
+    assert captured["body"]["query"] == "patch notes"
+    assert captured["body"]["page_size"] == 5
+    assert captured["body"]["filter"] == {"value": "page", "property": "object"}
 
 
 def test_http_error_raises_notion_error_with_status():
