@@ -69,6 +69,20 @@ def test_exchange_code_stores_tokens(monkeypatch):
     assert rec["access_token"] == "AT"
     assert store.get_tokens("default")["expiry"] == 1000.0 + 3600 - 60
 
+def test_exchange_code_rejects_expired_pending(monkeypatch):
+    def handler(req):
+        if "oauth-authorization-server" in req.url.path:
+            return httpx.Response(200, json=DISC)
+        if req.url.path.endswith("/register"):
+            return httpx.Response(201, json={"client_id": "cid", "client_secret": "sec"})
+        return httpx.Response(404)
+    _mount(monkeypatch, handler)
+    url = oauth.build_authorize_url("default", now=1000.0)
+    import urllib.parse as up
+    state = up.parse_qs(up.urlparse(url).query)["state"][0]
+    with pytest.raises(ValueError):  # 601s later → past the 600s TTL
+        oauth.exchange_code("CODE", state, now=1000.0 + 601)
+
 def test_exchange_code_rejects_unknown_state(monkeypatch):
     def handler(req):
         if "oauth-authorization-server" in req.url.path:

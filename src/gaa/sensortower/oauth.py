@@ -20,6 +20,7 @@ _log = logging.getLogger(__name__)
 _ENDPOINTS_CACHE: dict[str, dict] = {}
 _TIMEOUT = 15.0
 _REFRESH_MARGIN_S = 60
+_PENDING_TTL_S = 600  # a connect link is good for ~10 min; after that, reconnect
 
 
 def endpoints() -> dict:
@@ -100,6 +101,10 @@ def exchange_code(code: str, state: str, *, now: float) -> dict:
     pending = store.pop_pending(state)
     if not pending:
         raise ValueError("unknown or expired state")
+    # Pending rows aren't snapshotted to vStorage (they're short-lived, local-only) and
+    # aren't GC'd; enforce the TTL here so a stale/abandoned connect can't be exchanged.
+    if now - pending.get("ts", now) > _PENDING_TTL_S:
+        raise ValueError("authorization expired; please reconnect")
     data = _token_request({
         "grant_type": "authorization_code",
         "code": code,
