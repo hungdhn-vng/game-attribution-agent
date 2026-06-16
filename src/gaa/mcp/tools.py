@@ -65,6 +65,23 @@ _SPECS: dict[str, tuple[str, dict]] = {
     "tools_run": ("Run a promoted tool.",
                   {"type": "object", "properties": {"name": _STR, "run": _STR, "args": {"type": "object"}},
                    "required": ["name"]}),
+    "mcp_add": ("Register a new MCP tool server at runtime (admin). Provide a command (+args) or a url; env maps the server's env var names to stored secret names.",
+                {"type": "object",
+                 "properties": {"name": _STR, "command": _STR,
+                                "args": {"type": "array", "items": _STR},
+                                "url": _STR, "env": {"type": "object"}},
+                 "required": ["name"]}),
+    "mcp_remove": ("Unregister a previously added MCP server (admin).",
+                   {"type": "object", "properties": {"name": _STR}, "required": ["name"]}),
+    "mcp_list": ("List admin-registered MCP servers (admin).",
+                 {"type": "object", "properties": {}}),
+    "secret_set": ("Store/replace a secret value used by registered MCP servers (admin). The value is never echoed back.",
+                   {"type": "object", "properties": {"name": _STR, "value": _STR},
+                    "required": ["name", "value"]}),
+    "secret_unset": ("Delete a stored secret (admin).",
+                     {"type": "object", "properties": {"name": _STR}, "required": ["name"]}),
+    "secret_list": ("List stored secret NAMES only (admin) — never values.",
+                    {"type": "object", "properties": {}}),
 }
 
 
