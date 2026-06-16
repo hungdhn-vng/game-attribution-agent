@@ -6,10 +6,12 @@ Routes:
   POST /chat                  Bearer-gated SSE shim to OpenClaw (Task C3).
   POST /upload                Bearer-gated CSV onboarding (Task C4).
   POST /sensor-tower/callback Bearer-gated; frontend relays an O365 OAuth code to exchange for tokens.
+  POST /sensor-tower/fulfill  Bearer-gated; frontend posts the browser-fetched ST result → result sidecar.
 On startup: nothing (restore is done by the container entrypoint before the gateway boots)."""
 from __future__ import annotations
 
 import hmac
+import json
 import logging
 import os
 import tempfile
@@ -198,7 +200,7 @@ def create_app(ctx=None) -> FastAPI:
         if not body.get("req_id") or ("result" not in body and "error" not in body):
             raise HTTPException(status_code=422, detail="req_id and result|error required")
         path = _st_result_path()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         rec = {"req_id": body["req_id"]}
         if "result" in body:
             rec["result"] = body["result"]
@@ -206,8 +208,7 @@ def create_app(ctx=None) -> FastAPI:
             rec["error"] = body["error"]
         tmp = path + ".tmp"
         with open(tmp, "w") as f:
-            import json as _json
-            _json.dump(rec, f)
+            json.dump(rec, f)
         os.replace(tmp, path)
         return JSONResponse({"status": "success"})
 
