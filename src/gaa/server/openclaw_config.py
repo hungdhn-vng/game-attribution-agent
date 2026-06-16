@@ -65,6 +65,22 @@ def render_config(*, model: str = "google/gemma-4-31b-it", profile: str = "nonad
             }
         },
     }
+    from gaa.server import extensions
+    secrets = {n: extensions.get_secret(n) for n in extensions.list_secret_names()}
+    for s in extensions.list_servers():
+        entry = {}
+        if s.get("command"):
+            entry["command"] = s["command"]
+            entry["args"] = s.get("args", [])
+        if s.get("url"):
+            entry["url"] = s["url"]
+        # env maps the server's env var name -> stored secret name; inject the value
+        entry["env"] = {k: secrets.get(v, "") for k, v in (s.get("env") or {}).items()}
+        cfg["mcp"]["servers"][s["name"]] = entry
+
     if not is_admin:
-        cfg["tools"] = {"allow": ["gaa__*"]}
+        allow = ["gaa__*"]
+        for s in extensions.list_servers():
+            allow.append(f"{s['name']}__*")
+        cfg["tools"] = {"allow": allow}
     return json.dumps(cfg, indent=2)
