@@ -53,8 +53,6 @@ def test_gateway_auth():
     assert auth["token"] == "${OPENCLAW_GATEWAY_TOKEN}"
 
 
-def test_tools_trimmed_to_mcp_only():
-    # Deny all built-in OpenClaw tools (group:openclaw) to ~halve per-turn prompt tokens;
-    # the gaa MCP tools survive (they're plugin-owned, not in group:openclaw).
-    cfg = json.loads(render_config())
-    assert cfg["tools"]["deny"] == ["group:openclaw"]
+def test_nonadmin_profile_allowlists_instead_of_denylist():
+    cfg = json.loads(render_config(profile="nonadmin"))
+    assert cfg["tools"].get("allow") and "deny" not in cfg["tools"]

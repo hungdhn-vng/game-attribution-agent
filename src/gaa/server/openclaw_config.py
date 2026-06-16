@@ -4,9 +4,11 @@ mcp.servers at top level, gateway with http endpoints + token auth, models.mode 
 from __future__ import annotations
 
 import json
+import os
 
 
-def render_config(*, model: str = "google/gemma-4-31b-it") -> str:
+def render_config(*, model: str = "google/gemma-4-31b-it", profile: str = "nonadmin") -> str:
+    is_admin = (profile == "admin")
     cfg = {
         "gateway": {
             "mode": "local",
@@ -38,7 +40,7 @@ def render_config(*, model: str = "google/gemma-4-31b-it") -> str:
                 }
             },
         },
-        "agents": {"defaults": {"model": {"primary": f"maas/{model}"}}},
+        "agents": {"defaults": {"model": {"primary": f"maas/{model}"}, "workspace": os.environ.get("OPENCLAW_WORKSPACE", "/home/node/.openclaw/workspace")}},
         "mcp": {
             "servers": {
                 "gaa": {
@@ -49,7 +51,7 @@ def render_config(*, model: str = "google/gemma-4-31b-it") -> str:
                         "GAA_CACHE_DIR": "${GAA_CACHE_DIR}",
                         "GAA_RUN_SIDECAR": "${GAA_RUN_SIDECAR}",
                         "GAA_PROGRESS": "${GAA_PROGRESS}",
-                        "GAA_MCP_ADMIN": "${GAA_MCP_ADMIN}",
+                        "GAA_MCP_ADMIN": "1" if is_admin else "0",
                         "LLM_BASE_URL": "${LLM_BASE_URL}",
                         "LLM_API_KEY": "${LLM_API_KEY}",
                         "LLM_MODEL": "${LLM_MODEL}",
@@ -62,10 +64,7 @@ def render_config(*, model: str = "google/gemma-4-31b-it") -> str:
                 }
             }
         },
-        # Trim OpenClaw's built-in tools down to only our MCP server's. `group:openclaw`
-        # is every built-in (fs/runtime/web/ui/sessions/memory/media/...); denying it
-        # ~halves per-turn prompt tokens (measured: 22.9k->11.8k plain, 45.9k->23.6k tool)
-        # while KEEPING the gaa MCP tools (they're plugin-owned, not in group:openclaw).
-        "tools": {"deny": ["group:openclaw"]},
     }
+    if not is_admin:
+        cfg["tools"] = {"allow": ["gaa__*"]}
     return json.dumps(cfg, indent=2)
