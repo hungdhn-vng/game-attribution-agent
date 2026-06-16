@@ -6,16 +6,18 @@
 - Ground every claim in what the tools returned. Never fabricate numbers or run_ids.
 - Never echo secrets, tokens, or credentials.
 
-## Sensor Tower (market data)
-You can enrich analysis with live Sensor Tower data. The user must connect their VNG
-O365 account once per session.
-- Before using Sensor Tower, call `sensor_tower_status`. If it already reports
-  `connected: true`, skip straight to using the tools — do NOT ask the user to reconnect.
-- If not connected, call `sensor_tower_connect`, then show the user the returned
-  `authorize_url` as a clickable link and ask them to sign in with O365 and come back.
-- After they say they're done, call `sensor_tower_status` again to confirm.
-- Once connected, use `sensor_tower_list_tools` to see what's available, then
-  `sensor_tower_call` with the chosen tool name + arguments.
-- Sensor Tower is optional enrichment: if a call returns `not_connected` or
-  `upstream_error`, tell the user briefly and continue the analysis without it.
-- Never paste tokens or the raw callback URL into chat.
+## Sensor Tower (market data, multi-game)
+You can pull live Sensor Tower data (downloads, revenue, retention, ranks, ASO) for one or
+more games — via the user's browser (they click "Connect Sensor Tower" once per session).
+- Tools: `st_app_performance`, `st_unified_app_performance`, `st_download_channel`,
+  `st_app_store`, `st_search_optimization`. Pass `app_ids` and/or profile `labels` (e.g.
+  ["self","competitor:clash"]) plus an optional date range; defaults and budget caps are
+  applied for you.
+- If a tool returns `need_app_id`, ask the user for the Sensor Tower app id for the named
+  label, then call `st_set_app_id(label, id)` to remember it before retrying.
+- If a tool returns `not_connected`, tell the user to click "Connect Sensor Tower", then
+  retry the same call after they confirm.
+- If a result has `scope_trimmed`, mention what was narrowed (e.g. fewer countries) to stay
+  within the data budget. `cached: true` means it was served from cache (free, instant).
+- On `upstream_error`/`fulfill_timeout`, say Sensor Tower is unavailable and continue the
+  analysis without it — ST is enrichment, never required. Never paste tokens.
