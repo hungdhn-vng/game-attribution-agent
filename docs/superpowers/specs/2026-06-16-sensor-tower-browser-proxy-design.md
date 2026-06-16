@@ -85,7 +85,7 @@ the runtime.**
 
 | Unit | Responsibility | Depends on |
 |---|---|---|
-| `gaa/mcp/tools.py` (changed) | Agent-facing **guarded** tools: `st_app_performance`, `st_unified_app_performance`, `st_download_channel`, `st_app_store`, `st_search_optimization` (defer `fetch_report`), plus `st_set_app_id`. Simplified schemas: required date range; `app_id`/`keyword` optional (resolved from profile or asked); optional `countries`, `metrics`. Routes to guard+relay. | `guard`, `relay`, profile |
+| `gaa/mcp/tools.py` (changed) | Agent-facing **guarded** tools: `st_app_performance`, `st_unified_app_performance`, `st_download_channel`, `st_app_store`, `st_search_optimization` (defer `fetch_report`), plus `st_set_app_id`. Simplified schemas: required date range; `app_ids`/`labels`/`keyword` optional (**multiple allowed** — resolved from profile or asked); optional `countries`, `metrics`. Routes to guard+relay. | `guard`, `relay`, profile |
 | `gaa/sensortower/guard.py` (new) | Per tool: validate args, **resolve app_id** (arg → profile → `need_app_id`), **fill defaults** (devices/granularity/bundles/metrics), **estimate + cap** data points (trim scope), build the final ST request `{st_tool, params}`. | profile app-id store |
 | `gaa/sensortower/relay.py` (new) | `request(built) → result`: write a *pending* sidecar `{req_id, st_tool, params}`, block-poll for a *result* sidecar (timeout ~120s), return result/timeout; enforce `req_id` correlation; clear sidecars on return. | `GAA_CACHE_DIR` sidecars |
 | profile app-ID store | `get_app_ids(profile)` / `set_app_id(profile, label, id, id_type)` on the active game profile (mutating → vStorage snapshot). | ProfileStore |
@@ -110,8 +110,8 @@ the runtime.**
 ### Data flow (the relay)
 
 ```
-LLM → st_app_performance(app_id?, start_date, end_date, …)
-  guard: resolve app_id (arg→profile→need_app_id) · fill defaults · estimate+cap scope → built request
+LLM → st_app_performance(app_ids?/labels?, start_date, end_date, …)   # one or several games
+  guard: resolve ids (args + labels→profile → need_app_id) · fill defaults · estimate+cap scope → built request
   relay: write pending sidecar {req_id, st_tool, params} ; block-poll result (≤120s)
 front-door SSE poller: pending sidecar → emit st_request {req_id, st_tool, params}
 browser: token? no → fulfill{not_connected}+Connect UI ; yes → MCP call ST → fulfill{result|error}
@@ -132,8 +132,13 @@ relay poll resolves → tool returns to LLM
 Cost = `apps × countries × devices × date_count × bundles`. The guard fills the scary params
 budget-minimally and estimates+caps every query before relay.
 
-**Defaults the guard fills (LLM supplies only app/keyword + dates + optional countries/metrics):**
-- **apps = 1** (the single resolved ID; never auto-broadened).
+**Defaults the guard fills (LLM supplies only the apps/keyword + dates + optional countries/metrics):**
+- **apps** = the resolved set — the active game and/or named competitors. **Multi-game
+  comparison is first-class:** one ST call can carry several ids (`app_id: [...]`). Default
+  to just the active game's `self` id if none named; **cap ≤ 10 apps per call**. App count
+  is bounded by the data-point estimate below, not hard-pinned to 1 (with monthly
+  granularity + a ~90-day window each app is only ~6 data points, so the cap is the binding
+  limit, not the budget).
 - **countries** default `["US"]`; cap ≤ 5 (trim + note).
 - **devices** `["ios-all","android-all"]` for app_performance/download_channel/app_store;
   `["all"]` for the unified tool (it requires one device).
@@ -147,15 +152,19 @@ budget-minimally and estimates+caps every query before relay.
   may narrow.
 
 **Cap check:** estimate data points; if > a safe ceiling (**50,000**, well under the 100k/bundle
-limit), trim in order (countries → date range → granularity) and return a `scope_trimmed` note.
-A single over-broad query cannot drain the shared allowance.
+limit), trim in order (countries → date range → granularity → **drop least-relevant apps as a last
+resort**) and return a `scope_trimmed` note. Apps is trimmed last because the set of games to
+compare is the user's intent. A single over-broad query cannot drain the shared allowance.
 
 ## App-ID resolution + persistence (ask-then-persist)
 
 - Active **game profile** gains an `app_ids` map: `{ label → {id, id_type} }`, e.g.
   `{"self": {"id": 12345, "id_type": "app_id"}, "competitor:clash": {"id": 67890, "id_type": "app_id"}}`.
-- **Resolution order (guard):** explicit tool arg → profile lookup by the label the agent
-  names → else `{status: "need_app_id", label}` so the agent asks the user.
+- **Resolution order (guard):** the agent supplies `app_ids` (raw ids) and/or `labels`
+  (profile labels, e.g. `["self","competitor:clash"]`). The guard resolves each label via the
+  profile map, merges with any raw ids, dedups, and caps ≤ 10. If any named label has no stored
+  id → `{status: "need_app_id", labels: [...unresolved]}` so the agent asks the user for the
+  missing one(s).
 - **`st_set_app_id(label, id, id_type?)`** persists to the active profile (snapshot). Data
   tools also accept a raw `app_id`; when the user supplies one with a label it's persisted.
 - ID types: the four non-unified data tools take `app_id`/`product_id`; the unified tool takes
@@ -163,7 +172,7 @@ A single over-broad query cannot drain the shared allowance.
 
 ## Error contracts (all structured; ST is enrichment, never a hard dependency)
 
-- `need_app_id` → agent asks the user (persists once given).
+- `need_app_id` (carries the unresolved label(s)) → agent asks the user for the missing id(s) (persists once given).
 - `not_connected` → browser has no token → agent says "click Connect," then **re-calls** the
   tool after connect (clean retry; no mid-call pause/resume).
 - `fulfill_timeout` → relay block-poll expired (~120s) → "Sensor Tower didn't respond in time;
