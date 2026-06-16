@@ -55,7 +55,7 @@ def _covered_pairs(ledger: EvidenceLedger) -> set[tuple[str, str]]:
     return pairs
 
 
-def _two_dates(df_metric: pd.DataFrame, start, end):
+def _two_dates(df_metric: pd.DataFrame, start: str | None, end: str | None) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
     """Comparison endpoints for a metric subframe: prefer ctx start/end when present in
     the data, else the metric's own first/last date. Returns (None, None) if <2 dates."""
     dates = sorted(pd.Timestamp(d) for d in df_metric["date"].unique())

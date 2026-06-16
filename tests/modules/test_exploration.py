@@ -69,3 +69,25 @@ def test_two_dates_returns_none_for_single_date():
     df = _frame([{"date": "2026-05-01", "metric": "dau", "value": 1000, "region": "SEA"}])
     s, e = _two_dates(df[df["metric"] == "dau"], None, None)
     assert s is None and e is None
+
+
+def test_two_dates_falls_back_to_first_last_when_bounds_not_in_data():
+    from gaa.core.modules.exploration import _two_dates
+    df = _frame([
+        {"date": "2026-05-01", "metric": "dau", "value": 1000},
+        {"date": "2026-05-08", "metric": "dau", "value": 400},
+    ])
+    s, e = _two_dates(df[df["metric"] == "dau"], "2026-04-01", "2026-06-01")
+    assert s == pd.Timestamp("2026-05-01") and e == pd.Timestamp("2026-05-08")
+
+
+def test_covered_pairs_excludes_non_segment_modules():
+    from gaa.core.modules.exploration import _covered_pairs
+    led = EvidenceLedger()
+    led.add(module="segment", claim="region=SEA explains 40% of the dau move", value="EP 40%",
+            source="internal:dau by region (Adtributor)", source_type="internal", strength="high")
+    led.add(module="anomaly", claim="dau changed -20% over window", value="-20%",
+            source="internal:dau", source_type="internal", strength="high")
+    pairs = _covered_pairs(led)
+    assert ("dau", "region") in pairs
+    assert len(pairs) == 1  # the anomaly entry must not be counted
