@@ -16,3 +16,9 @@ def test_every_spec_has_object_schema():
     for t in tools.tool_specs(is_admin=True):
         assert t["input_schema"]["type"] == "object"
         assert t["name"] not in {"exec", "browse", "self_edit"}
+
+def test_specs_include_sensor_tower_tools():
+    from gaa.mcp import tools as _t
+    names = {t["name"] for t in _t.tool_specs(is_admin=False)}
+    assert {"sensor_tower_status", "sensor_tower_connect",
+            "sensor_tower_list_tools", "sensor_tower_call"} <= names
