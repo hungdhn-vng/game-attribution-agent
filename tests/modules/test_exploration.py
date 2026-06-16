@@ -123,3 +123,31 @@ def test_p1_skips_pairs_already_covered():
     ctx = _ctx(_frame(rows), metric="dau", start="2026-05-01", end="2026-05-08")
     cands = _p1_surprise_scan(ctx, covered={("dau", "region")})
     assert all("by region" not in c.source for c in cands)
+
+
+def test_p2_finds_two_way_interaction():
+    from gaa.core.modules.exploration import _p2_interaction
+    # All four cells equal at start; at end ONLY region=SEA × version=v2.3 collapses.
+    # Neither region nor version alone fully explains it -> interaction residual is the signal.
+    rows = []
+    cells = [("SEA", "v2.3"), ("SEA", "v2.2"), ("NA", "v2.3"), ("NA", "v2.2")]
+    for d in ("2026-05-01",):
+        for reg, ver in cells:
+            rows.append({"date": d, "metric": "dau", "value": 1000, "region": reg, "version": ver})
+    for d in ("2026-05-08",):
+        for reg, ver in cells:
+            val = 200 if (reg, ver) == ("SEA", "v2.3") else 1000
+            rows.append({"date": d, "metric": "dau", "value": val, "region": reg, "version": ver})
+    ctx = _ctx(_frame(rows), metric="dau", start="2026-05-01", end="2026-05-08")
+    cands = _p2_interaction(ctx)
+    assert cands, "expected an interaction candidate"
+    top = cands[0].claim
+    assert "SEA" in top and "v2.3" in top and "interaction" in cands[0].source
+
+
+def test_p2_no_metric_returns_empty():
+    from gaa.core.modules.exploration import _p2_interaction
+    rows = [{"date": "2026-05-01", "metric": "dau", "value": 1000, "region": "SEA"},
+            {"date": "2026-05-08", "metric": "dau", "value": 400, "region": "SEA"}]
+    ctx = _ctx(_frame(rows), metric=None)
+    assert _p2_interaction(ctx) == []

@@ -113,3 +113,62 @@ def _p1_surprise_scan(ctx: AnalysisContext, covered: set[tuple[str, str]]) -> li
                     dedup_key=(metric, dim, str(el["key"])),
                 ))
     return out
+
+
+def _marg_surprise(dfm: pd.DataFrame, dim: str, s, e) -> float:
+    sub = dfm[~is_aggregate_label(dfm[dim])]
+    f = sub[sub["date"] == s].groupby(dim)["value"].sum().to_dict()
+    a = sub[sub["date"] == e].groupby(dim)["value"].sum().to_dict()
+    return adtributor_dimension(f, a)["surprise"] if f and a else 0.0
+
+
+def _p2_interaction(ctx: AnalysisContext) -> list[_Candidate]:
+    """Find the dimension-pair CELL whose delta is not explained by additive main effects
+    (two-way ANOVA-style interaction residual on the start->end delta matrix)."""
+    metric = ctx.metric
+    if not metric:
+        return []
+    dfm = ctx.metrics[ctx.metrics["metric"] == metric]
+    s, e = _two_dates(dfm, ctx.start, ctx.end)
+    if s is None:
+        return []
+    dims = [d for d in CANONICAL_DIMS
+            if d in dfm.columns and not dfm[d].isna().all() and dfm[d].nunique() >= 2]
+    dims = sorted(dims, key=lambda d: _marg_surprise(dfm, d, s, e), reverse=True)[:3]
+    out: list[_Candidate] = []
+    for da, db in itertools.combinations(dims, 2):
+        sub = dfm[~is_aggregate_label(dfm[da]) & ~is_aggregate_label(dfm[db])]
+        f = sub[sub["date"] == s].groupby([da, db])["value"].sum()
+        a = sub[sub["date"] == e].groupby([da, db])["value"].sum()
+        cells = a.index.union(f.index)
+        delta = {c: float(a.get(c, 0.0)) - float(f.get(c, 0.0)) for c in cells}
+        if len(delta) < 2:
+            continue
+        keys_a = sorted({c[0] for c in delta})
+        keys_b = sorted({c[1] for c in delta})
+        grand = _mean(list(delta.values()))
+        row_mean = {ka: _mean([delta.get((ka, kb), 0.0) for kb in keys_b]) for ka in keys_a}
+        col_mean = {kb: _mean([delta.get((ka, kb), 0.0) for ka in keys_a]) for kb in keys_b}
+        total = sum(delta.values())
+        denom = abs(total) if abs(total) > 1e-9 else 1e-9
+        best = None
+        for (ka, kb), d in delta.items():
+            resid = d - (row_mean[ka] + col_mean[kb] - grand)
+            score = abs(resid) / denom
+            # Tie-break by absolute delta magnitude so the actual mover wins over zero-delta cells.
+            if best is None or score > best[0] or (score == best[0] and abs(d) > abs(best[3])):
+                best = (score, ka, kb, d, resid)
+        if best and best[0] >= 0.2:
+            score, ka, kb, d, resid = best
+            out.append(_Candidate(
+                score=score,
+                strength=_strength(score),
+                claim=(f"{metric} move concentrates in {da}={ka} × {db}={kb} "
+                       f"beyond what {da} or {db} explain alone"),
+                value=f"cell Δ {d:+.0f} · interaction residual {resid:+.0f}",
+                source=f"internal:{metric} by {da}×{db} (exploration/interaction)",
+                timeframe=f"{s.date()}..{e.date()}",
+                dedup_key=(metric, f"{da}×{db}", f"{ka}×{kb}"),
+            ))
+    out.sort(key=lambda c: c.score, reverse=True)
+    return out
