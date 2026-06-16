@@ -8,6 +8,11 @@ def test_key_normalizes_equivalent_queries():
     b = {"st_tool": "x", "params": {"bundles": ["b"], "countries": ["VN", "US"], "app_id": [1, 2]}}
     assert cache.make_key(a) == cache.make_key(b)
 
+def test_key_stable_with_mixed_app_id_types():
+    a = {"st_tool": "x", "params": {"app_id": [123, "com.example.app"]}}
+    b = {"st_tool": "x", "params": {"app_id": ["com.example.app", 123]}}
+    assert cache.make_key(a) == cache.make_key(b)  # mixed int/str must not crash
+
 def test_put_get_hit(tmp_path, monkeypatch):
     _env(tmp_path, monkeypatch)
     cache.put("k", {"v": 1}, end_date="2024-01-01", now=1000.0)

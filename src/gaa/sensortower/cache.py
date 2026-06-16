@@ -28,7 +28,10 @@ def _dir() -> Path:
 def make_key(built: dict) -> str:
     def norm(v):
         if isinstance(v, list):
-            return sorted(norm(x) for x in v)
+            # key=str: ST app_id lists can mix int + str (e.g. 123 and "com.x"); a plain
+            # sorted() would raise TypeError on the cross-type compare. str() is only for
+            # ordering — values are preserved, so equivalent lists still hash identically.
+            return sorted((norm(x) for x in v), key=str)
         if isinstance(v, dict):
             return {k: norm(v[k]) for k in sorted(v)}
         return v
