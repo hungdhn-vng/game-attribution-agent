@@ -525,7 +525,7 @@ git commit -m "feat(mcp): expose admin management tools (admin-gated)"
 
 ## Phase 3 — render_config profiles + registry merge
 
-> Adjust the `nonadmin` tool block to the exact syntax confirmed in **Task 0.1 (Spike A)**. The structure below is the best guess (allow-list by server name); the live re-probe in Task 13 is the real validation.
+> **Spike A/C findings applied** (`docs/spikes/2026-06-16-openclaw-tools-reload.md`): non-admin tool block is `{"allow": ["gaa__*"]}` (absolute allowlist — verified built-ins are blocked); admin **omits** the `tools` key (full suite); both gateways share one persona workspace via `agents.defaults.workspace`. The live re-probe in Task 10 is the final validation.
 
 ### Task 5: Per-profile render_config (admin vs nonadmin)
 
@@ -544,19 +544,19 @@ from gaa.server.openclaw_config import render_config
 def test_nonadmin_allowlists_gaa_and_omits_deny():
     cfg = json.loads(render_config(profile="nonadmin"))
     assert "deny" not in cfg.get("tools", {})           # the ineffective blocklist is gone
-    assert cfg["tools"]["allow"]                          # an allow-list IS set
+    assert cfg["tools"]["allow"] == ["gaa__*"]           # verified absolute allowlist (Spike A)
     assert cfg["mcp"]["servers"]["gaa"]["env"]["GAA_MCP_ADMIN"] == "0"
+    assert cfg["agents"]["defaults"]["workspace"]         # shared persona workspace (Spike C)
 
 
-def test_admin_has_no_tool_restriction_and_admin_mcp():
+def test_admin_omits_tools_key_and_admin_mcp():
     cfg = json.loads(render_config(profile="admin"))
-    assert cfg.get("tools", {}).get("allow") in (None, [])   # no allow-list = full suite
-    assert "deny" not in cfg.get("tools", {})
+    assert "tools" not in cfg                             # omitting tools = full built-in suite
     assert cfg["mcp"]["servers"]["gaa"]["env"]["GAA_MCP_ADMIN"] == "1"
 
 
 def test_default_profile_is_nonadmin():
-    assert json.loads(render_config())["tools"].get("allow")
+    assert json.loads(render_config())["tools"]["allow"] == ["gaa__*"]
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -564,25 +564,27 @@ def test_default_profile_is_nonadmin():
 Run: `python -m pytest tests/server/test_config_profiles.py -q`
 Expected: FAIL (no `profile` param).
 
-- [ ] **Step 3: Implement** — change the signature and the tool/MCP-env blocks:
+- [ ] **Step 3: Implement** — add `import os` at the top of the module; change the signature and the tool/MCP-env/workspace blocks:
 
 ```python
 def render_config(*, model: str = "google/gemma-4-31b-it", profile: str = "nonadmin") -> str:
     is_admin = (profile == "admin")
     ...
-    # mcp.servers.gaa.env: set GAA_MCP_ADMIN literally per profile (was "${GAA_MCP_ADMIN}")
+    # mcp.servers.gaa.env: set GAA_MCP_ADMIN literally per profile (was a ${ENV} ref)
     "GAA_MCP_ADMIN": "1" if is_admin else "0",
     ...
-    # Replace the old `"tools": {"deny": ["group:openclaw"]}` with:
-    # Admin → no restriction (full built-in suite). Non-admin → allow-list only gaa.
-    # NOTE: exact allow-list key/value per Spike A (Task 0.1).
-    if is_admin:
-        cfg["tools"] = {}                       # full built-in suite
-    else:
-        cfg["tools"] = {"allow": ["gaa"]}        # only the gaa MCP server's tools
+    # Shared persona workspace so BOTH gateways use one persona (Spike C).
+    cfg["agents"]["defaults"]["workspace"] = os.environ.get(
+        "OPENCLAW_WORKSPACE", "/home/node/.openclaw/workspace")
+    # Tool policy (Spike A, docs/spikes/2026-06-16-openclaw-tools-reload.md):
+    #   non-admin -> absolute allowlist of ONLY the gaa MCP tools (built-ins blocked)
+    #   admin     -> OMIT the tools key entirely -> full built-in suite + gaa tools
+    # deny-by-group does NOT restrict; never use it.
+    if not is_admin:
+        cfg["tools"] = {"allow": ["gaa__*"]}
 ```
 
-Remove the trailing `"tools": {"deny": ["group:openclaw"]}` literal.
+Delete the old trailing `"tools": {"deny": ["group:openclaw"]}` literal; do NOT set a `tools` key for the admin profile.
 
 - [ ] **Step 4: Run to verify pass** — `python -m pytest tests/server/test_config_profiles.py -q`.
 
@@ -630,7 +632,7 @@ def test_nonadmin_allowlist_includes_registered_tools(tmp_path, monkeypatch):
     from gaa.server import extensions
     extensions.add_server(name="crawler", command="npx", args=[], url=None, env={})
     cfg = json.loads(render_config(profile="nonadmin"))
-    assert "crawler" in cfg["tools"]["allow"]              # shared with non-admin
+    assert "crawler__*" in cfg["tools"]["allow"]           # shared with non-admin (wildcard form)
 ```
 
 - [ ] **Step 2: Run to verify failure** — `python -m pytest tests/server/test_config_profiles.py -q` (the two new tests FAIL).
@@ -651,7 +653,7 @@ def test_nonadmin_allowlist_includes_registered_tools(tmp_path, monkeypatch):
         entry["env"] = {k: secrets.get(v, "") for k, v in (s.get("env") or {}).items()}
         cfg["mcp"]["servers"][s["name"]] = entry
         if not is_admin:
-            cfg["tools"]["allow"].append(s["name"])   # share registered tools with non-admin
+            cfg["tools"]["allow"].append(f"{s['name']}__*")   # share registered tools with non-admin
 ```
 
 - [ ] **Step 4: Run to verify pass** — `python -m pytest tests/server/test_config_profiles.py -q`.
@@ -744,7 +746,7 @@ git commit -m "feat(frontdoor): route /chat to admin vs non-admin gateway by is_
 
 ### Task 8: Reload trigger after a management mutation
 
-> Use the mechanism confirmed in **Task 0.2 (Spike B)**. Default below = write a reload-request flag the supervisor (Task 9) watches.
+> **Spike B applied:** OpenClaw supports `openclaw mcp reload` (hot-load a new MCP server, NO gateway restart). The flag-file mechanism below stays — the handler (inside the gaa MCP subprocess) can't drive the gateway directly, so it drops a flag the entrypoint supervisor (Task 9) watches and turns into a `openclaw mcp reload` against each gateway.
 
 **Files:**
 - Modify: `src/gaa/server/extensions.py` (add `request_reload`), `src/gaa/cli/commands/extensions_cmd.py` (call it on mutations)
@@ -800,10 +802,15 @@ git commit -m "feat(extensions): request_reload flag on registry/secret mutation
 
 - [ ] **Step 1: Add env to `Dockerfile`** (after the existing `ENV` block):
 
+> **Spike A/B/C applied:** `OPENCLAW_CONFIG_DIR` is NOT a real env var in this build — use `OPENCLAW_CONFIG_PATH` (the openclaw.json file) + `OPENCLAW_STATE_DIR` (per-gateway state dir) + `--port`. State dirs MUST be per-gateway (sharing cross-contaminates tool policy). The workspace is shared via `agents.defaults.workspace` (set in render_config, Task 5). Reload uses `openclaw mcp reload` (no restart).
+
 ```dockerfile
 ENV OPENCLAW_HOME=/home/node/.openclaw \
-    OPENCLAW_CONFIG_NONADMIN=/home/node/.openclaw-nonadmin \
-    OPENCLAW_CONFIG_ADMIN=/home/node/.openclaw-admin \
+    OPENCLAW_WORKSPACE=/home/node/.openclaw/workspace \
+    OPENCLAW_CONFIG_NONADMIN=/home/node/.openclaw-nonadmin/openclaw.json \
+    OPENCLAW_CONFIG_ADMIN=/home/node/.openclaw-admin/openclaw.json \
+    OPENCLAW_STATE_NONADMIN=/home/node/.openclaw-nonadmin/state \
+    OPENCLAW_STATE_ADMIN=/home/node/.openclaw-admin/state \
     OPENCLAW_URL_NONADMIN=http://127.0.0.1:18789 \
     OPENCLAW_URL_ADMIN=http://127.0.0.1:18790
 ```
@@ -813,20 +820,18 @@ ENV OPENCLAW_HOME=/home/node/.openclaw \
 ```sh
 #!/usr/bin/env sh
 set -eu
-HOME_DIR="${OPENCLAW_HOME:-/home/node/.openclaw}"
-NA="${OPENCLAW_CONFIG_NONADMIN:-/home/node/.openclaw-nonadmin}"
-AD="${OPENCLAW_CONFIG_ADMIN:-/home/node/.openclaw-admin}"
-WS="$HOME_DIR/workspace"
-mkdir -p "$HOME_DIR" "$WS" "$NA" "$AD" "$GAA_CACHE_DIR"
+WS="${OPENCLAW_WORKSPACE:-/home/node/.openclaw/workspace}"
+NA_CFG="$OPENCLAW_CONFIG_NONADMIN"; NA_STATE="$OPENCLAW_STATE_NONADMIN"
+AD_CFG="$OPENCLAW_CONFIG_ADMIN";    AD_STATE="$OPENCLAW_STATE_ADMIN"
+mkdir -p "$WS" "$(dirname "$NA_CFG")" "$NA_STATE" "$(dirname "$AD_CFG")" "$AD_STATE" "$GAA_CACHE_DIR"
 python3 -m gaa.persist restore || true
 
-render() {   # $1 = profile, $2 = config dir
+render() {   # $1 = profile, $2 = output openclaw.json file
   python3 -c "import os; from gaa.server.openclaw_config import render_config; \
-print(render_config(model=os.environ.get('LLM_MODEL','google/gemma-4-31b-it'), profile='$1'))" \
-    > "$2/openclaw.json"
+print(render_config(model=os.environ.get('LLM_MODEL','google/gemma-4-31b-it'), profile='$1'))" > "$2"
 }
-render nonadmin "$NA"
-render admin "$AD"
+render nonadmin "$NA_CFG"
+render admin    "$AD_CFG"
 
 [ -f "$WS/SOUL.md" ]   || cp /opt/gaa/openclaw/SOUL.md   "$WS/SOUL.md"   2>/dev/null || true
 [ -f "$WS/AGENTS.md" ] || cp /opt/gaa/openclaw/AGENTS.md "$WS/AGENTS.md" 2>/dev/null || true
@@ -834,22 +839,21 @@ render admin "$AD"
 export OPENCLAW_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-}"
 
 python3 -m uvicorn gaa.server.app:app --host 0.0.0.0 --port 8080 &
-OPENCLAW_CONFIG_DIR="$NA" openclaw gateway run --bind lan --port 18789 &
-NA_PID=$!
-OPENCLAW_CONFIG_DIR="$AD" openclaw gateway run --bind lan --port 18790 &
-AD_PID=$!
+OPENCLAW_CONFIG_PATH="$NA_CFG" OPENCLAW_STATE_DIR="$NA_STATE" openclaw gateway run --bind lan --port 18789 &
+OPENCLAW_CONFIG_PATH="$AD_CFG" OPENCLAW_STATE_DIR="$AD_STATE" openclaw gateway run --bind lan --port 18790 &
 
-# Reload loop: on the flag (set by request_reload), re-render + restart both gateways.
-# If Spike B finds a hot-reload command, replace the kill/relaunch with it.
+# Reload loop (Spike B): on the flag (set by request_reload), re-render both configs
+# then HOT-reload each gateway's MCP servers WITHOUT a restart. Confirm the exact
+# reload-targeting via `openclaw mcp reload --help` (per-gateway CONFIG_PATH/STATE_DIR
+# env as below, or a --port flag).
 FLAG="$GAA_CACHE_DIR/extensions/reload.flag"
 while true; do
   sleep 3
   if [ -f "$FLAG" ]; then
     rm -f "$FLAG"
-    render nonadmin "$NA"; render admin "$AD"
-    kill "$NA_PID" "$AD_PID" 2>/dev/null || true
-    OPENCLAW_CONFIG_DIR="$NA" openclaw gateway run --bind lan --port 18789 & NA_PID=$!
-    OPENCLAW_CONFIG_DIR="$AD" openclaw gateway run --bind lan --port 18790 & AD_PID=$!
+    render nonadmin "$NA_CFG"; render admin "$AD_CFG"
+    OPENCLAW_CONFIG_PATH="$NA_CFG" OPENCLAW_STATE_DIR="$NA_STATE" openclaw mcp reload || true
+    OPENCLAW_CONFIG_PATH="$AD_CFG" OPENCLAW_STATE_DIR="$AD_STATE" openclaw mcp reload || true
   fi
 done
 ```
