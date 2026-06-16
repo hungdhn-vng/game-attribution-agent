@@ -21,6 +21,7 @@ import jsonschema
 from gaa.server import actions
 from gaa import persist
 from gaa.sensortower import guard as _st_guard, cache as _st_cache, relay as _st_relay_mod, appids as _st_appids
+from gaa.appstore import search as _appstore
 
 _log = logging.getLogger(__name__)
 
@@ -50,6 +51,10 @@ def _st_resolver_for(ctx):
     prof = ctx.profiles.get_active()
     name = prof.name if prof else "__none__"
     return lambda label: _st_appids.resolve(ctx.settings.db_path, name, label)
+
+
+def _appstore_search(query: str, country: str, limit: int) -> list[dict]:
+    return _appstore.search_apps(query, country=country, limit=limit)
 
 
 def _run_st_tool(ctx, name: str, args: dict) -> dict:
@@ -144,6 +149,10 @@ _SPECS: dict[str, tuple[str, dict]] = {
                                {"type": "object", "properties": {**_ST_DATA_SCHEMA["properties"], "keyword": {"type": "array", "items": _STR}}}),
     "st_set_app_id": ("Remember a Sensor Tower app id under a label on the active game profile (e.g. label 'self' or 'competitor:clash').",
                       {"type": "object", "properties": {"label": _STR, "id": {"anyOf": [{"type": "integer"}, {"type": "string"}]}, "id_type": _STR}, "required": ["label", "id"]}),
+    "appstore_search": ("Find apps by name or genre on the public App Store. Returns candidates each with an `app_id` (= the Sensor Tower iOS app id), name, publisher, genre. Use this to turn a game name or genre into an app_id, then pass that id to the st_* tools (and st_set_app_id to remember it).",
+                        {"type": "object",
+                         "properties": {"query": _STR, "country": _STR, "limit": {"type": "integer"}},
+                         "required": ["query"]}),
 }
 
 
@@ -207,6 +216,14 @@ def run_tool(ctx, name: str, arguments: dict, *, is_admin: bool) -> dict:
             except Exception:
                 _log.exception("vStorage snapshot after st_set_app_id failed")
         return result
+    if name == "appstore_search":
+        a = arguments or {}
+        try:
+            apps = _appstore_search(a["query"], a.get("country", "US"), a.get("limit", 8))
+        except Exception as exc:
+            _log.exception("appstore_search failed")
+            return {"status": "error", "error": "appstore_unavailable", "detail": str(exc)}
+        return {"apps": apps}
     result = actions.dispatch(ctx, name, arguments or {}, is_admin=is_admin)
     # analyze returns status="done" (not "success") when the pipeline completes
     if name == "analyze" and isinstance(result, dict) and result.get("run_id"):

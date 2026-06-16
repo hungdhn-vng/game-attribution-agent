@@ -28,3 +28,7 @@ def test_old_direct_sensor_tower_tools_removed():
     names = {t["name"] for t in _t.tool_specs(is_admin=True)}
     assert "sensor_tower_call" not in names and "sensor_tower_list_tools" not in names
     assert "sensor_tower_status" not in names and "sensor_tower_connect" not in names
+
+def test_specs_include_appstore_search():
+    from gaa.mcp import tools as _t
+    assert "appstore_search" in {t["name"] for t in _t.tool_specs(is_admin=False)}

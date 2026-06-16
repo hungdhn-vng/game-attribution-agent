@@ -142,6 +142,28 @@ def test_st_tool_need_app_id(tmp_path, monkeypatch):
                              {"labels": ["ghost"], "start_date": "2024-01-01", "end_date": "2024-02-01"}, is_admin=False)
     assert out["status"] == "error" and out["error"] == "need_app_id" and out["labels"] == ["ghost"]
 
+def test_appstore_search_returns_apps(monkeypatch):
+    monkeypatch.setattr(mcp_tools, "_appstore_search",
+                        lambda query, country, limit: [{"app_id": 1, "name": "G", "platform": "ios"}])
+    out = mcp_tools.run_tool(FakeCtx(), "appstore_search", {"query": "MOBA"}, is_admin=False)
+    assert out == {"apps": [{"app_id": 1, "name": "G", "platform": "ios"}]}
+
+def test_appstore_search_passes_args(monkeypatch):
+    seen = {}
+    def fake(query, country, limit):
+        seen.update(query=query, country=country, limit=limit)
+        return []
+    monkeypatch.setattr(mcp_tools, "_appstore_search", fake)
+    mcp_tools.run_tool(FakeCtx(), "appstore_search", {"query": "RPG", "country": "VN", "limit": 3}, is_admin=False)
+    assert seen == {"query": "RPG", "country": "VN", "limit": 3}
+
+def test_appstore_search_error_is_structured(monkeypatch):
+    def boom(query, country, limit):
+        raise RuntimeError("itunes down")
+    monkeypatch.setattr(mcp_tools, "_appstore_search", boom)
+    out = mcp_tools.run_tool(FakeCtx(), "appstore_search", {"query": "x"}, is_admin=False)
+    assert out["status"] == "error" and out["error"] == "appstore_unavailable"
+
 def test_st_set_app_id_persists(tmp_path, monkeypatch):
     ctx = _ctx(tmp_path, monkeypatch)
     # Create and save a minimal active profile so the tool has something to work with
