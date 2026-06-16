@@ -71,7 +71,8 @@ export function useGaaChat(initial: Turn[] = []) {
           patch((a) => { a.runId = rid ?? null; a.content = stripMarker(acc); });
           if (rid) setLatestRunId(rid);
         } else if (e.type === "st_request") {
-          void fulfillSensorTower(e as { req_id: string; st_tool: string; params: Record<string, unknown> });
+          // Fire-and-forget; swallow a failed fulfill POST (the agent's relay just times out).
+          void fulfillSensorTower(e as { req_id: string; st_tool: string; params: Record<string, unknown> }).catch(() => {});
         }
       });
     } finally {

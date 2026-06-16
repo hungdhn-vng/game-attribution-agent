@@ -58,6 +58,6 @@ describe("fulfillSensorTower", () => {
     }));
     await fulfillSensorTower({ req_id: "R3", st_tool: "t", params: {} });
     const fulfill = posts.find((p) => p.req_id === "R3");
-    expect(fulfill.error.kind).toBe("upstream_error");
+    expect(fulfill).toMatchObject({ req_id: "R3", error: { kind: "upstream_error", detail: expect.stringContaining("500") } });
   });
 });
