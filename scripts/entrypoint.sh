@@ -9,6 +9,10 @@ AD_STATE="${OPENCLAW_STATE_ADMIN:-/home/node/.openclaw-admin/state}"
 # 1. Ensure directories exist before restore
 mkdir -p "$WS" "$(dirname "$NA_CFG")" "$NA_STATE" "$(dirname "$AD_CFG")" "$AD_STATE" "$GAA_CACHE_DIR"
 
+# Sidecar paths shared between the front-door and the MCP server (via openclaw.json env refs)
+export GAA_ST_REQUEST="${GAA_ST_REQUEST:-$GAA_CACHE_DIR/sensortower/st_request.json}"
+export GAA_ST_RESULT="${GAA_ST_RESULT:-$GAA_CACHE_DIR/sensortower/st_result.json}"
+
 # 2. Restore durable state FIRST (workspace + registry + secrets; no-op if VSTORAGE_* unset)
 python3 -m gaa.persist restore || true
 

@@ -51,6 +51,8 @@ def render_config(*, model: str = "google/gemma-4-31b-it", profile: str = "nonad
                         "GAA_CACHE_DIR": "${GAA_CACHE_DIR}",
                         "GAA_RUN_SIDECAR": "${GAA_RUN_SIDECAR}",
                         "GAA_PROGRESS": "${GAA_PROGRESS}",
+                        "GAA_ST_REQUEST": "${GAA_ST_REQUEST}",
+                        "GAA_ST_RESULT": "${GAA_ST_RESULT}",
                         "GAA_MCP_ADMIN": "1" if is_admin else "0",
                         "LLM_BASE_URL": "${LLM_BASE_URL}",
                         "LLM_API_KEY": "${LLM_API_KEY}",

@@ -56,3 +56,12 @@ def test_gateway_auth():
 def test_nonadmin_profile_allowlists_instead_of_denylist():
     cfg = json.loads(render_config(profile="nonadmin"))
     assert cfg["tools"].get("allow") and "deny" not in cfg["tools"]
+
+
+def test_render_includes_st_sidecar_env():
+    import json
+    from gaa.server.openclaw_config import render_config
+    cfg = json.loads(render_config())
+    env = cfg["mcp"]["servers"]["gaa"]["env"]
+    assert env["GAA_ST_REQUEST"] == "${GAA_ST_REQUEST}"
+    assert env["GAA_ST_RESULT"] == "${GAA_ST_RESULT}"
