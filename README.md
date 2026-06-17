@@ -1,140 +1,101 @@
-# Game Attribution Agent — GreenNode Claw-a-thon 2026 (Data Analysis track)
+# Game Attribution Agent (GAA) powered by Rocket (RES)
 
-An AI analyst that reconstructs the **story behind a game's metric movement**, separating
-**internal** causes (your updates, segments, monetization) from **market** causes (genre-wide
-trends, seasonality, competitors) — with **dual-axis confidence** (likelihood + evidence quality)
-and **every claim cited** to an evidence ledger. It presents scenarios, never decisions, and lowers
-confidence honestly when evidence is thin.
+> Claw-a-thon · Data Analysis track
+> *"Revenue dropped. Is it you, or the market?" — GAA answers, with receipts.*
 
-> ⚠️ This agent is AI. Outputs are **cited hypotheses with stated assumptions**, not decisions.
+---
 
-## What it does
-- **Connect any game's data via chat — no code** (CSV or Roblox dashboard export; an LLM proposes the
-  column mapping for you to confirm).
-- Ask *"what's going on with my game?"* → it **discovers the most notable recent movement** and runs
-  four analysis modules → returns an **interactive HTML report** + a chat summary:
-  - **Anomaly** — quantifies the move, finds *when* it broke (change-point) and *how anomalous* (STL).
-  - **Segment** — **Adtributor** root-cause: which version/region/cohort drove it, as a citable %.
-  - **Market** — **CausalImpact-style counterfactual** vs a genre benchmark → "is it us or the market?"
-  - **Competitor & events** — crawled news/social/update signals around the window.
-- Output carries the signature **internal-vs-market overlay** chart and a **likelihood × evidence
-  confidence matrix**.
+## The story we tell
 
-## Architecture
-A self-contained FastAPI **Custom Agent** deployed on GreenNode AgentBase (its own image:
-`/chat` agent loop, `/invocations`, `/runs/<id>/<artifact>` dossier, `/health`). `/chat` is a
-hand-rolled JSON tool-calling loop (one decision per turn) that drives a resumable analysis
-pipeline (`plan → crawl → modules → synth → render`) wrapping a deterministic engine:
-`adapters → canonical schema → modules → Evidence Ledger → synthesizer → self-consistency gate →
-citation validator → HTML report`. The LLM (an OpenAI-compatible MaaS model via `langchain-openai`)
-is used only to route intent, map columns, and write the narrative — it never invents findings.
-See `docs/superpowers/specs/` and `docs/superpowers/plans/`.
+A game producer doesn't open GAA in a panic. Every Monday before standup, the agent
+has already run on last week's numbers and posts a line nobody asked for:
 
-## Run locally
-```bash
-uv venv --python 3.11 .venv && . .venv/bin/activate
-uv pip install -r requirements.txt && pip install -e .
-cp .env.example .env   # fill LLM_API_KEY / LLM_MODEL (see Models)
-uvicorn gaa.server.app:app --port 8080   # serves on :8080 (same entrypoint as the Dockerfile)
-curl localhost:8080/health
-```
+> "SEA retention has been sliding for 3 days. Historically retention leads revenue by
+> ~1 day (corr +0.93). Revenue hasn't moved yet, but it likely will next week if this holds."
 
-## Call it (`POST /invocations`)
-```bash
-EP=<endpoint-url>
-# analyze (after a profile is onboarded)
-curl -X POST $EP/invocations -H 'content-type: application/json' \
-  -H 'X-GreenNode-AgentBase-Session-Id: s1' -H 'X-GreenNode-AgentBase-User-Id: u1' \
-  -d '{"message":"what is going on with my game?"}'
-# onboard a data source (chat-assisted, payload-driven)
-#   {"action":"onboard_propose","adapter":"roblox|csv","csv_path":"..."}    -> proposed mapping
-#   {"action":"onboard_confirm", ...name/platform/genre/adapter/csv_path/mapping...}  -> ingests
-```
-Returns `{ status, mode, hypothesis, markdown_summary, html }` (the `html` is a self-contained,
-offline interactive report).
+The producer asks back, right in the chat — no ticket, no data team:
 
-## Async analyze (job + poll)
+> "Why is SEA dropping? Is it the build we just shipped?"
 
-Analysis runs as a **resumable async job** across up to five pipeline stages
-(`plan → crawl → modules → synth → render`).  Each `/invocations` call
-advances the job as far as the per-request budget allows, then suspends.
+In ~90 seconds the agent doesn't just hand over a number — it **tells the story behind
+the number**, against explicit criteria, on data that is cleanly split **internal vs
+external**, and it **sketches the plausible scenarios and rules them out**:
 
-**Start / continue an analysis**
-```bash
-# First call — starts a new job and runs the first stage(s)
-POST /invocations  {"message": "what is going on with my game?"}
-# Response (may not be done yet):
-{
-  "status": "success", "mode": "analyze",
-  "job_id": "abc123", "job_status": "running",
-  "stage": "crawl", "activity": "...", "done": false
-}
+- **Market scenario** — the fishing genre is cooling → checked against a same-genre
+  benchmark: *not happening*. Rejected.
+- **Internal scenario** — the new build touched spawn rates for exactly the SEA cohort →
+  matches the Notion build log and Discord sentiment. *This is it.*
 
-# Poll until done
-POST /invocations  {"action": "analyze_status", "job_id": "abc123"}
-# When done:
-{
-  "status": "success", "done": true,
-  "hypothesis": {...}, "markdown_summary": "...", "html": "..."
-}
-```
+Every claim is clickable to its evidence and source, with a self-rated confidence.
+The team sees the whole picture on one screen, eliminates the wrong scenario, and decides
+on the spot: roll back the spawn change for SEA only, ship a retention event **this week**
+— before revenue ever breaks. The −25% incident never happens.
 
-The `GAA_REQUEST_BUDGET_S` env var controls how long each call is allowed to
-run before it suspends (default 40 s).  Set `GAA_N_SAMPLES` to control
-self-consistency sampling (default 3).
+**The point:** GAA tells the *story behind the data* — on transparent criteria, on
+visual internal/external evidence, and **reliably** (every number cited, nothing invented)
+— it draws the feasible scenarios, so a decision-maker sees the full picture instead of a
+lone metric, and decides **fast, cleanly, and with trust**.
 
-## Live market benchmark
+---
 
-Benchmark data comes from three tiers, applied in order:
+## How we serve that story — Architecture & Approach
 
-1. **Snapshot floor** (always on) — `src/gaa/data/seed/benchmark_snapshot.json`
-   is seeded into the benchmark store on every cold start.  It ensures
-   `genre_trend` never returns empty even if crawl is disabled or offline.
-   Rebuild the snapshot against live trackers with:
-   ```bash
-   python scripts/build_benchmark_snapshot.py
-   ```
-2. **Quant crawl** (opt-in, `GAA_BENCHMARK_MODE=crawl`) — `RobloxBenchmarkProvider`
-   and `SteamBenchmarkProvider` hit the configured tracker URL templates
-   (`GAA_ROBLOX_DISCOVER_URL_TMPL`, `GAA_ROBLOX_SERIES_URL_TMPL`,
-   `GAA_STEAM_DISCOVER_URL_TMPL`, `GAA_STEAM_SERIES_URL_TMPL`) to fetch live
-   CCU / player-count series for comparator games.
-3. **Perplexity web tier** (opt-in, `PERPLEXITY_API_KEY=pplx-...`) — if the quant
-   crawl yields insufficient data, `WebSearchBenchmarkProvider` queries the
-   **Perplexity sonar** model for a qualitative trend summary with citations.
+![GAA architecture — request path, engine pipeline, and MCP ecosystem](architecture.svg)
 
-## Models
-- **GreenNode AI Platform (MaaS)** — OpenAI-compatible, model **Qwen 3.5 27B**
-  (`qwen/qwen3-5-27b`) via `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`.  Used for intent
-  routing, column mapping, and narrative synthesis.
-- **Perplexity (external, web tier)** — `sonar` model via `PERPLEXITY_API_KEY`, used only when
-  `GAA_BENCHMARK_MODE=crawl` and the quant providers return insufficient data.  Disabled by
-  default; leave `PERPLEXITY_API_KEY` blank to never call Perplexity.
+The agent is one self-hosted runtime on **GreenNode AgentBase** that wraps a
+**deterministic analytics engine**. A plain-language question travels browser → frontend →
+agent → engine; inside the engine a reproducible, offline pipeline plays out; and every
+data source plugs in as an MCP server.
 
-The deterministic analytics (CausalImpact-style counterfactual, Adtributor, change-point) run
-in-process; the LLM only handles routing, column mapping, and narrative synthesis.
+### The engine pipeline (5 resumable stages)
 
-## Data
-Demo internal data is **aggregate, PII-stripped** game metrics (no customer/confidential data).
-External/market data is public (genre benchmark; live Roblox/Steam crawl is configurable via
-`GAA_BENCHMARK_MODE=crawl` + URL templates, with a bundled snapshot as the default floor;
-`GAA_SIGNALS_URL_TMPL` enables live competitor signals).
+| Stage | What it does |
+|---|---|
+| **1. Plan** | Read the question, scan metrics, pinpoint *when* the movement broke (change-point). |
+| **2. Crawl** | Load the genre benchmark — the same-genre (Sensor Tower) comparator. |
+| **3. Modules** | Run segment · market · signals, plus autonomous exploration for unprompted findings. |
+| **4. Synth** | The **only** LLM step — writes the hypothesis, sampled 3× for self-consistency. |
+| **5. Render** | Validate **every** citation, then build the interactive dossier. |
 
-## Deployment (AgentBase Runtime)
-- **Runtime:** `gaa` — `runtime-2951893e-745f-40c5-a6d2-66908941f7cb`
-- **Flavor:** `runtime-s2-general-2x4` (2 vCPU / 4 GB), PUBLIC, 1 replica
-- **Image:** managed Container Registry `vcr.vngcloud.vn/111480-abp111723/gaa`
-- **Endpoint:** `https://endpoint-f6f69523-948a-4763-af77-05359b001b16.agentbase-runtime.aiplatform.vngcloud.vn`
-- Built `linux/amd64`, pushed via `/agentbase-deploy` (`--from-cr`), `--env-file .env`. `GREENNODE_*`
-  credentials are auto-injected by the runtime (not in the image or env file).
+Each call advances as far as its time budget allows, then suspends and resumes — so a long
+analysis never blocks the chat.
 
-### Sensor Tower (optional)
-| Env var | Required | Default | Notes |
-|---|---|---|---|
-| `GAA_ST_BASE_URL` | No | `https://stg-aawp-connector.vnggames.net/sensor-tower-v2` | Sensor Tower MCP server URL |
-| `GAA_ST_REDIRECT_URI` | **Yes** (if using Sensor Tower) | — | Public Vercel callback, e.g. `https://game-attribution-agent.vercel.app/api/sensor-tower/callback`. Must **exactly** match the OAuth client's registered redirect_uri. |
+### The trust contract — why the numbers are reliable
 
-The frontend needs **no new env vars** — it already uses `GAA_BACKEND_URL` + `GAA_AGENT_TOKEN` to relay the OAuth callback server-to-server.
+This is the core of the approach:
 
-## Tests
-`pytest -q` → 177 passing (TDD throughout; engine verified end-to-end with a fake LLM, deploy verified live).
+- **The math is deterministic.** The engine computes every number in-process, no LLM in
+  the loop — same input, same output.
+- **The LLM only writes.** It routes the question, maps CSV columns to the schema, and
+  writes the human-readable narrative. It never invents a finding.
+- **Evidence Ledger + Citation validator.** Every finding lands in the ledger with its
+  source and strength. **No ledger entry → no claim.** That is why GAA cannot hallucinate
+  a number.
+- **It rates its own confidence** (likelihood × evidence, e.g. *Likely × Strong*) and
+  states what it is *not* sure about under "assumptions / gaps."
+
+### The four methods (internal vs external)
+
+| Method | Technique | Answers |
+|---|---|---|
+| **Anomaly** | change-point + STL | how big the move is, and exactly when it broke |
+| **Segment** | Adtributor | which cohort drove it, as a citable % (SEA = 82%) |
+| **Market** | CausalImpact counterfactual | what *would* have happened at market rates — the gap is on you |
+| **Signals** | web + Notion | the "why": builds, player sentiment, competitor events |
+
+Together they answer one question — *is it you, or the market?* — as a split, every number cited.
+
+### Extensibility — it speaks MCP
+
+Every data source is a pluggable **MCP server**: GAA's own analysis tools, Notion
+(read-only build log + player sentiment), Sensor Tower (genre comparator). Anything that
+speaks MCP — Steam, App Store, your warehouse — plugs in **live, by chat, with no
+redeploy**; non-admins stay locked to a safe allowlist.
+
+---
+
+## Demo
+
+See [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) (3-min walkthrough) and [`RUNBOOK.md`](RUNBOOK.md)
+(how to record / what is real vs staged). Behind-the-scenes explainer slides: open
+[`index.html`](index.html).

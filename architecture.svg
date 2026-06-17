@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 695" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial">
+  <defs>
+    <linearGradient id="hub" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0e7490"/><stop offset="1" stop-color="#155e75"/>
+    </linearGradient>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#7b94a0"/>
+    </marker>
+    <style>
+      .card{fill:#ffffff;stroke:#d7e0e5;stroke-width:1.5;rx:13}
+      .t{fill:#16323d;font-weight:700;font-size:15px}
+      .s{fill:#6c7f88;font-size:12px}
+      .lbl{fill:#155e75;font-weight:700;font-size:11px;letter-spacing:.12em}
+      .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+      .pill{fill:#e6f2f5;stroke:#cfe6ea;stroke-width:1}
+      .pillt{fill:#155e75;font-weight:600;font-size:12px}
+      .flow{stroke:#7b94a0;stroke-width:2;fill:none}
+    </style>
+  </defs>
+
+  <!-- ===== Request path ===== -->
+  <text x="40" y="38" class="lbl">REQUEST PATH</text>
+
+  <g>
+    <rect x="40"  y="52" width="200" height="74" rx="13" class="card"/>
+    <text x="58" y="84" class="t">Game team</text>
+    <text x="58" y="104" class="s">asks in plain language,</text>
+    <text x="58" y="120" class="s">uploads a CSV</text>
+  </g>
+  <line x1="244" y1="89" x2="294" y2="89" class="flow" marker-end="url(#arr)"/>
+  <g>
+    <rect x="298" y="52" width="200" height="74" rx="13" class="card"/>
+    <text x="316" y="84" class="t">Web frontend</text>
+    <text x="316" y="104" class="s">chat UI + live dossier</text>
+    <text x="316" y="120" class="s">pane (Next.js / Vercel)</text>
+  </g>
+  <line x1="502" y1="89" x2="552" y2="89" class="flow" marker-end="url(#arr)"/>
+  <g>
+    <rect x="556" y="52" width="200" height="74" rx="13" class="card"/>
+    <text x="574" y="84" class="t">AgentBase agent</text>
+    <text x="574" y="104" class="s">self-hosted OpenClaw</text>
+    <text x="574" y="120" class="s">runtime (GreenNode)</text>
+  </g>
+  <line x1="760" y1="89" x2="810" y2="89" class="flow" marker-end="url(#arr)"/>
+  <g>
+    <rect x="814" y="52" width="160" height="74" rx="13" fill="url(#hub)"/>
+    <text x="832" y="84" class="t" fill="#ffffff">GAA engine</text>
+    <text x="832" y="104" class="s" fill="#cdeef4">analysis tools</text>
+    <text x="832" y="120" class="s" fill="#cdeef4">over MCP</text>
+  </g>
+
+  <line x1="894" y1="130" x2="894" y2="168" class="flow" marker-end="url(#arr)"/>
+
+  <!-- ===== Engine pipeline ===== -->
+  <rect x="40" y="176" width="934" height="232" rx="18" fill="#f6fafb" stroke="#cddbe1" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="64" y="206" class="lbl">INSIDE THE ENGINE — deterministic &amp; reproducible</text>
+
+  <!-- pipeline row -->
+  <g class="mono">
+    <rect x="64"  y="226" width="116" height="58" rx="11" class="card"/>
+    <text x="122" y="252" class="t" text-anchor="middle" font-size="13">CSV</text>
+    <text x="122" y="270" class="s" text-anchor="middle">any format</text>
+
+    <line x1="184" y1="255" x2="204" y2="255" class="flow" marker-end="url(#arr)"/>
+
+    <rect x="208" y="226" width="124" height="58" rx="11" class="card"/>
+    <text x="270" y="248" class="t" text-anchor="middle" font-size="13">Canonical</text>
+    <text x="270" y="265" class="t" text-anchor="middle" font-size="13">schema</text>
+    <text x="270" y="279" class="s" text-anchor="middle">adapters</text>
+
+    <line x1="336" y1="255" x2="356" y2="255" class="flow" marker-end="url(#arr)"/>
+
+    <!-- modules group -->
+    <rect x="360" y="218" width="300" height="74" rx="13" fill="#e6f2f5" stroke="#cfe6ea" stroke-width="1.5"/>
+    <rect x="370" y="234" width="66" height="42" rx="8" class="card"/>
+    <text x="403" y="259" text-anchor="middle" font-size="11" fill="#16323d" font-weight="700">Anomaly</text>
+    <rect x="442" y="234" width="66" height="42" rx="8" class="card"/>
+    <text x="475" y="259" text-anchor="middle" font-size="11" fill="#16323d" font-weight="700">Segment</text>
+    <rect x="514" y="234" width="66" height="42" rx="8" class="card"/>
+    <text x="547" y="259" text-anchor="middle" font-size="11" fill="#16323d" font-weight="700">Market</text>
+    <rect x="586" y="234" width="64" height="42" rx="8" class="card"/>
+    <text x="618" y="259" text-anchor="middle" font-size="11" fill="#16323d" font-weight="700">Signals</text>
+
+    <line x1="664" y1="255" x2="684" y2="255" class="flow" marker-end="url(#arr)"/>
+
+    <rect x="688" y="226" width="128" height="58" rx="11" fill="#0f2330"/>
+    <text x="752" y="248" text-anchor="middle" font-size="13" fill="#ffffff" font-weight="700">Evidence</text>
+    <text x="752" y="265" text-anchor="middle" font-size="13" fill="#ffffff" font-weight="700">Ledger</text>
+    <text x="752" y="279" text-anchor="middle" font-size="10" fill="#9fe3d6">every number</text>
+
+    <line x1="820" y1="255" x2="840" y2="255" class="flow" marker-end="url(#arr)"/>
+
+    <rect x="844" y="226" width="116" height="58" rx="11" fill="url(#hub)"/>
+    <text x="902" y="252" text-anchor="middle" font-size="13" fill="#ffffff" font-weight="700">Synthesizer</text>
+    <text x="902" y="270" text-anchor="middle" font-size="10" fill="#cdeef4">only LLM step</text>
+  </g>
+
+  <!-- second row: validate -> dossier -->
+  <g class="mono">
+    <line x1="902" y1="286" x2="902" y2="312" class="flow" marker-end="url(#arr)"/>
+    <rect x="688" y="320" width="272" height="58" rx="11" class="card"/>
+    <text x="824" y="346" text-anchor="middle" font-size="13" fill="#16323d" font-weight="700">Citation validator — the gate</text>
+    <text x="824" y="364" text-anchor="middle" font-size="11" fill="#b91c1c">no ledger entry → no claim</text>
+
+    <line x1="688" y1="349" x2="660" y2="349" class="flow" marker-end="url(#arr)"/>
+    <rect x="476" y="320" width="178" height="58" rx="11" fill="url(#hub)"/>
+    <text x="565" y="346" text-anchor="middle" font-size="13" fill="#ffffff" font-weight="700">Cited dossier</text>
+    <text x="565" y="364" text-anchor="middle" font-size="10" fill="#cdeef4">interactive · offline</text>
+  </g>
+
+  <text x="64" y="398" class="s mono">5 resumable stages:  plan → crawl → modules → synth → render</text>
+
+  <!-- ===== MCP ecosystem ===== -->
+  <text x="40" y="452" class="lbl">PLUGGABLE OVER MCP</text>
+
+  <g>
+    <rect x="404" y="468" width="172" height="58" rx="13" fill="url(#hub)"/>
+    <text x="490" y="493" text-anchor="middle" class="t" fill="#ffffff">GAA agent</text>
+    <text x="490" y="512" text-anchor="middle" class="s" fill="#cdeef4">MCP hub</text>
+  </g>
+
+  <!-- connectors to connected servers (solid) -->
+  <line x1="490" y1="526" x2="160" y2="560" class="flow"/>
+  <line x1="490" y1="526" x2="480" y2="560" class="flow"/>
+  <line x1="490" y1="526" x2="820" y2="560" class="flow"/>
+  <!-- connectors to extensible servers (dashed) -->
+  <line x1="460" y1="526" x2="240" y2="624" stroke="#9fb6bf" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+  <line x1="520" y1="526" x2="740" y2="624" stroke="#0e7490" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+
+  <!-- connected servers -->
+  <g>
+    <rect x="40"  y="560" width="240" height="50" rx="11" class="card"/>
+    <text x="58" y="583" class="t" font-size="14">GAA analysis</text>
+    <text x="58" y="601" class="s mono">anomaly · segment · market · signals</text>
+  </g>
+  <g>
+    <rect x="370" y="560" width="220" height="50" rx="11" class="card"/>
+    <text x="388" y="583" class="t" font-size="14">Notion</text>
+    <text x="388" y="601" class="s mono">build_updates · sentiment (read-only)</text>
+  </g>
+  <g>
+    <rect x="700" y="560" width="240" height="50" rx="11" class="card"/>
+    <text x="718" y="583" class="t" font-size="14">Sensor Tower</text>
+    <text x="718" y="601" class="s mono">genre comparator · estimates</text>
+  </g>
+
+  <!-- extensible servers -->
+  <g>
+    <rect x="40" y="624" width="400" height="46" rx="11" fill="none" stroke="#9fb6bf" stroke-width="2" stroke-dasharray="5 5"/>
+    <text x="240" y="652" text-anchor="middle" class="s" font-size="13">Steam · App Store · your warehouse</text>
+  </g>
+  <g>
+    <rect x="540" y="624" width="400" height="46" rx="11" fill="none" stroke="#0e7490" stroke-width="2" stroke-dasharray="5 5"/>
+    <text x="740" y="652" text-anchor="middle" class="pillt" font-size="13">+ Any MCP server — added live, by chat</text>
+  </g>
+</svg>

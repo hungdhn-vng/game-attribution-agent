@@ -1,0 +1,208 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GAA — The story we tell</title>
+<style>
+  /* ---- self-contained theme (matches the 01–05 explainer deck) ---- */
+  :root{
+    --bg:#eef3f5; --ink:#16323d; --muted:#6c7f88; --surface:#ffffff; --line:#e2e9ed;
+    --accent:#0e7490; --accent2:#155e75; --accent-soft:#e6f2f5;
+    --good:#0c6b4f; --good-soft:#e7f3ef; --bad:#b91c1c; --bad-soft:#fbeaea;
+    --warn:#b9772a; --internal:#0e7490; --market:#c2902f;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --shadow-sm:0 1px 3px rgba(20,50,61,.07); --shadow:0 14px 34px -12px rgba(20,50,61,.30);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:
+     radial-gradient(1200px 600px at 80% -10%, #e3f0f3 0%, transparent 60%),
+     var(--bg);font-family:ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink)}
+  #viewport{position:fixed;inset:0;display:grid;place-items:center;overflow:hidden}
+  .stage{width:1280px;height:720px;padding:42px 52px;transform-origin:center;display:flex;flex-direction:column}
+  .kicker{font:600 12px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--accent2)}
+  h1{font-size:34px;margin:10px 0 4px;letter-spacing:-.3px}
+  h1 .hl{color:var(--accent)}
+  .sub{color:var(--muted);font-size:15px;margin-bottom:6px}
+  .canvas{flex:1;display:grid;grid-template-columns:1.05fr 1fr;gap:22px;align-items:start;margin-top:10px}
+
+  /* ---- chat column ---- */
+  .chat{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-sm);
+        padding:16px 16px 18px;display:flex;flex-direction:column;gap:12px;min-height:486px}
+  .chat .bar{display:flex;align-items:center;gap:9px;padding-bottom:11px;border-bottom:1px solid var(--line)}
+  .chat .dot{width:10px;height:10px;border-radius:50%}
+  .chat .title{font-weight:700;font-size:14px;margin-left:4px}
+  .chat .who{font:600 11px/1 var(--mono);color:var(--accent2);background:var(--accent-soft);
+        border:1px solid #cfe6ea;border-radius:6px;padding:4px 7px;margin-left:auto}
+  .msg{max-width:88%;font-size:14.5px;line-height:1.5;border-radius:14px;padding:11px 13px;box-shadow:var(--shadow-sm)}
+  .msg .lbl{display:block;font:700 10.5px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;opacity:.8}
+  .agent{align-self:flex-start;background:var(--accent-soft);border:1px solid #cfe6ea;border-top-left-radius:4px}
+  .agent .lbl{color:var(--accent2)}
+  .user{align-self:flex-end;background:#0f2330;color:#e9f6f9;border-top-right-radius:4px}
+  .user .lbl{color:#9fe3d6}
+  .corr{font-family:var(--mono);font-weight:700;color:var(--accent2)}
+  .typing{align-self:flex-start;display:flex;gap:5px;padding:12px 14px;background:var(--accent-soft);border:1px solid #cfe6ea;border-radius:14px}
+  .typing i{width:7px;height:7px;border-radius:50%;background:var(--accent2);opacity:.5;animation:bl 1s infinite}
+  .typing i:nth-child(2){animation-delay:.18s}.typing i:nth-child(3){animation-delay:.36s}
+  @keyframes bl{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+
+  /* ---- scenario board ---- */
+  .board{display:flex;flex-direction:column;gap:13px}
+  .boardhd{font:600 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent2);
+        display:flex;align-items:center;gap:8px}
+  .scn{background:var(--surface);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow-sm);
+       padding:13px 15px;position:relative;transition:.45s}
+  .scn h3{margin:0;font-size:16px;display:flex;align-items:center;gap:9px}
+  .scn .desc{font-size:13px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .verdict{position:absolute;top:13px;right:14px;font:700 11px/1 var(--mono);border-radius:7px;padding:6px 9px;opacity:0;transform:scale(.8);transition:.4s}
+  .scn.market.ruled{border-color:#e7d4b0;background:#fdf8ef;opacity:.72}
+  .scn.market.ruled h3,.scn.market.ruled .desc{text-decoration:line-through;text-decoration-color:#c9a86a}
+  .scn.market .verdict{background:var(--bad-soft);color:var(--bad);border:1px solid #f1c9c9}
+  .scn.internal.confirmed{border-color:#bfe3d4;box-shadow:0 0 0 3px var(--good-soft),var(--shadow-sm)}
+  .scn.internal .verdict{background:var(--good-soft);color:var(--good);border:1px solid #bfe3d4}
+  .scn.show-verdict .verdict{opacity:1;transform:scale(1)}
+  .cit{font:600 10.5px/1 var(--mono);color:var(--accent2);background:var(--accent-soft);border:1px solid #cfe6ea;border-radius:6px;padding:3px 6px;margin-left:4px}
+  .conf{margin-top:9px;font:600 11px/1 var(--mono);color:var(--good);display:inline-flex;align-items:center;gap:6px}
+
+  .decision{background:linear-gradient(135deg,#0e7490,#155e75);color:#fff;border-radius:15px;padding:14px 16px;box-shadow:var(--shadow)}
+  .decision .t{font:700 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#bfeef6}
+  .decision .d{font-size:15px;font-weight:650;margin-top:6px;line-height:1.4}
+  .decision .out{font-size:13px;color:#d6f3f7;margin-top:7px}
+
+  /* ---- reveal / captions ---- */
+  [data-reveal]{opacity:0;transform:translateY(10px);transition:.5s cubic-bezier(.2,.85,.25,1)}
+  [data-reveal].shown{opacity:1;transform:none}
+  .caption{position:absolute;left:0;right:0;bottom:64px;text-align:center;font-size:15px;color:var(--ink);
+        padding:0 60px;opacity:0;transition:.35s;pointer-events:none}
+  .caption b{color:var(--accent2)}
+  .caption.on{opacity:1}
+
+  .foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+  .dots{display:flex;gap:7px}
+  .dots i{width:8px;height:8px;border-radius:50%;background:#c4d2d8;transition:.25s}
+  .dots i.on{background:var(--accent);transform:scale(1.25)}
+  .hint{font:500 12px/1 var(--mono);color:var(--muted)}
+  .nav{position:fixed;right:18px;bottom:16px;display:flex;gap:8px}
+  .nav button{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--surface);
+        color:var(--ink);font-size:17px;cursor:pointer;box-shadow:var(--shadow-sm)}
+  .nav button:hover{border-color:var(--accent);color:var(--accent)}
+</style></head>
+<body><div id="viewport"><div class="stage">
+  <div class="kicker">Behind the scenes · The story we tell</div>
+  <h1>Monday, 8:00am — <span class="hl">before anyone panics</span></h1>
+  <div class="sub">A producer doesn't open GAA in a crisis. The agent already ran on last week's numbers — and speaks first.</div>
+
+  <div class="canvas">
+    <!-- chat transcript -->
+    <div class="chat">
+      <div class="bar">
+        <span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span>
+        <span class="title">Game Analytics Agent</span><span class="who">Hunt Giant Fish</span>
+      </div>
+
+      <div class="msg agent" data-reveal="0">
+        <span class="lbl">✦ Proactive — Monday digest</span>
+        SEA retention has been sliding for <b>3 days</b>. Historically retention <b>leads revenue by ~1 day</b>
+        (<span class="corr">corr +0.93</span>). Revenue hasn't moved yet — but it likely will next week if this holds.
+      </div>
+
+      <div class="msg user" data-reveal="1">
+        <span class="lbl">Producer</span>
+        Why is SEA dropping? Is it the build we just shipped?
+      </div>
+
+      <div class="typing" data-reveal="2"><i></i><i></i><i></i></div>
+
+      <div class="msg agent" data-reveal="5" style="max-width:92%">
+        <span class="lbl">✦ Verdict — in ~90s</span>
+        It's <b>internal</b>, not the market. The <b>05-26 build</b> cut spawn rates for the SEA cohort
+        <span class="cit">L4</span>; the fishing genre is flat <span class="cit">L6</span>.
+        <div class="conf">● confidence: Likely × Strong</div>
+      </div>
+    </div>
+
+    <!-- scenario board -->
+    <div class="board">
+      <div class="boardhd" data-reveal="2">⚖︎ Two scenarios — split internal vs external</div>
+
+      <div class="scn market" data-reveal="3" data-ruleout="4">
+        <div class="verdict">✕ REJECTED</div>
+        <h3>📉 Market</h3>
+        <div class="desc">Is the whole fishing genre cooling? Checked against a same-genre benchmark
+          (Sensor Tower) → <b>not happening</b>.</div>
+      </div>
+
+      <div class="scn internal" data-reveal="3" data-confirm="4">
+        <div class="verdict">✓ CONFIRMED</div>
+        <h3>🛠️ Internal</h3>
+        <div class="desc">The new build touched spawn rates for <b>exactly the SEA cohort</b> — matches the
+          Notion build log <span class="cit">L4</span> and Discord sentiment <span class="cit">L7</span>.</div>
+      </div>
+
+      <div class="decision" data-reveal="5">
+        <div class="t">Decision on the spot</div>
+        <div class="d">Roll back the spawn change for SEA only · ship a retention event <b>this week</b>.</div>
+        <div class="out">→ before revenue ever breaks. The <b>−25% incident never happens.</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- captions -->
+  <div class="caption" data-cap="0">The agent runs every Monday and <b>flags a leading indicator nobody asked for.</b></div>
+  <div class="caption" data-cap="1">The producer just <b>asks back in plain language</b> — no ticket, no data team.</div>
+  <div class="caption" data-cap="2">In ~90s it doesn't hand over a number — it <b>lays out the plausible scenarios.</b></div>
+  <div class="caption" data-cap="3">Each is judged on <b>explicit criteria</b>, with data split <b>internal vs external.</b></div>
+  <div class="caption" data-cap="4">It <b>rules out the market</b> and <b>confirms the internal cause</b> — every claim cited.</div>
+  <div class="caption" data-cap="5">The team sees the <b>whole picture</b> and decides <b>fast, cleanly, with trust.</b></div>
+
+  <div class="foot">
+    <div class="dots"></div>
+    <div class="hint"><b>Space</b> / → advance · ← back · <b>R</b> restart · <b>A</b> autoplay</div>
+  </div>
+</div></div>
+<div class="nav"><button id="prev">‹</button><button id="restart">⟲</button><button id="next">›</button></div>
+
+<script>
+(function(){
+  var stage=document.querySelector('.stage');
+  function fit(){var s=Math.min(innerWidth/1280,innerHeight/720);stage.style.transform='scale('+s+')';}
+  addEventListener('resize',fit);fit();
+
+  var MAX=5, cur=-1, timer=null;
+  var caps=[].slice.call(document.querySelectorAll('.caption'));
+  var dotwrap=document.querySelector('.dots');
+  for(var i=0;i<=MAX;i++){var d=document.createElement('i');dotwrap.appendChild(d);}
+  var dots=[].slice.call(dotwrap.children);
+
+  function render(){
+    document.querySelectorAll('[data-reveal]').forEach(function(el){
+      el.classList.toggle('shown', (+el.getAttribute('data-reveal'))<=cur);
+    });
+    // scenario rule-out / confirm states
+    document.querySelectorAll('[data-ruleout]').forEach(function(el){
+      var on=cur>=+el.getAttribute('data-ruleout');
+      el.classList.toggle('ruled',on);el.classList.toggle('show-verdict',on);
+    });
+    document.querySelectorAll('[data-confirm]').forEach(function(el){
+      var on=cur>=+el.getAttribute('data-confirm');
+      el.classList.toggle('confirmed',on);el.classList.toggle('show-verdict',on);
+    });
+    caps.forEach(function(c){c.classList.toggle('on',(+c.getAttribute('data-cap'))===cur);});
+    dots.forEach(function(d,i){d.classList.toggle('on',i<=cur);});
+  }
+  function go(n){cur=Math.max(0,Math.min(MAX,n));render();}
+  function next(){if(cur<MAX)go(cur+1);}
+  function prev(){if(cur>0)go(cur-1);}
+  function stopAuto(){if(timer){clearInterval(timer);timer=null;}}
+  function auto(){stopAuto();timer=setInterval(function(){if(cur>=MAX){stopAuto();return;}next();},3200);}
+
+  addEventListener('keydown',function(e){
+    if(e.key===' '||e.key==='ArrowRight'){e.preventDefault();stopAuto();next();}
+    else if(e.key==='ArrowLeft'){stopAuto();prev();}
+    else if(e.key==='r'||e.key==='R'){stopAuto();go(0);}
+    else if(e.key==='a'||e.key==='A'){auto();}
+  });
+  document.getElementById('next').onclick=function(){stopAuto();next();};
+  document.getElementById('prev').onclick=function(){stopAuto();prev();};
+  document.getElementById('restart').onclick=function(){stopAuto();go(0);};
+  go(0);
+})();
+</script>
+</body></html>
