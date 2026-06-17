@@ -14,8 +14,8 @@ def test_upload_dispatches_onboard(monkeypatch):
     monkeypatch.setenv("GAA_AGENT_TOKEN", "secret")
     import gaa.server.app as appmod
     calls = []
-    monkeypatch.setattr(appmod, "_onboard_from_csv",
-                        lambda ctx, path, **kw: calls.append(path) or {"status": "success", "run_id": "r1"})
+    monkeypatch.setattr(appmod, "_onboard_from_upload",
+                        lambda ctx, content_b64, **kw: calls.append(content_b64) or {"status": "success", "run_id": "r1"})
     client = TestClient(create_app(ctx=object()))
     r = client.post("/upload", headers={"Authorization": "Bearer secret"},
                     files={"file": ("d.csv", io.BytesIO(b"a,b\n1,2\n"), "text/csv")})
@@ -28,8 +28,8 @@ def test_upload_snapshots_on_success(monkeypatch):
     monkeypatch.setenv("GAA_AGENT_TOKEN", "secret")
     import gaa.server.app as appmod
     snapshot_calls = []
-    monkeypatch.setattr(appmod, "_onboard_from_csv",
-                        lambda ctx, path, **kw: {"status": "success", "run_id": "r1"})
+    monkeypatch.setattr(appmod, "_onboard_from_upload",
+                        lambda ctx, content_b64, **kw: {"status": "success", "run_id": "r1"})
     monkeypatch.setattr(appmod.persist, "snapshot", lambda ctx: snapshot_calls.append(ctx) or True)
     client = TestClient(create_app(ctx=object()))
     r = client.post("/upload", headers={"Authorization": "Bearer secret"},
@@ -43,8 +43,8 @@ def test_upload_no_snapshot_on_failure(monkeypatch):
     monkeypatch.setenv("GAA_AGENT_TOKEN", "secret")
     import gaa.server.app as appmod
     snapshot_calls = []
-    monkeypatch.setattr(appmod, "_onboard_from_csv",
-                        lambda ctx, path, **kw: {"status": "error", "error": "bad csv"})
+    monkeypatch.setattr(appmod, "_onboard_from_upload",
+                        lambda ctx, content_b64, **kw: {"status": "error", "error": "bad csv"})
     monkeypatch.setattr(appmod.persist, "snapshot", lambda ctx: snapshot_calls.append(ctx) or True)
     client = TestClient(create_app(ctx=object()))
     r = client.post("/upload", headers={"Authorization": "Bearer secret"},

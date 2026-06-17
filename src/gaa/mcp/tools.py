@@ -103,10 +103,18 @@ _SPECS: dict[str, tuple[str, dict]] = {
                {"type": "object", "properties": {"run": _STR}, "required": ["run"]}),
     "jobs": ("List analysis runs/jobs.",
              {"type": "object", "properties": {"session": _STR}}),
-    "onboard_propose": ("Propose a data profile from a CSV path (onboarding step 1).",
-                        {"type": "object", "properties": {"csv": _STR, "adapter": _STR}, "required": ["csv"]}),
-    "onboard_confirm": ("Confirm a proposed onboarding profile (onboarding step 2).",
-                        {"type": "object", "properties": {"adapter": _STR}}),
+    "onboard_propose": ("Propose an ingestion plan from a data file or pasted table (onboarding step 1). "
+                        "Accepts pasted `text`, base64 `content_b64` (+ `filename` for type hints), or a `csv` path. "
+                        "Supports CSV/TSV, Excel (.xlsx), JSON/JSONL. Returns {plan, summary, preview, confidence, auto_ok}.",
+                        {"type": "object", "properties": {
+                            "text": _STR, "content_b64": _STR, "filename": _STR, "csv": _STR}}),
+    "onboard_confirm": ("Confirm an ingestion plan and ingest the data (onboarding step 2). "
+                        "Pass the (possibly edited) `plan` JSON plus `name`, `platform`, `genre`, "
+                        "and the same source (`text` / `content_b64` / `csv`).",
+                        {"type": "object", "properties": {
+                            "plan": {"type": "object"}, "name": _STR, "platform": _STR,
+                            "genre": _STR, "text": _STR, "content_b64": _STR, "filename": _STR,
+                            "csv": _STR}, "required": ["plan", "name"]}),
     "profile_list": ("List onboarded game profiles.", {"type": "object", "properties": {}}),
     "profile_use": ("Switch the active game profile.",
                     {"type": "object", "properties": {"name": _STR}, "required": ["name"]}),
