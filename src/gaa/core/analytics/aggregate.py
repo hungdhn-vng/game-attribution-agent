@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from gaa.core.schema.canonical import CANONICAL_DIMS
+from gaa.core.schema.canonical import dim_columns
 
 # Ratio / average metrics — NOT additive across segments.
 RATE_METRICS = {"retention_d1", "retention_d7", "retention_d30", "arppu"}
@@ -33,7 +33,7 @@ def metric_series(df: pd.DataFrame, metric: str) -> pd.Series:
     if sub.empty:
         return pd.Series(dtype="float64")
     # Prefer an explicit pre-aggregated row on whichever dimension carries one.
-    for dim in CANONICAL_DIMS:
+    for dim in dim_columns(sub):
         if dim in sub.columns and sub[dim].notna().any():
             mask = is_aggregate_label(sub[dim])
             if mask.any():

@@ -100,3 +100,21 @@ def test_excludes_aggregate_total_row_from_decomposition():
     assert any("source=" in c for c in claims)
     assert not any("source=Total" in c for c in claims), \
         "the pre-aggregated 'Total' row must not be decomposed as a peer channel"
+
+
+def test_segment_decomposes_a_custom_dimension():
+    from gaa.core.modules.segment import SegmentDecomposition
+    from gaa.core.modules.base import AnalysisContext
+    from gaa.core.schema.ledger import EvidenceLedger
+    rows = []
+    for mode, (v0, v1) in {"ranked": (100, 50), "casual": (100, 100)}.items():
+        rows.append({"date": "2026-05-01", "metric": "dau", "value": float(v0), "game_mode": mode})
+        rows.append({"date": "2026-05-10", "metric": "dau", "value": float(v1), "game_mode": mode})
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"])
+    ctx = AnalysisContext(profile=None, metrics=df, query="q", metric="dau",
+                          start="2026-05-01", end="2026-05-10")
+    led = EvidenceLedger()
+    SegmentDecomposition().run(ctx, led)
+    claims = " ".join(e.claim for e in led.all())
+    assert "game_mode=ranked" in claims

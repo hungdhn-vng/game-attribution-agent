@@ -14,7 +14,7 @@ import pandas as pd
 
 from gaa.core.modules.base import AnalysisContext
 from gaa.core.schema.ledger import EvidenceLedger
-from gaa.core.schema.canonical import CANONICAL_DIMS
+from gaa.core.schema.canonical import dim_columns
 from gaa.core.analytics.adtributor import adtributor_dimension
 from gaa.core.analytics.aggregate import is_aggregate_label, metric_series
 
@@ -83,12 +83,13 @@ def _p1_surprise_scan(ctx: AnalysisContext, covered: set[tuple[str, str]]) -> li
     """For every metric × dimension NOT already covered by a targeted module, run
     Adtributor between the window endpoints and emit its surprising elements."""
     out: list[_Candidate] = []
+    dims = dim_columns(ctx.metrics)
     for metric in sorted(ctx.metrics["metric"].unique()):
         dfm = ctx.metrics[ctx.metrics["metric"] == metric]
         s, e = _two_dates(dfm, ctx.start, ctx.end)
         if s is None:
             continue
-        for dim in CANONICAL_DIMS:
+        for dim in dims:
             if (metric, dim) in covered:
                 continue
             if dim not in dfm.columns or dfm[dim].isna().all():
@@ -133,7 +134,7 @@ def _p2_interaction(ctx: AnalysisContext) -> list[_Candidate]:
     s, e = _two_dates(dfm, ctx.start, ctx.end)
     if s is None:
         return []
-    dims = [d for d in CANONICAL_DIMS
+    dims = [d for d in dim_columns(ctx.metrics)
             if d in dfm.columns and not dfm[d].isna().all() and dfm[d].nunique() >= 2]
     dims = sorted(dims, key=lambda d: _marg_surprise(dfm, d, s, e), reverse=True)[:3]
     out: list[_Candidate] = []

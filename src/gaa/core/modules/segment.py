@@ -3,6 +3,7 @@ from gaa.core.modules.base import AnalysisContext
 from gaa.core.schema.ledger import EvidenceLedger
 from gaa.core.analytics.adtributor import adtributor_dimension
 from gaa.core.analytics.aggregate import is_aggregate_label
+from gaa.core.schema.canonical import dim_columns
 
 DIMS = ["version", "region", "platform", "cohort", "device", "source"]
 
@@ -11,16 +12,17 @@ class SegmentDecomposition:
     name = "segment"
 
     def __init__(self, dims: list | None = None) -> None:
-        self._dims = dims or DIMS
+        self._dims = dims  # None → derive from the data at run time
 
     def run(self, ctx: AnalysisContext, ledger: EvidenceLedger) -> None:
         if not (ctx.metric and ctx.start and ctx.end):
             return
         df = ctx.metrics[ctx.metrics["metric"] == ctx.metric]
+        dims = self._dims if self._dims is not None else dim_columns(ctx.metrics)
         start, end = pd.Timestamp(ctx.start), pd.Timestamp(ctx.end)
 
         best = None  # (dim, adtributor-result)
-        for dim in self._dims:
+        for dim in dims:
             if dim not in df.columns or df[dim].isna().all():
                 continue
             # Drop any pre-aggregated row (e.g. source="Total"); decomposing it as a
