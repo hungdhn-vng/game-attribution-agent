@@ -65,7 +65,7 @@ def read_any(*, content: Optional[bytes] = None, filename: Optional[str] = None,
     if spec is not None:
         return _read_by_format(spec.format, content, text, spec)
     if text is not None:
-        return paste_reader.read_paste(text)
+        return _read_by_format("paste", None, text, None)
     if not content:
         raise IngestError("unreadable_file", "no content provided",
                           "attach a file or paste a table — " + _SUPPORTED)

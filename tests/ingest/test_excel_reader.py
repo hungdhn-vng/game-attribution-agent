@@ -28,3 +28,14 @@ def test_reread_with_spec_is_stable():
     data = _xlsx_with_title_row()
     rt = read_excel_bytes(data, ReadSpec(format="excel", sheet="Data", header_row=1))
     assert list(rt.df.columns) == ["date", "dau", "region"]
+
+
+def test_empty_sheet_raises_no_table_found():
+    import pytest
+    from gaa.core.ingest.detect import IngestError
+    buf = io.BytesIO()
+    # Write a sheet with only blank cells (empty DataFrame writes a headerless sheet)
+    pd.DataFrame([[None, None]]).to_excel(buf, index=False, header=False, engine="openpyxl")
+    with pytest.raises(IngestError) as e:
+        read_excel_bytes(buf.getvalue())
+    assert e.value.code == "no_table_found"

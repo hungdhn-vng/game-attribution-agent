@@ -96,7 +96,8 @@ def cmd_onboard_confirm(ctx, args) -> dict:
     except IngestError as e:
         return e.as_dict()
     except Exception as exc:  # noqa: BLE001
-        return {"status": "error", "error": str(exc)}
+        return {"status": "error", "error": "ingest_failed", "detail": str(exc),
+                "hint": "could not ingest the data with this plan"}
     return {
         "status": "success",
         "name": args.name,

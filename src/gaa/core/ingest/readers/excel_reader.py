@@ -37,6 +37,13 @@ def read_excel_bytes(data: bytes, spec: Optional[ReadSpec] = None) -> RawTable:
     header_row = _find_header_row(xls, sheet, spec)
     df = xls.parse(sheet, header=header_row, keep_default_na=False, na_values=[""])
     df.columns = [str(c).strip() for c in df.columns]
+    if df.empty or len(df.columns) == 0:
+        from gaa.core.ingest.detect import IngestError  # lazy to avoid circular import
+        raise IngestError(
+            "no_table_found",
+            f"no tabular data in sheet {sheet!r}",
+            f"sheets seen: {xls.sheet_names}",
+        )
     notes = []
     if len(xls.sheet_names) > 1:
         notes.append(f"selected sheet '{sheet}' of {xls.sheet_names}")

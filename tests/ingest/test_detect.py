@@ -45,3 +45,12 @@ def test_reread_by_spec_uses_format():
     rt = read_any(content=b"date;dau\n2026-05-01;5\n",
                   spec=ReadSpec(format="csv", delimiter=";"))
     assert list(rt.df.columns) == ["date", "dau"]
+
+
+def test_text_path_wraps_reader_error_as_ingest_error():
+    import pytest
+    # a markdown block that is ONLY a separator row → _read_markdown raises ValueError
+    # (header, *body = rows unpacking fails on empty rows list)
+    with pytest.raises(IngestError) as e:
+        read_any(text="|---|---|\n")
+    assert e.value.code == "unreadable_file"
