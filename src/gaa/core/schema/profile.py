@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
+from gaa.core.schema.ingest_plan import IngestionPlan
+
 
 class ColumnMapping(BaseModel):
     date_col: str
@@ -25,7 +27,8 @@ class GameProfile(BaseModel):
     name: str
     platform: str
     genre: str
-    mapping: ColumnMapping
+    plan: Optional[IngestionPlan] = None
+    mapping: Optional[ColumnMapping] = None  # legacy (wide-only); superseded by plan
     title: Optional[str] = None  # real game title for web/social research (name is a CSV key)
     external_source_config: dict = {}
     created_at: str = Field(default_factory=_now_iso)

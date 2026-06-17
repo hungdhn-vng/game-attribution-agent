@@ -27,3 +27,16 @@ def test_mapping_rejects_unknown_canonical_metric_field():
     import pytest
     with pytest.raises(ValueError):
         ColumnMapping(date_col="dt", metric_cols={"x": ""}, dim_cols={})
+
+
+def test_profile_round_trips_with_plan():
+    from gaa.core.schema.profile import GameProfile
+    from gaa.core.schema.ingest_plan import IngestionPlan, ReadSpec
+    plan = IngestionPlan(read_spec=ReadSpec(format="excel", sheet="Data"),
+                         orientation="wide", date_col="date",
+                         metric_cols={"dau": "dau"}, confidence=0.9)
+    p = GameProfile(name="g", platform="roblox", genre="rpg", plan=plan)
+    again = GameProfile.model_validate_json(p.model_dump_json())
+    assert again.plan.read_spec.sheet == "Data"
+    assert again.plan.metric_cols["dau"] == "dau"
+    assert again.mapping is None   # legacy field now optional
