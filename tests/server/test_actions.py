@@ -5,6 +5,8 @@ from gaa.core.llm.client import FakeLLM
 from gaa.server import actions
 
 _MAPPING = {"date_col": "day", "metric_cols": {"dau": "dau"}, "dim_cols": {"region": "region"}}
+_PLAN = {**_MAPPING, "orientation": "wide", "confidence": 0.95, "notes": [],
+         "read_spec": {"format": "csv", "delimiter": ",", "encoding": "utf-8", "header_row": 0}}
 _SYNTH = {"main_story": "DAU fell.", "rationale": "SEA drop.",
           "causes": {"internal": [], "market": []}, "scenarios": [], "risks": [],
           "assumptions_and_gaps": []}
@@ -42,7 +44,7 @@ def test_analyze_dispatch_returns_run_id(tmp_path, monkeypatch):
     pd.DataFrame({"day": ["2026-05-01", "2026-05-03"], "region": ["SEA", "SEA"],
                   "dau": [1000, 400]}).to_csv(csv, index=False)
     actions.dispatch(ctx, "onboard_confirm",
-                     {"csv": str(csv), "mapping": json.dumps(_MAPPING), "name": "G",
+                     {"csv": str(csv), "plan": json.dumps(_PLAN), "name": "G",
                       "platform": "roblox", "genre": "survival"}, is_admin=True)
     r = actions.dispatch(ctx, "analyze", {"query": "why did dau drop?", "budget": "0"}, is_admin=False)
     assert "run_id" in r
@@ -65,7 +67,7 @@ def test_status_accepts_run_alias(tmp_path, monkeypatch):
     pd.DataFrame({"day": ["2026-05-01", "2026-05-03"], "region": ["SEA", "SEA"],
                   "dau": [1000, 400]}).to_csv(csv, index=False)
     actions.dispatch(ctx, "onboard_confirm",
-                     {"csv": str(csv), "mapping": json.dumps(_MAPPING), "name": "G",
+                     {"csv": str(csv), "plan": json.dumps(_PLAN), "name": "G",
                       "platform": "roblox", "genre": "survival"}, is_admin=True)
     started = actions.dispatch(ctx, "analyze",
                                {"query": "why did dau drop?", "budget": "0"}, is_admin=False)
@@ -81,7 +83,7 @@ def test_onboarding_is_non_admin_exec_still_admin(tmp_path, monkeypatch):
     csv_b64 = base64.b64encode(b"day,region,dau\n2026-05-01,SEA,1000\n2026-05-03,SEA,400\n").decode()
     # onboarding works WITHOUT admin
     r = actions.dispatch(ctx, "onboard_confirm",
-                         {"csv_b64": csv_b64, "mapping": json.dumps(_MAPPING), "name": "G",
+                         {"csv_b64": csv_b64, "plan": json.dumps(_PLAN), "name": "G",
                           "platform": "roblox", "genre": "survival"}, is_admin=False)
     assert r["status"] == "success"
     assert "onboard_confirm" not in actions.ADMIN_ACTIONS

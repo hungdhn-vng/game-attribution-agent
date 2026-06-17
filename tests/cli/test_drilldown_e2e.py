@@ -11,6 +11,8 @@ from gaa.core.store.benchmark_store import BenchmarkStore
 
 
 _MAPPING = {"date_col": "day", "metric_cols": {"dau": "dau"}, "dim_cols": {"region": "region"}}
+_PLAN = {**_MAPPING, "orientation": "wide", "confidence": 0.95, "notes": [],
+         "read_spec": {"format": "csv", "delimiter": ",", "encoding": "utf-8", "header_row": 0}}
 _SYNTH = {
     "main_story": "DAU dropped — internal.",
     "rationale": "SEA drove it.",
@@ -44,7 +46,7 @@ def test_drilldown_then_resynth_then_report(tmp_path):
 
     buf = io.StringIO()
     with redirect_stdout(buf):
-        main(["onboard", "confirm", "--csv", str(csv), "--mapping", json.dumps(_MAPPING),
+        main(["onboard", "confirm", "--csv", str(csv), "--plan", json.dumps(_PLAN),
               "--name", "SurvivalGame", "--platform", "roblox", "--genre", "survival"],
              llm=FakeLLM(_MAPPING), today="2026-06-13")
     BenchmarkStore(os.environ["GAA_CACHE_DIR"] + "/benchmark.sqlite").put_quant(

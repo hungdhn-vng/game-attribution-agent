@@ -11,7 +11,21 @@ from gaa.core.store.profile_store import ProfileStore
 from gaa.core.store.metrics_store import MetricsStore
 
 
-_MAPPING_PRESET = {"date_col": "day", "metric_cols": {"dau": "dau"}, "dim_cols": {"region": "region"}}
+# FakeLLM preset returns a plan body (read_spec is injected by Profiler.propose from the RawTable)
+_PLAN_PRESET = {
+    "orientation": "wide",
+    "date_col": "day",
+    "metric_cols": {"dau": "dau"},
+    "dim_cols": {"region": "region"},
+    "confidence": 0.95,
+    "notes": [],
+}
+
+# Full plan for confirm (includes read_spec since it's passed directly, not via propose)
+_PLAN_WITH_SPEC = {
+    **_PLAN_PRESET,
+    "read_spec": {"format": "csv", "delimiter": ",", "encoding": "utf-8", "header_row": 0},
+}
 
 
 def _write_csv(tmp_path):
@@ -38,22 +52,23 @@ def _run(argv, llm, tmp_path):
     return json.loads(buf.getvalue())
 
 
-def test_onboard_propose_returns_mapping(tmp_path):
+def test_onboard_propose_returns_plan(tmp_path):
     csv = _write_csv(tmp_path)
-    resp = _run(["onboard", "propose", "--csv", csv], FakeLLM(_MAPPING_PRESET), tmp_path)
+    resp = _run(["onboard", "propose", "--csv", csv], FakeLLM(_PLAN_PRESET), tmp_path)
     assert resp["status"] == "success"
-    assert resp["mapping"]["date_col"] == "day"
-    assert resp["mapping"]["metric_cols"] == {"dau": "dau"}
-    assert "message" in resp
+    assert resp["plan"]["date_col"] == "day"
+    assert resp["plan"]["metric_cols"] == {"dau": "dau"}
+    assert resp["auto_ok"] is True          # confidence 0.95 ≥ 0.8, no notes
+    assert "summary" in resp
 
 
 def test_onboard_confirm_persists_and_activates(tmp_path):
     csv = _write_csv(tmp_path)
-    mapping_json = json.dumps(_MAPPING_PRESET)
+    plan_json = json.dumps(_PLAN_WITH_SPEC)
     resp = _run(
-        ["onboard", "confirm", "--csv", csv, "--mapping", mapping_json,
+        ["onboard", "confirm", "--csv", csv, "--plan", plan_json,
          "--name", "MyGame", "--platform", "roblox", "--genre", "survival"],
-        FakeLLM(_MAPPING_PRESET), tmp_path,
+        FakeLLM(_PLAN_PRESET), tmp_path,
     )
     assert resp["status"] == "success"
     assert resp["name"] == "MyGame"
@@ -70,22 +85,22 @@ def test_onboard_preserves_na_region(tmp_path):
     # otherwise parse the string "NA" as NaN and silently null out the region label,
     # excluding North America from every dimensional analysis.
     csv = _write_csv(tmp_path)  # region column includes "NA" rows
-    mapping_json = json.dumps(_MAPPING_PRESET)
+    plan_json = json.dumps(_PLAN_WITH_SPEC)
     _run(
-        ["onboard", "confirm", "--csv", csv, "--mapping", mapping_json,
+        ["onboard", "confirm", "--csv", csv, "--plan", plan_json,
          "--name", "MyGame", "--platform", "roblox", "--genre", "survival"],
-        FakeLLM(_MAPPING_PRESET), tmp_path,
+        FakeLLM(_PLAN_PRESET), tmp_path,
     )
     df = MetricsStore(os.environ["GAA_CACHE_DIR"] + "/metrics").load("MyGame")
     assert df["region"].isna().sum() == 0, "no region should be lost to NA-token parsing"
     assert "NA" in set(df["region"]), "the 'NA' region must be preserved, not parsed as NaN"
 
 
-def test_onboard_confirm_bad_mapping_is_error(tmp_path):
+def test_onboard_confirm_bad_plan_is_error(tmp_path):
     csv = _write_csv(tmp_path)
     resp = _run(
-        ["onboard", "confirm", "--csv", csv, "--mapping", "{not json}",
+        ["onboard", "confirm", "--csv", csv, "--plan", "{not json}",
          "--name", "X", "--platform", "p", "--genre", "g"],
-        FakeLLM(_MAPPING_PRESET), tmp_path,
+        FakeLLM(_PLAN_PRESET), tmp_path,
     )
     assert resp["status"] == "error"

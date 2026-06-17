@@ -11,6 +11,8 @@ from gaa.core.store.benchmark_store import BenchmarkStore
 
 
 _MAPPING = {"date_col": "day", "metric_cols": {"dau": "dau"}, "dim_cols": {"region": "region"}}
+_PLAN = {**_MAPPING, "orientation": "wide", "confidence": 0.95, "notes": [],
+         "read_spec": {"format": "csv", "delimiter": ",", "encoding": "utf-8", "header_row": 0}}
 _SYNTH = {
     "main_story": "DAU dropped — internal.",
     "rationale": "SEA drove it.",
@@ -43,7 +45,7 @@ def test_full_operational_loop(tmp_path):
     }).to_csv(csv, index=False)
 
     # 1. onboard
-    r = _run(["onboard", "confirm", "--csv", str(csv), "--mapping", json.dumps(_MAPPING),
+    r = _run(["onboard", "confirm", "--csv", str(csv), "--plan", json.dumps(_PLAN),
               "--name", "SurvivalGame", "--platform", "roblox", "--genre", "survival"],
              FakeLLM(_MAPPING), tmp_path)
     assert r["status"] == "success"

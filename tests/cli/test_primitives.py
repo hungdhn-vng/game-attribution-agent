@@ -11,6 +11,8 @@ from gaa.core.store.benchmark_store import BenchmarkStore
 
 
 _MAPPING = {"date_col": "day", "metric_cols": {"dau": "dau"}, "dim_cols": {"region": "region"}}
+_PLAN = {**_MAPPING, "orientation": "wide", "confidence": 0.95, "notes": [],
+         "read_spec": {"format": "csv", "delimiter": ",", "encoding": "utf-8", "header_row": 0}}
 _SYNTH = {
     "main_story": "DAU dropped — internal.",
     "rationale": "SEA drove it.",
@@ -42,7 +44,7 @@ def _onboard_and_plan(tmp_path):
         "region": ["SEA", "NA", "SEA", "NA"],
         "dau": [1000, 800, 400, 770],
     }).to_csv(csv, index=False)
-    _run(["onboard", "confirm", "--csv", str(csv), "--mapping", json.dumps(_MAPPING),
+    _run(["onboard", "confirm", "--csv", str(csv), "--plan", json.dumps(_PLAN),
           "--name", "SurvivalGame", "--platform", "roblox", "--genre", "survival"],
          FakeLLM(_MAPPING), tmp_path)
     BenchmarkStore(os.environ["GAA_CACHE_DIR"] + "/benchmark.sqlite").put_quant(
@@ -151,8 +153,10 @@ def _onboard_two_metrics_and_plan(tmp_path):
     mapping = {"date_col": "day",
                "metric_cols": {"dau": "dau", "revenue": "revenue"},
                "dim_cols": {"region": "region"}}
+    plan2 = {**mapping, "orientation": "wide", "confidence": 0.95, "notes": [],
+             "read_spec": {"format": "csv", "delimiter": ",", "encoding": "utf-8", "header_row": 0}}
     from gaa.core.store.benchmark_store import BenchmarkStore
-    _run(["onboard", "confirm", "--csv", str(csv), "--mapping", json.dumps(mapping),
+    _run(["onboard", "confirm", "--csv", str(csv), "--plan", json.dumps(plan2),
           "--name", "TwoMetric", "--platform", "roblox", "--genre", "survival"],
          FakeLLM(mapping), tmp_path)
     BenchmarkStore(os.environ["GAA_CACHE_DIR"] + "/benchmark.sqlite").put_quant(

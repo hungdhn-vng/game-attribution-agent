@@ -36,8 +36,8 @@ class _Args(types.SimpleNamespace):
 _DEFAULTS = {
     "analyze": {"session": "default", "budget": "600", "query": ""},
     "jobs": {"session": None, "prune": None},
-    "onboard_propose": {"adapter": "generic"},
-    "onboard_confirm": {"adapter": "generic"},
+    "onboard_propose": {},
+    "onboard_confirm": {},
     "tools_sync_docs": {"out": None},
     "tools_export": {"out": None},
 }

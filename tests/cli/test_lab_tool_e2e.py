@@ -14,6 +14,8 @@ from gaa.runs.store import RunStore
 
 
 _MAPPING = {"date_col": "day", "metric_cols": {"dau": "dau"}, "dim_cols": {"region": "region"}}
+_PLAN = {**_MAPPING, "orientation": "wide", "confidence": 0.95, "notes": [],
+         "read_spec": {"format": "csv", "delimiter": ",", "encoding": "utf-8", "header_row": 0}}
 _SYNTH = {"main_story": "x", "rationale": "y",
           "causes": {"internal": [{"claim": "c", "evidence_ids": ["L1"], "likelihood": "Likely"}], "market": []},
           "scenarios": [], "risks": [], "assumptions_and_gaps": []}
@@ -48,7 +50,7 @@ def test_scratch_to_promoted_tool_lifecycle(tmp_path):
     csv = tmp_path / "m.csv"
     pd.DataFrame({"day": ["2026-05-01", "2026-05-03"], "region": ["SEA", "SEA"],
                   "dau": [1000, 400]}).to_csv(csv, index=False)
-    _run(["onboard", "confirm", "--csv", str(csv), "--mapping", json.dumps(_MAPPING),
+    _run(["onboard", "confirm", "--csv", str(csv), "--plan", json.dumps(_PLAN),
           "--name", "G", "--platform", "roblox", "--genre", "survival"], FakeLLM(_MAPPING), tmp_path)
     BenchmarkStore(os.environ["GAA_CACHE_DIR"] + "/benchmark.sqlite").put_quant(
         "roblox", "survival", raw={"2026-05-01": 100.0, "2026-05-03": 90.0})
